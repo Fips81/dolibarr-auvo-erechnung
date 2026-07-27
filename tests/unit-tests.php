@@ -892,6 +892,35 @@ lfx_assert(lfx_contains($violations, 'BR-FR-CO-04'), 'contre-épreuve vendeur FR
 echo "U30 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U31 lignes de présentation product_type=9 exclues (titres/sous-totaux)';
+lfx_reset();
+$inv = new LfxFakeInvoice();
+$inv->ref = 'FA2607-0779';
+$inv->thirdparty = lfx_make_party();
+$inv->lines = [
+	// Titre natif Dolibarr (module "Subtotals", special_code 81) : qty = profondeur,
+	// total_ht = 0 (jamais stocké, seulement calculé à l'affichage/PDF).
+	lfx_make_line(0.00, 0.0, 0.00, 1.0, 'SPECTACLE CLE EN MAIN', 9, ['special_code' => 81]),
+	lfx_make_line(1000.00, 20.0, 200.00, 1.0, 'Prestation'),
+	// Sous-total ATM Consulting (special_code 104777) : reprend le montant cumulé
+	// des lignes précédentes -> compterait en double si non exclu.
+	lfx_make_line(1000.00, 20.0, 200.00, 1.0, 'Sous-total spectacle clé en main', 9, ['special_code' => 104777]),
+];
+$inv->total_ht = 1000.00;
+$inv->total_tva = 200.00;
+$inv->total_ttc = 1200.00;
+$w = [];
+$xml = lemonfacturx_build_xml($inv, $mysoc, $w);
+lfx_std_validate($xml, $xsdPath);
+$xp = lfx_xpath($xml);
+lfx_assert_eq(1, $xp->query('//ram:IncludedSupplyChainTradeLineItem')->length, 'seule la ligne facturable réelle est exportée (titre et sous-total exclus)');
+lfx_assert_eq('1000.00', lfx_xp_str($xp, '//ram:LineTotalAmount'), 'pas de double comptage du sous-total dans BT-106');
+lfx_assert_eq('1200.00', lfx_xp_str($xp, '//ram:GrandTotalAmount'), 'GrandTotal = seule ligne réelle');
+lfx_assert_eq('1200.00', lfx_xp_str($xp, '//ram:DuePayableAmount'), 'DuePayable = seule ligne réelle');
+lfx_assert(empty($w), 'aucun warning de mismatch de totaux ('.implode(' ; ', $w).')');
+echo "U31 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

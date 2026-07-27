@@ -394,6 +394,18 @@ function lemonfacturx_filter_billable_lines($lines)
 {
 	$out = [];
 	foreach ((array) $lines as $line) {
+		// product_type=9 est la convention cœur Dolibarr pour les lignes de
+		// présentation (titres, sous-totaux) ajoutées par le module natif
+		// "Subtotals" (special_code 81) ou par des modules tiers comme
+		// ATM Consulting "Sous-total" (special_code 104777). Ces lignes ne
+		// représentent aucun bien/service facturable ; certaines portent un
+		// montant non nul (sous-total affiché), ce qui les ferait compter en
+		// double dans le XML EN16931 si elles n'étaient pas exclues ici.
+		$productType = isset($line->product_type) ? (int) $line->product_type : null;
+		if ($productType === 9) {
+			continue;
+		}
+
 		if ((float) $line->qty == 0 && (float) $line->total_ht == 0) {
 			continue;
 		}
