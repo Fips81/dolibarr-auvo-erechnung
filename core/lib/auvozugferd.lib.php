@@ -2226,7 +2226,7 @@ function auvozugferd_check_latest_release($db, $currentVersion)
 		$latest = null;
 		$htmlUrl = '';
 		if (function_exists('curl_init')) {
-			$url = 'https://api.github.com/repos/Fips81/module-dolibarr-lemonfacturx/releases/latest';
+			$url = 'https://api.github.com/repos/Fips81/auvozugferd/releases/latest';
 			$ch = curl_init($url);
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 			curl_setopt($ch, CURLOPT_USERAGENT, 'AuvoZugferd-UpdateCheck');
@@ -2244,8 +2244,8 @@ function auvozugferd_check_latest_release($db, $currentVersion)
 					$latest  = ltrim($data['tag_name'], 'v');
 					$htmlUrl = $data['html_url'] ?? '';
 					// Validation défensive : on n'accepte qu'une URL github.com officielle du repo
-					if (!preg_match('#^https://github\.com/Fips81/module-dolibarr-lemonfacturx/#', $htmlUrl)) {
-						$htmlUrl = 'https://github.com/Fips81/module-dolibarr-lemonfacturx/releases';
+					if (!preg_match('#^https://github\.com/Fips81/auvozugferd/#', $htmlUrl)) {
+						$htmlUrl = 'https://github.com/Fips81/auvozugferd/releases';
 					}
 				}
 			}

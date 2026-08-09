@@ -1,29 +1,29 @@
 # AuvoZugferd
 
-[![Dernière version](https://img.shields.io/github/v/release/Fips81/module-dolibarr-lemonfacturx?label=version&sort=semver)](https://github.com/Fips81/module-dolibarr-lemonfacturx/releases/latest)
+[![Neueste Version](https://img.shields.io/github/v/release/Fips81/auvozugferd?label=version&sort=semver)](https://github.com/Fips81/auvozugferd/releases/latest)
 
-Module Dolibarr pour la génération automatique de factures **Factur-X EN16931** (PDF/A-3 avec XML CrossIndustryInvoice embarqué) — soit, sous son autre nom, **ZUGFeRD 2.x profil EN16931 (COMFORT)**.
+Dolibarr-Modul zur automatischen Erzeugung von **Factur-X EN16931**-Rechnungen (PDF/A-3 mit eingebettetem CrossIndustryInvoice-XML) — unter ihrem anderen Namen auch bekannt als **ZUGFeRD 2.x Profil EN16931 (COMFORT)**.
 
-Chaque facture client générée dans Dolibarr est automatiquement convertie au format Factur-X, conforme aux règles **BR-FR** (norme XP Z12-012, édition juin 2026) pour la facturation électronique française.
+Jede in Dolibarr erzeugte Kundenrechnung wird automatisch ins Factur-X-Format konvertiert, konform zu den **BR-FR**-Regeln (Norm XP Z12-012, Ausgabe Juni 2026) für die französische elektronische Rechnungsstellung.
 
-Fork privé maintenu par auvo-design (base initiale par [Lemon](https://hellolemon.fr), agence web et communication à Clermont-Ferrand — voir [Licence](#licence)).
+Privater Fork, gepflegt von auvo-design (ursprüngliche Basis von [Lemon](https://hellolemon.fr), Webagentur aus Clermont-Ferrand — siehe [Lizenz](#lizenz)).
 
-## Prérequis
+## Voraussetzungen
 
-- **Dolibarr** 19.0 → 23.x — vérifié à l'activation (`need_dolibarr_version`)
-- **PHP** 8.1+ (testé sur 8.2/8.4) — vérifié à l'activation (`phpmin`)
-- **Fonction `exec()`** : utilisée par défaut pour l'injection PDF (sous-process PHP isolé, le chemin le plus robuste). **Pas strictement obligatoire** : si `exec()` est désactivé (`disable_functions`, hébergements mutualisés durcis), le module bascule automatiquement en injection **in-process**. Le mode est réglable (`AUVOZUGFERD_INJECTION_MODE` : `auto` / `inprocess` / `subprocess`) — voir la section Injection.
-- **Une police PDF à glyphes embarqués** (nécessaire à la validité PDF/A-3). Pas de constante à poser à la main : le module fournit un **sélecteur « Police du PDF généré »** dans sa config, qui marque chaque police ✓ (embarquée, conforme) ou ⚠ (base-14, non conforme). `pdfahelvetica` est proposée par défaut.
+- **Dolibarr** 19.0 → 23.x — bei Aktivierung geprüft (`need_dolibarr_version`)
+- **PHP** 8.1+ (getestet auf 8.2/8.4) — bei Aktivierung geprüft (`phpmin`)
+- **Funktion `exec()`**: standardmäßig für die PDF-Injektion genutzt (isolierter PHP-Subprozess, der robusteste Weg). **Nicht zwingend erforderlich**: ist `exec()` deaktiviert (`disable_functions`, gehärtetes Shared Hosting), schaltet das Modul automatisch auf **In-Process**-Injektion um. Der Modus ist einstellbar (`AUVOZUGFERD_INJECTION_MODE`: `auto` / `inprocess` / `subprocess`) — siehe Abschnitt Injektion.
+- **Eine PDF-Schriftart mit eingebetteten Glyphen** (für PDF/A-3-Gültigkeit erforderlich). Keine Konstante von Hand zu setzen: das Modul liefert einen **Selektor „Schriftart der erzeugten PDF"** in seiner Konfiguration, der jede Schriftart mit ✓ (eingebettet, konform) oder ⚠ (Base-14, nicht konform) markiert. `pdfahelvetica` ist standardmäßig vorgeschlagen.
 
 ## Installation
 
-1. **Télécharger l'archive de la dernière release** sur
-   [github.com/Fips81/module-dolibarr-lemonfacturx/releases/latest](https://github.com/Fips81/module-dolibarr-lemonfacturx/releases/latest).
+1. **Das Archiv der letzten Release herunterladen** von
+   [github.com/Fips81/auvozugferd/releases/latest](https://github.com/Fips81/auvozugferd/releases/latest).
 
-   Récupérer l'asset `module_auvozugferd-X.Y.Z.zip` attaché à la release (et **non** le
-   bouton "Download ZIP" du code source — voir l'avertissement plus bas).
+   Das an die Release angehängte Asset `module_auvozugferd-X.Y.Z.zip` herunterladen (und **nicht** den
+   "Download ZIP"-Button des Quellcodes — siehe Warnung weiter unten).
 
-2. Décompresser et copier le dossier `auvozugferd/` dans le répertoire custom de Dolibarr :
+2. Entpacken und den Ordner `auvozugferd/` in das Custom-Verzeichnis von Dolibarr kopieren:
 
    ```bash
    unzip module_auvozugferd-X.Y.Z.zip
@@ -31,184 +31,184 @@ Fork privé maintenu par auvo-design (base initiale par [Lemon](https://hellolem
    chown -R www-data:www-data /var/www/html/custom/auvozugferd
    ```
 
-3. Activer le module : **Accueil > Configuration > Modules**
-4. Configurer via **Accueil > Configuration > Modules > AuvoZugferd** :
-   - Compte bancaire (IBAN/BIC)
-   - Moyen de paiement par défaut (virement, virement SEPA, prélèvement SEPA, prélèvement)
-   - Identifiants vendeur/acheteur : SIRET en BT-29/BT-46 (schemeID 0009), SIREN en BT-30/BT-47 (schemeID 0002)
-   - Exigibilité TVA (BT-8 : débits / encaissements), cadre de facturation (BT-23)
-   - Mode de gestion d'erreur (best-effort / strict), contrôle des règles métier
-   - Éventuellement chemin PHP CLI, chemin veraPDF et mentions légales
-5. Choisir une **police embarquée** dans le sélecteur **« Police du PDF généré »** de la config du module (`pdfahelvetica` par défaut, marquée ✓)
-6. Vérifier le **diagnostic** en bas de la page de configuration du module (coches vertes = OK)
+3. Modul aktivieren: **Start > Konfiguration > Module**
+4. Konfigurieren über **Start > Konfiguration > Module > AuvoZugferd**:
+   - Bankkonto (IBAN/BIC)
+   - Standard-Zahlungsart (Überweisung, SEPA-Überweisung, SEPA-Lastschrift, Lastschrift)
+   - Verkäufer-/Käufer-Kennungen: SIRET in BT-29/BT-46 (schemeID 0009), SIREN in BT-30/BT-47 (schemeID 0002)
+   - Umsatzsteuer-Fälligkeit (BT-8: Soll-/Ist-Versteuerung), Rechnungsstellungsrahmen (BT-23)
+   - Fehlerbehandlungsmodus (best-effort / strikt), Kontrolle der Geschäftsregeln
+   - Optional: Pfad zur PHP-CLI, Pfad zu veraPDF und gesetzliche Pflichtangaben
+5. Eine **eingebettete Schriftart** im Selektor **„Schriftart der erzeugten PDF"** der Modulkonfiguration wählen (`pdfahelvetica` standardmäßig, mit ✓ markiert)
+6. Die **Diagnose** unten auf der Konfigurationsseite des Moduls prüfen (grüne Häkchen = OK)
 
-> **Attention** — N'utilisez pas le bouton "Download ZIP" de la page d'accueil du dépôt
-> (le code source brut). Cette archive se décompresse en `module-dolibarr-lemonfacturx-main/`
-> au lieu de `auvozugferd/`, ce qui casse l'installation Dolibarr (erreur *"You requested
-> a website or a page that does not exists"* en ouvrant la page de configuration du module).
-> Téléchargez l'asset ZIP de la release, ou clonez directement avec `git clone`
-> (cf. section [Mise à jour](#mise-à-jour)).
+> **Achtung** — Verwenden Sie nicht den "Download ZIP"-Button der Startseite des Repos
+> (der rohe Quellcode). Dieses Archiv entpackt sich zu `auvozugferd-main/`
+> statt zu `auvozugferd/`, was die Dolibarr-Installation kaputt macht (Fehler *"You requested
+> a website or a page that does not exists"* beim Öffnen der Modul-Konfigurationsseite).
+> Laden Sie das ZIP-Asset der Release herunter, oder klonen Sie direkt mit `git clone`
+> (siehe Abschnitt [Update](#update)).
 
-## Mise à jour
+## Update
 
 ```bash
-# Sauvegarder l'ancienne version (au cas où)
+# Alte Version sichern (zur Sicherheit)
 cp -r /var/www/html/custom/auvozugferd /var/www/html/custom/auvozugferd.bak
 
-# Récupérer la nouvelle version
-git clone https://github.com/Fips81/module-dolibarr-lemonfacturx.git /tmp/auvozugferd-new
+# Neue Version holen
+git clone https://github.com/Fips81/auvozugferd.git /tmp/auvozugferd-new
 rm -rf /var/www/html/custom/auvozugferd
 mv /tmp/auvozugferd-new /var/www/html/custom/auvozugferd
 chown -R www-data:www-data /var/www/html/custom/auvozugferd
 ```
 
-Dolibarr ne notifie pas automatiquement des mises à jour d'un module custom ; la page de configuration du module affiche en revanche un bandeau quand une release plus récente est publiée sur GitHub (check 24h, cache en DB). Consulter la section **Changelog** en bas de ce README pour connaître les changements et migrations éventuelles.
+Dolibarr benachrichtigt nicht automatisch über Updates eines Custom-Moduls; die Konfigurationsseite des Moduls zeigt jedoch ein Banner an, wenn eine neuere Release auf GitHub veröffentlicht wurde (Check alle 24h, Cache in der DB). Siehe Abschnitt **Changelog** am Ende dieser README für Änderungen und eventuelle Migrationen.
 
-## Architecture
+## Architektur
 
 ```
 auvozugferd/
-├── core/modules/modAuvoZugferd.class.php   # Descripteur module (n° 486213)
+├── core/modules/modAuvoZugferd.class.php   # Modul-Deskriptor (Nr. 486213)
 ├── core/lib/
-│   ├── auvozugferd.lib.php                 # Générateur XML EN16931
-│   └── auvozugferd_rules.php               # Validateur règles métier (BR-*)
+│   ├── auvozugferd.lib.php                 # XML-Generator EN16931
+│   └── auvozugferd_rules.php               # Validator für Geschäftsregeln (BR-*)
 ├── class/
 │   ├── actions_auvozugferd.class.php       # Hooks afterPDFCreation + invoicecard
-│   └── api_auvozugferd.class.php           # API REST (xml / status)
+│   └── api_auvozugferd.class.php           # REST-API (xml / status)
 ├── scripts/
-│   ├── inject_facturx.php                   # Injection PDF (subprocess, CLI only)
-│   └── export_facturx_batch.php             # Export par lot des XML embarqués
-├── admin/setup.php                          # Page de configuration + diagnostic
-├── langs/fr_FR + en_US/auvozugferd.lang    # Traductions
+│   ├── inject_facturx.php                   # PDF-Injektion (Subprozess, nur CLI)
+│   └── export_facturx_batch.php             # Stapelexport der eingebetteten XML
+├── admin/setup.php                          # Konfigurationsseite + Diagnose
+├── langs/fr_FR + en_US + de_DE/auvozugferd.lang    # Übersetzungen
 ├── tests/
-│   ├── unit-tests.php                       # Tests standalone (sans Dolibarr, CI)
-│   └── run-tests.php                        # Tests d'intégration (fixtures demo/)
-├── docs/LIMITATIONS.md                      # Cas non traités et pourquoi
-└── vendor/                                  # Lib atgp/factur-x v3.3.0 + dépendances
+│   ├── unit-tests.php                       # Standalone-Tests (ohne Dolibarr, CI)
+│   └── run-tests.php                        # Integrationstests (Fixtures aus demo/)
+├── docs/LIMITATIONS.md                      # Nicht behandelte Fälle und Gründe
+└── vendor/                                  # Lib atgp/factur-x v3.4.1 + Abhängigkeiten
 ```
 
-## Fonctionnement
+## Funktionsweise
 
-Le module se branche sur le hook `afterPDFCreation` (contexte `pdfgeneration`). À chaque génération de PDF facture client :
+Das Modul klinkt sich in den Hook `afterPDFCreation` (Kontext `pdfgeneration`) ein. Bei jeder Erzeugung einer Kundenrechnungs-PDF:
 
-1. **Contrôle du périmètre** : multidevise, taxes locales (localtax) et données impossibles → refus propre (PDF classique conservé)
-2. **Vérification** des infos obligatoires (vendeur, acheteur, IBAN, police PDF/A) — warnings consolidés
-3. **Génération du XML** CrossIndustryInvoice EN16931 avec les données de la facture Dolibarr
-4. **Validation interne** : well-formed + XSD EN16931 + **règles métier BR-\*** (sous-ensemble Schematron en PHP)
-5. **Injection** du XML dans le PDF via la lib `atgp/factur-x` (sous-process isolé par défaut, in-process si `exec()` indisponible ; écriture atomique, `AFRelationship=Alternative`)
-6. **Post-validation veraPDF** optionnelle (PDF/A-3b)
+1. **Bereichsprüfung**: Multiwährung, lokale Steuern (localtax) und nicht abbildbare Daten → sauberer Verzicht (klassische PDF bleibt erhalten)
+2. **Prüfung** der Pflichtangaben (Verkäufer, Käufer, IBAN, PDF/A-Schriftart) — konsolidierte Warnungen
+3. **Erzeugung des XML** CrossIndustryInvoice EN16931 mit den Daten der Dolibarr-Rechnung
+4. **Interne Validierung**: well-formed + XSD EN16931 + **Geschäftsregeln BR-\*** (Teilmenge des Schematron in PHP)
+5. **Injektion** des XML in die PDF über die Lib `atgp/factur-x` (standardmäßig isolierter Subprozess, In-Process falls `exec()` nicht verfügbar; atomares Schreiben, `AFRelationship=Alternative`)
+6. **Optionale Post-Validierung mit veraPDF** (PDF/A-3b)
 
-#### Mode d'injection (`AUVOZUGFERD_INJECTION_MODE`)
+#### Injektionsmodus (`AUVOZUGFERD_INJECTION_MODE`)
 
-| Mode | Comportement |
+| Modus | Verhalten |
 |------|--------------|
-| `auto` (défaut) | **Sous-process** si `exec()` est disponible (process PHP isolé, aucun risque de conflit de bibliothèques) ; **in-process** uniquement si `exec()` est désactivé (hébergements mutualisés durcis) |
-| `inprocess` | Injection in-process **uniquement** — jamais d'`exec()`. À réserver aux serveurs sans `exec()` : un conflit de versions FPDF/FPDI avec un autre module peut empêcher l'injection (le module détecte ce cas et conserve le PDF classique) |
-| `subprocess` | Sous-process PHP CLI **uniquement** (comportement historique ; nécessite `exec()`) |
+| `auto` (Standard) | **Subprozess**, falls `exec()` verfügbar ist (isolierter PHP-Prozess, kein Risiko von Bibliothekskonflikten); **In-Process** nur, wenn `exec()` deaktiviert ist (gehärtetes Shared Hosting) |
+| `inprocess` | Injektion **ausschließlich** In-Process — nie `exec()`. Nur für Server ohne `exec()` reservieren: ein Versionskonflikt zwischen FPDF/FPDI und einem anderen Modul kann die Injektion verhindern (das Modul erkennt diesen Fall und behält die klassische PDF) |
+| `subprocess` | **Ausschließlich** PHP-CLI-Subprozess (historisches Verhalten; erfordert `exec()`) |
 
-**Pourquoi le sous-process par défaut** : l'in-process charge la lib d'injection (`setasign/fpdi` + `setasign/fpdf`) dans la requête web, où un autre composant (le `tcpdi` de Dolibarr, un autre module) peut avoir déjà chargé une version **incompatible** de FPDF → erreur fatale de compilation non rattrapable. Le sous-process tourne dans un process PHP vierge, sans conflit possible. Réglable dans **Configuration → bloc « Technique »**.
+**Warum standardmäßig der Subprozess**: In-Process lädt die Injektionsbibliothek (`setasign/fpdi` + `setasign/fpdf`) in die Web-Anfrage, wo eine andere Komponente (das `tcpdi` von Dolibarr, ein anderes Modul) bereits eine **inkompatible** Version von FPDF geladen haben kann → nicht abfangbarer fataler Kompilierungsfehler. Der Subprozess läuft in einem jungfräulichen PHP-Prozess, ohne möglichen Konflikt. Einstellbar unter **Konfiguration → Block „Technik"**.
 
-Sur la **fiche facture** (facture validée), deux boutons :
-- **Vérifier Factur-X** : extrait le XML embarqué du PDF et le revalide (XSD + règles métier) — à utiliser avant envoi
-- **Régénérer Factur-X** : régénère le PDF (et donc l'injection) — utile après une mise à jour du module ou une correction de données
+Auf der **Rechnungsfiche** (validierte Rechnung), zwei Buttons:
+- **ZUGFeRD prüfen**: extrahiert das eingebettete XML aus der PDF und validiert es erneut (XSD + Geschäftsregeln) — vor dem Versand zu verwenden
+- **ZUGFeRD neu erzeugen**: erzeugt die PDF (und damit die Injektion) neu — nützlich nach einem Modul-Update oder einer Datenkorrektur
 
-### Support des modèles ODT (depuis 3.8.0)
+### Unterstützung von ODT-Vorlagen (seit 3.8.0)
 
-Par défaut, l'injection Factur-X ne s'opère que sur les modèles de facture **TCPDF natifs** (sponge / crabe / octopus), via le hook `afterPDFCreation`. Les modèles **ODT** produisent un fichier `.odt` (puis un `.pdf` après conversion) et ne déclenchent que des hooks ODT : sans configuration spécifique, aucune injection n'avait lieu.
+Standardmäßig erfolgt die Factur-X-Injektion nur bei **nativen TCPDF**-Rechnungsvorlagen (sponge / crabe / octopus), über den Hook `afterPDFCreation`. **ODT**-Vorlagen erzeugen eine `.odt`-Datei (dann eine `.pdf` nach Konvertierung) und lösen nur ODT-Hooks aus: ohne spezielle Konfiguration fand keine Injektion statt.
 
-Depuis la 3.8.0, le module se branche aussi sur le hook `afterODTCreation` (contexte `odtgeneration`) et injecte le XML dans le PDF issu de la conversion LibreOffice. **Deux prérequis** côté Dolibarr (**Configuration → Divers → Autres**) :
+Seit 3.8.0 klinkt sich das Modul auch in den Hook `afterODTCreation` (Kontext `odtgeneration`) ein und injiziert das XML in die aus der LibreOffice-Konvertierung entstandene PDF. **Zwei Voraussetzungen** auf Dolibarr-Seite (**Konfiguration → Sonstiges → Weitere**):
 
-| Constante | Valeur | Rôle |
+| Konstante | Wert | Rolle |
 |-----------|--------|------|
-| `MAIN_ODT_AS_PDF` | `libreoffice` | Convertit le `.odt` en `.pdf` à la génération (nécessite **LibreOffice installé** sur le serveur, binaire `soffice` accessible) |
-| `MAIN_ODT_AS_PDFA` | `1` | Force l'export en **PDF/A-1** (PDF 1.4). Indispensable : sans ça, LibreOffice produit un PDF ≥ 1.5 (table xref compressée) que la bibliothèque d'injection (FPDI) ne sait pas lire, et l'injection échoue proprement avec un avertissement |
+| `MAIN_ODT_AS_PDF` | `libreoffice` | Konvertiert die `.odt` bei der Erzeugung in eine `.pdf` (erfordert **auf dem Server installiertes LibreOffice**, erreichbares Binary `soffice`) |
+| `MAIN_ODT_AS_PDFA` | `1` | Erzwingt den Export als **PDF/A-1** (PDF 1.4). Unverzichtbar: ohne das erzeugt LibreOffice eine PDF ≥ 1.5 (komprimierte Xref-Tabelle), die die Injektionsbibliothek (FPDI) nicht lesen kann, und die Injektion schlägt sauber mit einer Warnung fehl |
 
-Comportement **best-effort** : si l'un de ces prérequis manque (conversion désactivée, PDF/A non forcé, PDF introuvable, LibreOffice absent), le module **n'injecte pas**, conserve le PDF/ODT classique et affiche un **avertissement clair** indiquant la constante à poser — jamais de fatale ni de PDF corrompu. Le mode strict (`AUVOZUGFERD_STRICT_MODE`) transforme cet avertissement en erreur bloquante, comme pour le flux TCPDF.
+**Best-Effort**-Verhalten: fehlt eine dieser Voraussetzungen (Konvertierung deaktiviert, PDF/A nicht erzwungen, PDF nicht auffindbar, LibreOffice fehlt), **injiziert das Modul nicht**, behält die klassische PDF/ODT und zeigt eine **klare Warnung** mit der zu setzenden Konstante — nie eine Fatal Error oder eine beschädigte PDF. Der Strikt-Modus (`AUVOZUGFERD_STRICT_MODE`) macht aus dieser Warnung einen blockierenden Fehler, wie beim TCPDF-Ablauf.
 
-> **Statut** — la chaîne d'injection a été **validée en interne sur LibreOffice 7.4** (le PDF/A-1 produit par LibreOffice est lu par la bibliothèque d'injection (FPDI), le Factur-X s'y embarque, le handler `afterODTCreation` dérive le bon PDF et injecte) **et en condition réelle** : un utilisateur a confirmé la génération d'une facture via modèle ODT sur son Dolibarr, avec le XML Factur-X présent dans le PDF (Factur-X principal + 2e PDF Chorus). Sur des templates variés (`.odt`/`.ods`), il reste conseillé de vérifier le PDF avec un validateur Factur-X (bouton **Vérifier Factur-X** de la fiche facture, ou un validateur en ligne type FNFE-MPE) pour confirmer le niveau PDF/A-3. Remontez tout problème via [SECURITY.md](SECURITY.md) / r.vogel@auvo-design.de.
+> **Status** — die Injektionskette wurde **intern auf LibreOffice 7.4 validiert** (die von LibreOffice erzeugte PDF/A-1 wird von der Injektionsbibliothek (FPDI) gelesen, das ZUGFeRD/Factur-X wird darin eingebettet, der Handler `afterODTCreation` leitet die richtige PDF ab und injiziert) **und unter realen Bedingungen**: ein Nutzer hat die Erzeugung einer Rechnung über ein ODT-Template auf seinem Dolibarr bestätigt, mit dem Factur-X-XML in der PDF vorhanden (Haupt-Factur-X + 2. PDF Chorus). Bei unterschiedlichen Vorlagen (`.odt`/`.ods`) bleibt es ratsam, die PDF mit einem Factur-X-Validator zu prüfen (Button **ZUGFeRD prüfen** der Rechnungsfiche, oder ein Online-Validator wie FNFE-MPE), um das PDF/A-3-Niveau zu bestätigen. Probleme bitte über [SECURITY.md](SECURITY.md) / r.vogel@auvo-design.de melden.
 >
-> **Activation** : ce nouveau contexte de hook n'est pris en compte qu'après **désactivation/réactivation** du module (la désactivation ne supprime aucune donnée).
+> **Aktivierung**: dieser neue Hook-Kontext wird erst nach **Deaktivierung/Reaktivierung** des Moduls berücksichtigt (die Deaktivierung löscht keine Daten).
 
-### Sécurité
+### Sicherheit
 
-- Scripts CLI (`scripts/`, `tests/`, `demo/`) protégés par `PHP_SAPI === 'cli'` **et** `.htaccess` `Require all denied`
-- **`exec()` non obligatoire** : sur un hébergement durci qui le désactive, le module bascule en injection in-process et reste fonctionnel (compatibilité mutualisés). Quand le sous-process est utilisé (cas par défaut), la commande est protégée : `escapeshellarg()` sur tous les tokens, binaire PHP CLI configurable via `AUVOZUGFERD_PHP_CLI_PATH`, validé par regex et `is_executable()` si absolu
-- Écriture **atomique** du PDF (fichier temporaire + `rename()`), quel que soit le mode
-- Validation XML interne avant injection PDF (well-formed + XSD EN16931 + règles métier)
-- Mode `AUVOZUGFERD_STRICT_MODE` : choisir fail-open (best-effort) vs fail-closed (strict)
-- CSRF sur le POST admin et sur les actions de la fiche facture (`currentToken()`)
-- API REST : droits `facture->lire` + `_checkAccessToResource()` ; boutons fiche : droits `lire`/`creer`
-- Un seul appel HTTP sortant : check de version GitHub toutes les 24h (cache en DB, échecs inclus)
+- CLI-Skripte (`scripts/`, `tests/`, `demo/`) geschützt durch `PHP_SAPI === 'cli'` **und** `.htaccess` `Require all denied`
+- **`exec()` nicht zwingend**: auf einem gehärteten Hosting, das es deaktiviert, schaltet das Modul auf In-Process-Injektion um und bleibt funktionsfähig (Kompatibilität mit Shared Hosting). Wird der Subprozess genutzt (Standardfall), ist der Befehl abgesichert: `escapeshellarg()` auf allen Tokens, PHP-CLI-Binary konfigurierbar über `AUVOZUGFERD_PHP_CLI_PATH`, per Regex und `is_executable()` validiert, falls absolut angegeben
+- **Atomares** Schreiben der PDF (temporäre Datei + `rename()`), unabhängig vom Modus
+- Interne XML-Validierung vor PDF-Injektion (well-formed + XSD EN16931 + Geschäftsregeln)
+- Modus `AUVOZUGFERD_STRICT_MODE`: Wahl zwischen fail-open (best-effort) und fail-closed (strikt)
+- CSRF-Schutz beim Admin-POST und bei den Aktionen der Rechnungsfiche (`currentToken()`)
+- REST-API: Rechte `facture->lire` + `_checkAccessToResource()`; Buttons der Fiche: Rechte `lire`/`creer`
+- Nur ein ausgehender HTTP-Aufruf: GitHub-Versionscheck alle 24h (Cache in der DB, auch Fehlschläge)
 
-Modèle de menace, protections détaillées et processus de signalement : voir [SECURITY.md](SECURITY.md). Contact disclosure : **r.vogel@auvo-design.de**.
+Bedrohungsmodell, detaillierte Schutzmaßnahmen und Meldeprozess: siehe [SECURITY.md](SECURITY.md). Kontakt für Disclosure: **r.vogel@auvo-design.de**.
 
-## Données mappées (Dolibarr → Factur-X)
+## Abgebildete Daten (Dolibarr → Factur-X)
 
-| Champ Factur-X | Source Dolibarr |
+| Factur-X-Feld | Dolibarr-Quelle |
 |---|---|
 | BT-1 Invoice ID | `$invoice->ref` |
 | BT-2 Issue date | `$invoice->date` |
-| BT-3 Type code | 380 / 381 (avoir) / 384 (rectificative) / 386 (acompte) |
-| BT-8 VAT due date code | Régime TVA Dolibarr (`TAX_MODE`) : 5 débits / 72 encaissements, omis si indéterminé |
+| BT-3 Type code | 380 / 381 (Gutschrift) / 384 (Korrektur) / 386 (Anzahlung) |
+| BT-8 VAT due date code | Dolibarr-Umsatzsteuerregelung (`TAX_MODE`): 5 Soll-, 72 Ist-Versteuerung, weggelassen falls unbestimmt |
 | BT-9 Due date | `$invoice->date_lim_reglement` |
-| BT-10 Buyer reference | `$invoice->ref_client` (code service / n° engagement Chorus Pro) |
-| BT-13 Order reference | Réf. de la première commande client liée |
-| BT-23 Business process | Cadre de facturation choisi **par facture** (profil Chorus Pro : `A1` par défaut), omis hors Chorus Pro |
-| BT-25/BG-3 Preceding invoice | `fk_facture_source` (avoir/rectificative) + acomptes imputés |
-| Seller / Buyer | `$mysoc` / `$invoice->thirdparty` |
-| BT-29/BT-46 ID établissement | `idprof2` → SIRET (14 chiffres) sous schemeID 0009 (ISO 6523) — pour Chorus Pro |
-| BT-30/BT-47 ID légal | `idprof2` → SIREN (9 chiffres) sous schemeID 0002 (ISO 6523) — exigé par BR-FR-10 / Plateformes Agréées |
-| BT-31/BT-32 Tax registration | `tva_intra`, ou SIREN `schemeID="FC"` (franchise en base) |
-| BT-34/BT-49 Endpoint | SIREN `schemeID="0225"` (annuaire PPF), repli email `EM` |
-| BT-72 Delivery date | `$invoice->delivery_date` si renseignée (forcée pour l'intracom K) |
-| BT-73/74 (BG-14) Period | min/max des dates de service des lignes |
-| BT-80 ShipTo country | Pays acheteur (émis pour la catégorie K, BR-IC-12) |
-| BT-89/90/91 Direct debit | RUM (RIB par défaut du tiers), ICS (`PRELEVEMENT_ICS`), IBAN débiteur — moyen 59 |
-| BG-21 Document allowances | Lignes Dolibarr à montant négatif (remises fixes) |
-| BT-113 TotalPrepaidAmount | `$invoice->getSumDepositsUsed()` si acompte imputé |
+| BT-10 Buyer reference | `$invoice->ref_client` (Service-Code / Verpflichtungsnummer Chorus Pro), bei deutschem Behörden-Käufer: Leitweg-ID |
+| BT-13 Order reference | Referenz der ersten verknüpften Kundenbestellung |
+| BT-23 Business process | Rechnungsstellungsrahmen, gewählt **pro Rechnung** (Chorus-Pro-Profil: `A1` standardmäßig), weggelassen außerhalb von Chorus Pro |
+| BT-25/BG-3 Preceding invoice | `fk_facture_source` (Gutschrift/Korrektur) + verrechnete Anzahlungen |
+| Verkäufer / Käufer | `$mysoc` / `$invoice->thirdparty` |
+| BT-29/BT-46 ID Niederlassung | `idprof2` → SIRET (14 Ziffern) unter schemeID 0009 (ISO 6523) — für Chorus Pro |
+| BT-30/BT-47 gesetzliche ID | `idprof2` → SIREN (9 Ziffern) unter schemeID 0002 (ISO 6523) — von BR-FR-10 / Plateformes Agréées gefordert |
+| BT-31/BT-32 Tax registration | `tva_intra`, oder SIREN `schemeID="FC"` (Kleinunternehmerregelung), bei deutschem Kleinunternehmer: Steuernummer |
+| BT-34/BT-49 Endpoint | SIREN `schemeID="0225"` (PPF-Verzeichnis), Rückfall auf E-Mail `EM` |
+| BT-72 Delivery date | `$invoice->delivery_date` falls angegeben (bei innergemeinschaftlicher Kategorie K erzwungen) |
+| BT-73/74 (BG-14) Period | Min/Max der Leistungsdaten der Positionen |
+| BT-80 ShipTo country | Käuferland (ausgegeben für Kategorie K, BR-IC-12) |
+| BT-89/90/91 Direct debit | RUM (Standard-Bankverbindung des Tiers), ICS (`PRELEVEMENT_ICS`), Debitor-IBAN — Zahlungsart 59 |
+| BG-21 Document allowances | Dolibarr-Positionen mit negativem Betrag (feste Rabatte) |
+| BT-113 TotalPrepaidAmount | `$invoice->getSumDepositsUsed()` bei verrechneter Anzahlung |
 | BT-121 VATEX | VATEX-FR-FRANCHISE / VATEX-EU-IC / VATEX-EU-AE / VATEX-EU-G |
-| BT-129 unitCode | Mappé depuis `$line->fk_unit` vers UN/ECE Rec 20 |
-| BT-146 Unit price | `total_ht/qty`, jusqu'à 4 décimales |
-| BT-151 CategoryCode | Calculé selon contexte (S / K / AE / G / E) |
-| IBAN / BIC | Compte bancaire Dolibarr sélectionné |
+| BT-129 unitCode | Von `$line->fk_unit` auf UN/ECE Rec 20 abgebildet |
+| BT-146 Unit price | `total_ht/qty`, bis zu 4 Dezimalstellen |
+| BT-151 CategoryCode | Kontextabhängig berechnet (S / K / AE / G / E) |
+| IBAN / BIC | Ausgewähltes Dolibarr-Bankkonto |
 
-### Types de facture supportés
+### Unterstützte Rechnungstypen
 
-| Cas Dolibarr | TypeCode EN16931 | Mapping |
+| Dolibarr-Fall | TypeCode EN16931 | Mapping |
 |---|---|---|
-| Facture standard | **380** | Commercial invoice |
-| `TYPE_REPLACEMENT` | **384** | Corrected invoice + référence BG-3 à la facture remplacée |
-| `TYPE_CREDIT_NOTE` | **381** | Credit note — **montants émis en positif** (BR-27), BG-3 vers la facture d'origine |
-| `TYPE_DEPOSIT` | **386** | Prepayment / advance invoice (acompte) |
-| `TYPE_SITUATION` | 380 + warning | Support partiel, voir [docs/LIMITATIONS.md](docs/LIMITATIONS.md) |
+| Standardrechnung | **380** | Commercial invoice |
+| `TYPE_REPLACEMENT` | **384** | Corrected invoice + BG-3-Referenz auf die ersetzte Rechnung |
+| `TYPE_CREDIT_NOTE` | **381** | Credit note — **Beträge positiv ausgegeben** (BR-27), BG-3 auf die Ursprungsrechnung |
+| `TYPE_DEPOSIT` | **386** | Prepayment / advance invoice (Anzahlung) |
+| `TYPE_SITUATION` | 380 + Warnung | Teilweise Unterstützung, siehe [docs/LIMITATIONS.md](docs/LIMITATIONS.md) |
 
-**Convention avoirs** : Dolibarr stocke des totaux négatifs ; EN16931 exige des montants positifs sur un 381. Depuis la 3.0.0, tous les montants d'un avoir sont inversés (`DuePayableAmount` = total positif, sans écrêtage à zéro — BR-CO-16) et la facture d'origine est référencée en BG-3 (mention obligatoire FR). Un avoir créé sans facture d'origine liée génère un warning.
+**Konvention für Gutschriften**: Dolibarr speichert negative Summen; EN16931 verlangt positive Beträge auf einer 381. Seit 3.0.0 werden alle Beträge einer Gutschrift invertiert (`DuePayableAmount` = positive Summe, ohne Nullkappung — BR-CO-16) und die Ursprungsrechnung wird in BG-3 referenziert (in FR verpflichtende Angabe). Eine Gutschrift ohne verknüpfte Ursprungsrechnung erzeugt eine Warnung.
 
-Une facture finale qui impute un acompte écrit `TotalPrepaidAmount` (BT-113), ajuste `DuePayableAmount` et référence la facture d'acompte en BG-3.
+Eine Schlussrechnung, die eine Anzahlung verrechnet, schreibt `TotalPrepaidAmount` (BT-113), passt `DuePayableAmount` an und referenziert die Anzahlungsrechnung in BG-3.
 
-### Catégories TVA (BT-151)
+### Umsatzsteuerkategorien (BT-151)
 
-| CategoryCode | VATEX (BT-121) | Cas déclenchant |
+| CategoryCode | VATEX (BT-121) | Auslösender Fall |
 |---|---|---|
-| **S** | — | TVA > 0 |
-| **K** | VATEX-EU-IC | Acheteur UE hors FR avec TVA intra + TVA 0 + ligne **bien** (`product_type` 0) — avec ShipTo (BT-80) et date de livraison (BR-IC-11/12) |
-| **AE** | VATEX-EU-AE | Acheteur UE hors FR avec TVA intra + TVA 0 + ligne **service** (`product_type` 1) — art. 196 directive 2006/112/CE |
-| **G** | VATEX-EU-G | Acheteur hors UE + TVA 0 |
-| **E** | VATEX-FR-FRANCHISE | Émetteur en franchise en base (293 B CGI) — SIREN publié en identifiant fiscal `FC` |
-| **E** | — | TVA 0 par défaut (exonération sans base légale déterminable, motif générique) |
+| **S** | — | USt > 0 |
+| **K** | VATEX-EU-IC | EU-Käufer außerhalb FR mit USt-IdNr + USt 0 + **Waren**-Position (`product_type` 0) — mit ShipTo (BT-80) und Lieferdatum (BR-IC-11/12) |
+| **AE** | VATEX-EU-AE | EU-Käufer außerhalb FR mit USt-IdNr + USt 0 + **Dienstleistungs**-Position (`product_type` 1) — Art. 196 Richtlinie 2006/112/EG |
+| **G** | VATEX-EU-G | Käufer außerhalb EU + USt 0 |
+| **E** | VATEX-FR-FRANCHISE | Aussteller in Kleinunternehmerregelung (293 B CGI) — SIREN als Steuerkennung `FC` veröffentlicht |
+| **E** | — | USt 0 standardmäßig (Befreiung ohne bestimmbare Rechtsgrundlage, generischer Grund) |
 
-Les catégories exonérées génèrent systématiquement un `ExemptionReason` lisible et, quand la base légale est déterminable, un code `ExemptionReasonCode` VATEX.
+Befreite Kategorien erzeugen systematisch einen lesbaren `ExemptionReason` und, wenn die Rechtsgrundlage bestimmbar ist, einen VATEX-Code `ExemptionReasonCode`.
 
-**Cas non couverts** (autoliquidation domestique AE FR→FR, codes O/Z/L/M, etc.) : voir [docs/LIMITATIONS.md](docs/LIMITATIONS.md), qui documente chaque cas non traité et le pourquoi.
+**Nicht abgedeckte Fälle** (inländisches Reverse-Charge AE FR→FR, Codes O/Z/L/M usw.): siehe [docs/LIMITATIONS.md](docs/LIMITATIONS.md), das jeden nicht behandelten Fall und dessen Grund dokumentiert.
 
-### Remises et arrondis
+### Rabatte und Rundungen
 
-- **Remises fixes** (lignes Dolibarr à montant négatif) : converties en remises document **BG-21** (`SpecifiedTradeAllowanceCharge` + BT-107) — une ligne à prix négatif violerait BR-27. Les remises en % restent diluées dans les prix nets (conforme).
-- **Arrondis** : la ventilation TVA est calculée par (catégorie, taux) puis **réconciliée** avec les totaux de la facture (l'écart d'arrondi éventuel est imputé sur la catégorie principale) ; tous les totaux BG-22 sont recalculés de bas en haut pour garantir les règles BR-CO-10/11/13/14/15/16/17, y compris sur les factures à nombreuses lignes.
+- **Feste Rabatte** (Dolibarr-Positionen mit negativem Betrag): in Dokument-Rabatte **BG-21** umgewandelt (`SpecifiedTradeAllowanceCharge` + BT-107) — eine Position mit negativem Preis würde BR-27 verletzen. Prozentuale Rabatte bleiben in den Nettopreisen verrechnet (konform).
+- **Rundungen**: die USt-Aufschlüsselung wird nach (Kategorie, Satz) berechnet und dann mit den Rechnungssummen **abgeglichen** (eine eventuelle Rundungsdifferenz wird der Hauptkategorie zugeschlagen); alle BG-22-Summen werden von unten nach oben neu berechnet, um die Regeln BR-CO-10/11/13/14/15/16/17 zu gewährleisten, auch bei Rechnungen mit vielen Positionen.
 
-### Mapping unités UN/ECE
+### Mapping UN/ECE-Einheiten
 
-Les quantités de ligne utilisent le code UN/ECE Rec 20 correspondant à l'unité Dolibarr (`llx_c_units.short_label`) :
+Die Positionsmengen verwenden den UN/ECE-Rec-20-Code, der der Dolibarr-Einheit entspricht (`llx_c_units.short_label`):
 
 | Dolibarr | UN/ECE | | Dolibarr | UN/ECE |
 |---|---|---|---|---|
@@ -219,381 +219,388 @@ Les quantités de ligne utilisent le code UN/ECE Rec 20 correspondant à l'unit�
 | month | MON | | m³ (`m3`) | MTQ |
 | p, pc, pcs, u | C62 | | km | KMT |
 
-Si l'unité n'est pas mappée ou si `fk_unit` n'est pas renseigné, le code `C62` (pièce) est utilisé en fallback. Les quantités sont émises avec jusqu'à 4 décimales.
+Ist die Einheit nicht abgebildet oder `fk_unit` nicht gesetzt, wird der Code `C62` (Stück) als Fallback verwendet. Mengen werden mit bis zu 4 Dezimalstellen ausgegeben.
 
-### Double circuit B2B (PDP) et B2G (Chorus Pro) — depuis 3.4.0
+### Doppelter Kreislauf B2B (PDP) und B2G (Chorus Pro) — seit 3.4.0
 
-La réforme française repose sur **deux réseaux distincts et permanents** qui exigent des choses opposées dans le même champ `SpecifiedLegalOrganization/ID` :
-- **PDP / B2B** (réseau des Plateformes Agréées) : **SIREN** (9 chiffres), conforme EN16931 / règle BR-FR-10 ;
-- **Chorus Pro / B2G** (secteur public) : **SIRET** (14 chiffres), clé de routage de son annuaire.
+Die französische Reform beruht auf **zwei getrennten, dauerhaften Netzwerken**, die im selben Feld `SpecifiedLegalOrganization/ID` Gegensätzliches verlangen:
+- **PDP / B2B** (Netzwerk der Plateformes Agréées): **SIREN** (9 Ziffern), konform zu EN16931 / Regel BR-FR-10;
+- **Chorus Pro / B2G** (öffentlicher Sektor): **SIRET** (14 Ziffern), Routing-Schlüssel seines Verzeichnisses.
 
-Un même XML ne peut pas satisfaire les deux. AuvoZugferd résout ça **sans jamais dégrader le PDF principal** :
+Dasselbe XML kann nicht beide erfüllen. AuvoZugferd löst das, **ohne jemals die Haupt-PDF zu beeinträchtigen**:
 
-- Le **PDF de la facture reste le Factur-X standard EN16931** (profil PDP, SIREN) — c'est l'objet du module, toujours conforme.
-- Quand la facture relève du secteur public, le module génère **en plus** un second fichier **`{ref}-CHORUS.pdf`** dans la liste des documents, au profil Chorus Pro (SIRET-14 dans `SpecifiedLegalOrganization` + champs BT-10/12/13). Vous déposez celui-ci sur Chorus Pro, l'autre part sur votre PDP.
+- Die **PDF der Rechnung bleibt das Standard-Factur-X EN16931** (Profil PDP, SIREN) — das ist der Zweck des Moduls, immer konform.
+- Fällt die Rechnung unter den öffentlichen Sektor, erzeugt das Modul **zusätzlich** eine zweite Datei **`{ref}-CHORUS.pdf`** in der Dokumentenliste, im Profil Chorus Pro (SIRET-14 in `SpecifiedLegalOrganization` + Felder BT-10/12/13). Diese reichen Sie bei Chorus Pro ein, die andere bei Ihrer PDP.
 
-**Onglet « Chorus Pro »** : les paramètres Chorus se règlent dans un onglet dédié sur la fiche facture (ils n'encombrent pas l'onglet « Données complémentaires »).
+**Reiter „Chorus Pro"**: die Chorus-Einstellungen werden in einem eigenen Reiter auf der Rechnungsfiche vorgenommen (sie belegen nicht den Reiter „Zusätzliche Eigenschaften").
 
-**Déclenchement du PDF Chorus** (un seul signal suffit) :
-1. cocher **« Facture Chorus Pro »** dans l'onglet Chorus Pro de la facture ;
-2. renseigner un des champs Chorus (code service / n° engagement / n° marché) ;
-3. automatiquement si le SIRET de l'acheteur est celui de l'État central (`110002011…`).
+**Auslösung der Chorus-PDF** (ein einziges Signal genügt):
+1. „Chorus-Pro-Rechnung" im Chorus-Pro-Reiter der Rechnung ankreuzen;
+2. eines der Chorus-Felder ausfüllen (Service-Code / Verpflichtungsnummer / Vertragsnummer);
+3. automatisch, wenn die SIRET des Käufers die des Zentralstaats ist (`110002011…`).
 
-**Champs Chorus** (onglet Chorus Pro, repris dans le XML Chorus) :
-| Champ | Code EN16931 | Élément CII |
+**Chorus-Felder** (Chorus-Pro-Reiter, im Chorus-XML übernommen):
+| Feld | EN16931-Code | CII-Element |
 |---|---|---|
-| Cadre de facturation (24 valeurs A1–A25) | BT-23 | `BusinessProcessSpecifiedDocumentContextParameter` |
-| Code service exécutant | BT-10 | `BuyerReference` |
-| N° d'engagement juridique | BT-13 | `BuyerOrderReferencedDocument` |
-| N° de marché | BT-12 | `ContractReferencedDocument` |
+| Rechnungsstellungsrahmen (24 Werte A1–A25) | BT-23 | `BusinessProcessSpecifiedDocumentContextParameter` |
+| Service-Code des Ausführenden | BT-10 | `BuyerReference` |
+| Nummer der rechtlichen Verpflichtung | BT-13 | `BuyerOrderReferencedDocument` |
+| Vertragsnummer | BT-12 | `ContractReferencedDocument` |
 
-Le **cadre de facturation** (BT-23) est obligatoire pour Chorus et se choisit par facture (A1 = dépôt fournisseur par défaut ; A9/A10 sous-traitance, A12+ cotraitance, A3 frais de justice, etc.).
+Der **Rechnungsstellungsrahmen** (BT-23) ist für Chorus verpflichtend und wird pro Rechnung gewählt (A1 = Einreichung durch den Lieferanten, Standard; A9/A10 Unterauftragsvergabe, A12+ Mitauftragsvergabe, A3 Gerichtskosten usw.).
 
-**Menu d'actions** : les actions Factur-X de la fiche facture sont regroupées dans un menu déroulant **« Factur-X ▾ »** (Vérifier / Régénérer / Générer le PDF Chorus).
+**Aktionsmenü**: die Factur-X-Aktionen der Rechnungsfiche sind in einem Dropdown-Menü **„ZUGFeRD ▾"** gebündelt (Prüfen / Neu erzeugen / Chorus-PDF erzeugen).
 
-> ⚠️ Le PDF Chorus corrige le **format**. Le dépôt réussit seulement si l'émetteur et la structure publique destinataire sont **réellement raccordés sur Chorus Pro** (code service, n° d'engagement valides). Le XML ne crée pas le raccordement.
+> ⚠️ Die Chorus-PDF korrigiert das **Format**. Die Einreichung gelingt nur, wenn Aussteller und öffentliche Empfängerstruktur **tatsächlich an Chorus Pro angebunden** sind (gültiger Service-Code, gültige Verpflichtungsnummer). Das XML stellt die Anbindung nicht her.
 >
-> **Mise à jour depuis < 3.4.0** : désactiver puis réactiver le module pour créer les extrafields Chorus sur les factures (aucune donnée supprimée).
+> **Update von < 3.4.0**: Modul deaktivieren und wieder aktivieren, damit die Chorus-Extrafields auf den Rechnungen angelegt werden (keine Daten werden gelöscht).
 
-### Mentions légales FR (BR-FR-05)
+### Gesetzliche Pflichtangaben FR (BR-FR-05)
 
-Le XML inclut automatiquement les notes obligatoires :
-- **PMD** : pénalités de retard (3x taux d'intérêt légal, art. L.441-10)
-- **PMT** : indemnité forfaitaire de recouvrement (40 €)
-- **AAB** : escompte pour paiement anticipé
+Das XML enthält automatisch die Pflichthinweise:
+- **PMD**: Verzugszinsen (3-facher gesetzlicher Zinssatz, Art. L.441-10)
+- **PMT**: pauschale Beitreibungsentschädigung (40 €)
+- **AAB**: Skonto für vorzeitige Zahlung
 
-## Constantes du module
+## Modulkonstanten
 
-Toutes sont configurables via l'écran d'administration du module (**Accueil > Configuration > Modules > AuvoZugferd**).
+Alle sind über den Administrationsbildschirm des Moduls konfigurierbar (**Start > Konfiguration > Module > AuvoZugferd**).
 
-| Constante | Type | Défaut | Description |
+| Konstante | Typ | Standard | Beschreibung |
 |---|---|---|---|
-| `AUVOZUGFERD_BANK_ACCOUNT` | int | 0 | ID du compte bancaire Dolibarr |
-| `AUVOZUGFERD_PAYMENT_MEANS` | string | 30 | Code UNTDID 4461 : 30 virement, 58 virement SEPA, 59 prélèvement SEPA, 49 prélèvement |
-| `AUVOZUGFERD_STRICT_MODE` | int | 0 | 0 = best-effort (défaut), 1 = strict (voir ci-dessous) |
-| `AUVOZUGFERD_BR_CHECK` | int | 1 | Contrôle interne des règles métier EN16931 avant injection |
-| `AUVOZUGFERD_INJECTION_MODE` | string | auto | Mode d'injection : `auto` (in-process + repli sous-process), `inprocess` (sans exec), `subprocess` (exec uniquement) |
-| `AUVOZUGFERD_PHP_CLI_PATH` | string | *(vide)* | Chemin du binaire PHP CLI, utilisé **uniquement** par le mode `subprocess` (vide = auto-détection ; voir note ci-dessous) |
-| `AUVOZUGFERD_VERAPDF_PATH` | string | *(vide)* | Chemin veraPDF : post-validation PDF/A-3b de chaque PDF généré (non bloquant) |
-| `AUVOZUGFERD_ENDPOINT_SUFFIX_SELLER` | string | *(vide)* | Suffixe ajouté au SIREN vendeur dans l'endpoint électronique BT-34 (ex `_Status`) — exigé par certaines PA ; vide = SIREN nu |
-| `AUVOZUGFERD_NOTE_PMD/PMT/AAB` | text | mentions FR | Mentions légales BR-FR-05 (le texte par défaut s'applique si le champ est laissé vide) |
-| `AUVOZUGFERD_NOTES_IN_FOOTER` | int | 0 | Recopier les mentions BR-FR-05 dans le pied de facture (`INVOICE_FREE_TEXT`) |
-| `AUVOZUGFERD_NOTES_OVERWRITE` | int | 0 | Recopie pied de facture : écraser la mention Dolibarr existante (1) au lieu d'ajouter nos mentions à la suite (0) |
-| `AUVOZUGFERD_CHORUS_ENABLED` | int | 0 | Activer les fonctionnalités Chorus Pro (onglet, menu, 2ᵉ PDF) — opt-in |
+| `AUVOZUGFERD_BANK_ACCOUNT` | int | 0 | ID des Dolibarr-Bankkontos |
+| `AUVOZUGFERD_PAYMENT_MEANS` | string | 30 | UNTDID-4461-Code: 30 Überweisung, 58 SEPA-Überweisung, 59 SEPA-Lastschrift, 49 Lastschrift |
+| `AUVOZUGFERD_STRICT_MODE` | int | 0 | 0 = best-effort (Standard), 1 = strikt (siehe unten) |
+| `AUVOZUGFERD_BR_CHECK` | int | 1 | Interne Prüfung der EN16931-Geschäftsregeln vor der Injektion |
+| `AUVOZUGFERD_INJECTION_MODE` | string | auto | Injektionsmodus: `auto` (In-Process + Rückfall auf Subprozess), `inprocess` (ohne exec), `subprocess` (nur exec) |
+| `AUVOZUGFERD_PHP_CLI_PATH` | string | *(leer)* | Pfad zum PHP-CLI-Binary, **nur** vom Modus `subprocess` genutzt (leer = Auto-Erkennung; siehe Hinweis unten) |
+| `AUVOZUGFERD_VERAPDF_PATH` | string | *(leer)* | Pfad zu veraPDF: Post-Validierung PDF/A-3b jeder erzeugten PDF (nicht blockierend) |
+| `AUVOZUGFERD_ENDPOINT_SUFFIX_SELLER` | string | *(leer)* | Suffix, das der Verkäufer-SIREN im elektronischen Endpoint BT-34 angehängt wird (z. B. `_Status`) — von manchen PA gefordert; leer = reine SIREN |
+| `AUVOZUGFERD_NOTE_PMD/PMT/AAB` | text | FR-Hinweise | Gesetzliche Pflichtangaben BR-FR-05 (der Standardtext gilt, wenn das Feld leer gelassen wird) |
+| `AUVOZUGFERD_NOTES_IN_FOOTER` | int | 0 | BR-FR-05-Hinweise in die Rechnungsfußzeile kopieren (`INVOICE_FREE_TEXT`) |
+| `AUVOZUGFERD_NOTES_OVERWRITE` | int | 0 | Kopie in die Fußzeile: bestehenden Dolibarr-Hinweis überschreiben (1) statt unsere Hinweise anzuhängen (0) |
+| `AUVOZUGFERD_CHORUS_ENABLED` | int | 0 | Chorus-Pro-Funktionen aktivieren (Reiter, Menü, 2. PDF) — opt-in |
 
-> **Note PHP CLI** : pertinente **uniquement en mode `subprocess`** (l'injection par défaut est in-process et n'utilise aucun binaire externe). Dans ce mode, le module auto-détecte le bon binaire PHP CLI. Sur les serveurs avec plusieurs versions de PHP, ou si l'auto-détection échoue, configurer `AUVOZUGFERD_PHP_CLI_PATH` avec le chemin complet (ex: `/usr/bin/php8.2`). Ne **pas** utiliser `PHP_BINARY` : en contexte php-fpm, cette constante pointe vers le binaire fpm et non le CLI.
+> **Hinweis PHP CLI**: nur **im Modus `subprocess`** relevant (die Standard-Injektion ist In-Process und nutzt kein externes Binary). In diesem Modus erkennt das Modul das richtige PHP-CLI-Binary automatisch. Auf Servern mit mehreren PHP-Versionen, oder wenn die Auto-Erkennung fehlschlägt, `AUVOZUGFERD_PHP_CLI_PATH` mit dem vollständigen Pfad konfigurieren (z. B. `/usr/bin/php8.2`). **Nicht** `PHP_BINARY` verwenden: im php-fpm-Kontext zeigt diese Konstante auf das fpm-Binary, nicht auf die CLI.
 
-> **Note prélèvement SEPA (59)** : le module publie l'ICS créancier (constante Dolibarr `PRELEVEMENT_ICS`, BT-90), la RUM du mandat (RIB par défaut du tiers, BT-89) et l'IBAN débiteur (BT-91). Des warnings signalent les données manquantes.
+> **Hinweis SEPA-Lastschrift (59)**: das Modul veröffentlicht die Gläubiger-ID (Dolibarr-Konstante `PRELEVEMENT_ICS`, BT-90), die Mandatsreferenz (Standard-Bankverbindung des Tiers, BT-89) und den Debitor-IBAN (BT-91). Fehlende Daten werden per Warnung gemeldet.
 
-### Mode strict vs best-effort
+### Strikt-Modus vs. best-effort
 
-Par défaut le module est en **best-effort** : si le XML Factur-X est invalide ou si l'injection PDF échoue, un warning est affiché à l'utilisateur et le PDF classique (sans Factur-X embarqué) est conservé. Les erreurs sont loguées dans `syslog` avec le tag `AuvoZugferd`.
+Standardmäßig läuft das Modul im **best-effort**-Modus: ist das Factur-X-XML ungültig oder schlägt die PDF-Injektion fehl, wird dem Nutzer eine Warnung angezeigt und die klassische PDF (ohne eingebettetes Factur-X) bleibt erhalten. Fehler werden im `syslog` mit dem Tag `AuvoZugferd` protokolliert.
 
-En **mode strict** (`AUVOZUGFERD_STRICT_MODE=1`), la même situation retourne une erreur bloquante visible, et les violations de règles métier (BR-\*) deviennent bloquantes. **Limite assumée** : le hook intervenant après la création du PDF par Dolibarr, le PDF classique déjà généré reste sur le disque même en strict — utiliser « Vérifier Factur-X » avant envoi pour contrôler un fichier.
+Im **Strikt-Modus** (`AUVOZUGFERD_STRICT_MODE=1`) liefert dieselbe Situation einen sichtbaren, blockierenden Fehler, und Verstöße gegen Geschäftsregeln (BR-\*) werden blockierend. **Bewusste Einschränkung**: da der Hook erst nach der PDF-Erzeugung durch Dolibarr greift, bleibt die bereits erzeugte klassische PDF auch im Strikt-Modus auf der Festplatte erhalten — vor dem Versand „ZUGFeRD prüfen" nutzen, um eine Datei zu kontrollieren.
 
-### Validation interne
+### Interne Validierung
 
-Avant injection PDF, le module valide systématiquement le XML :
+Vor der PDF-Injektion validiert das Modul das XML systematisch:
 
-1. **Well-formed** : `DOMDocument::loadXML()`
-2. **XSD EN16931** : `DOMDocument::schemaValidate()` contre le XSD embarqué
-3. **Règles métier** (`AUVOZUGFERD_BR_CHECK`, défaut activé) : sous-ensemble des règles Schematron EN16931 vérifié en PHP — règles de calcul BR-CO-10..17, BR-27 (prix négatifs), BR-61 (IBAN), BR-16, BR-IC-02/11/12 (intracom), BR-AE-02, motifs d'exonération BR-\*-10, BR-CO-25/26, BR-09/11 — **plus le bloc de règles France BR-FR** (voir section suivante)
+1. **Well-formed**: `DOMDocument::loadXML()`
+2. **XSD EN16931**: `DOMDocument::schemaValidate()` gegen die eingebettete XSD
+3. **Geschäftsregeln** (`AUVOZUGFERD_BR_CHECK`, standardmäßig aktiviert): Teilmenge der EN16931-Schematron-Regeln in PHP geprüft — Berechnungsregeln BR-CO-10..17, BR-27 (negative Preise), BR-61 (IBAN), BR-16, BR-IC-02/11/12 (innergemeinschaftlich), BR-AE-02, Befreiungsgründe BR-\*-10, BR-CO-25/26, BR-09/11 — **plus das Regelwerk Frankreich BR-FR** (siehe nächster Abschnitt)
 
-Le Schematron officiel complet (XSLT 2.0) n'est pas exécutable en PHP : pour une validation exhaustive, utiliser un validateur externe — voir [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
+Das vollständige offizielle Schematron (XSLT 2.0) ist in PHP nicht ausführbar: für eine erschöpfende Validierung einen externen Validator nutzen — siehe [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
-### Conformité XP Z12-012 (règles France)
+### Konformität XP Z12-012 (Frankreich-Regeln)
 
-Règles du socle réforme française contrôlées ou émises par le module. Tout ce bloc — contrôles du validateur interne **et** éléments émis dans le XML — est conditionné à un **vendeur établi en France** (métropole + DOM assimilés, cf. BR-FR-MAP-14) : Factur-X est aussi utilisé hors de France (ZUGFeRD) et le socle réforme n'est pas opposable à un vendeur étranger — les règles EN16931, elles, restent universelles. Voir [Vendeur hors de France (ZUGFeRD)](#vendeur-hors-de-france-zugferd).
+Regeln des Reform-Grundgerüsts Frankreich, vom Modul geprüft oder ausgegeben. Dieser gesamte Block — sowohl die Prüfungen des internen Validators **als auch** die im XML ausgegebenen Elemente — ist an einen **in Frankreich ansässigen Verkäufer** gebunden (Mutterland + gleichgestellte Überseegebiete, vgl. BR-FR-MAP-14): Factur-X wird auch außerhalb Frankreichs genutzt (ZUGFeRD), und das Reform-Grundgerüst ist einem ausländischen Verkäufer gegenüber nicht bindend — die EN16931-Regeln hingegen bleiben universell. Siehe [Verkäufer außerhalb Frankreichs (ZUGFeRD)](#verkäufer-außerhalb-frankreichs-zugferd).
 
-| Règle | Objet | Traitement |
+| Regel | Gegenstand | Behandlung |
 |---|---|---|
-| BR-FR-01 / BR-FR-02 | Identifiant de facture (BT-1) : 35 caractères max, alphanumériques + `- + _ /` (espace interdit) | Violation bloquante (validateur) + warning amont |
-| BR-FR-04 | Type de document (BT-3) : liste fermée FR (380, 381, 384, 386, avoirs/rectificatives déclinés…) | Violation bloquante (allowlist défensive) |
-| BR-FR-05 / BR-FR-06 | Notes PMD, PMT, AAB (pénalités, indemnité 40 €, escompte), une seule fois chacune | Émises automatiquement, surchargeables |
-| BR-FR-07 / BR-FR-20 / BR-FR-31 | Note **BAR** qualifiant le traitement attendu : `B2B` (e-invoicing, cas nominal), `B2BINT` (acheteur assujetti hors France), `B2C` (acheteur non assujetti, **y compris établi hors France** — choix assumé : la liste fermée de BR-FR-20, révision juillet 2025, ne comporte pas de valeur « B2C international ») — DOM assimilés à la France (BR-FR-MAP-14) | Émise automatiquement (profil PDP), une seule occurrence |
-| BR-FR-08 | Cadre de facturation (BT-23) : socle `B1`/`S1`/`M1` selon la nature des lignes (cas nominal : dépôt par le fournisseur), `B4`/`S4`/`M4` pour une facture définitive après acompte (jamais sur l'acompte lui-même — BR-FR-CO-08) ; cadres AIFE `A1..A25` par facture en profil Chorus B2G | Émis automatiquement |
-| BR-FR-09 | Cohérence SIRET/SIREN (vendeur et acheteur) : SIRET à 14 chiffres dont les 9 premiers = SIREN | Violation bloquante + warning amont |
-| BR-FR-16 | Taux de TVA vs liste française fermée (métropole + DOM) | **Warning uniquement** — un taux légitime n'est jamais bloqué |
-| BR-FR-CO-04 / BR-FR-CO-05 | Rectificative (384…) : exactement **une** référence à la facture d'origine (BT-25) avec sa date — le générateur ne référence alors QUE la facture remplacée en BG-3 (les acomptes imputés restent portés par BT-113) ; avoir (381…) : au moins une référence datée | Violation bloquante (+ warning amont si la facture d'origine n'est pas liée) |
-| BR-FR-23 / BR-FR-25 | Adresse électronique 0225 : alphanumériques + `- _ .` uniquement (le suffixe vendeur configuré est sanitisé à l'émission), 125 caractères max | Violation bloquante (charset) + warning (longueur) |
-| BR-FR-MAP-03 / MAP-29 | Exigibilité TVA (BT-8) : `5` = débits (seule valeur CII attendue par le PPF), `72` = encaissements, dérivée de `TAX_MODE` | Émis automatiquement |
+| BR-FR-01 / BR-FR-02 | Rechnungskennung (BT-1): max. 35 Zeichen, alphanumerisch + `- + _ /` (kein Leerzeichen erlaubt) | Blockierender Verstoß (Validator) + vorgelagerte Warnung |
+| BR-FR-04 | Dokumenttyp (BT-3): geschlossene FR-Liste (380, 381, 384, 386, verschiedene Gutschrift-/Korrekturarten…) | Blockierender Verstoß (defensive Allowlist) |
+| BR-FR-05 / BR-FR-06 | Hinweise PMD, PMT, AAB (Verzugszinsen, Pauschale 40 €, Skonto), jeweils genau einmal | Automatisch ausgegeben, überschreibbar |
+| BR-FR-07 / BR-FR-20 / BR-FR-31 | Hinweis **BAR**, der den erwarteten Vorgang qualifiziert: `B2B` (e-invoicing, Regelfall), `B2BINT` (steuerpflichtiger Käufer außerhalb Frankreichs), `B2C` (nicht steuerpflichtiger Käufer, **auch außerhalb Frankreichs ansässig** — bewusste Wahl: die geschlossene Liste von BR-FR-20, Revision Juli 2025, enthält keinen Wert „B2C international") — gleichgestellte Überseegebiete zu Frankreich gerechnet (BR-FR-MAP-14) | Automatisch ausgegeben (Profil PDP), genau ein Vorkommen |
+| BR-FR-08 | Rechnungsstellungsrahmen (BT-23): Grundgerüst `B1`/`S1`/`M1` je nach Art der Positionen (Regelfall: Einreichung durch den Lieferanten), `B4`/`S4`/`M4` für eine Schlussrechnung nach Anzahlung (nie auf der Anzahlung selbst — BR-FR-CO-08); AIFE-Rahmen `A1..A25` pro Rechnung im Chorus-B2G-Profil | Automatisch ausgegeben |
+| BR-FR-09 | Konsistenz SIRET/SIREN (Verkäufer und Käufer): 14-stellige SIRET, deren erste 9 Ziffern = SIREN | Blockierender Verstoß + vorgelagerte Warnung |
+| BR-FR-16 | USt-Satz vs. geschlossene französische Liste (Mutterland + Überseegebiete) | **Nur Warnung** — ein legitimer Satz wird nie blockiert |
+| BR-FR-CO-04 / BR-FR-CO-05 | Korrekturrechnung (384…): genau **eine** Referenz auf die Ursprungsrechnung (BT-25) mit deren Datum — der Generator referenziert dann in BG-3 NUR die ersetzte Rechnung (verrechnete Anzahlungen bleiben über BT-113 geführt); Gutschrift (381…): mindestens eine datierte Referenz | Blockierender Verstoß (+ vorgelagerte Warnung, falls die Ursprungsrechnung nicht verknüpft ist) |
+| BR-FR-23 / BR-FR-25 | Elektronische Adresse 0225: nur alphanumerisch + `- _ .` (das konfigurierte Verkäufer-Suffix wird bei der Ausgabe bereinigt), max. 125 Zeichen | Blockierender Verstoß (Zeichensatz) + Warnung (Länge) |
+| BR-FR-MAP-03 / MAP-29 | USt-Fälligkeit (BT-8): `5` = Soll-Versteuerung (einziger vom PPF erwarteter CII-Wert), `72` = Ist-Versteuerung, abgeleitet von `TAX_MODE` | Automatisch ausgegeben |
 
-Rappel du fonctionnement : les « violations bloquantes » n'interrompent la génération qu'en mode strict (`AUVOZUGFERD_STRICT_MODE=1`) ; en best-effort elles sont consolidées dans le message d'avertissement et le syslog.
+Zur Erinnerung: „blockierende Verstöße" unterbrechen die Erzeugung nur im Strikt-Modus (`AUVOZUGFERD_STRICT_MODE=1`); im best-effort-Modus werden sie in der Warnmeldung und im Syslog konsolidiert.
 
-**Limitations assumées** :
-- le profil **EXTENDED-CTC-FR n'est pas émis** (le module produit du EN16931) — cible envisagée pour 2027 ; la variante « référence en ligne » d'un avoir (EXT-FR-FE-136, BR-FR-CO-05) est donc sans objet ;
-- la **construction des flux 1 / 10.1** vers le PPF (troncatures BR-FR-MAP-\*, transcodage des codes pays DOM…) est **déléguée à la Plateforme Agréée** : le module fournit le Factur-X source ;
-- BR-FR-10/11 (SIREN présent et actif dans l'annuaire PPF) nécessitent l'accès à l'annuaire : pré-check couvert par LemonSuperPDP, pas par ce module.
+**Bewusste Einschränkungen**:
+- das Profil **EXTENDED-CTC-FR wird nicht ausgegeben** (das Modul erzeugt EN16931) — angestrebtes Ziel für 2027; die Variante „Positionsreferenz" einer Gutschrift (EXT-FR-FE-136, BR-FR-CO-05) ist damit gegenstandslos;
+- die **Konstruktion der Flüsse 1 / 10.1** zum PPF (Kürzungen BR-FR-MAP-\*, Umcodierung der Überseeländer-Codes…) wird an die **Plateforme Agréée delegiert**: das Modul liefert das Factur-X-Quelldokument;
+- BR-FR-10/11 (SIREN im PPF-Verzeichnis vorhanden und aktiv) erfordern den Zugriff auf das Verzeichnis: Vorabprüfung von LemonSuperPDP abgedeckt, nicht von diesem Modul.
 
-### Vendeur hors de France (ZUGFeRD)
+### Verkäufer außerhalb Frankreichs (ZUGFeRD)
 
-Factur-X et ZUGFeRD 2.x sont la **même spécification** franco-allemande : le XML CII produit par le module (profil EN16931, embarqué sous le nom `factur-x.xml` que ZUGFeRD impose depuis la 2.1) est directement exploitable comme facture ZUGFeRD. Les schémas embarqués sont ceux de Factur-X 1.08.
+Factur-X und ZUGFeRD 2.x sind **dieselbe** deutsch-französische Spezifikation: das vom Modul erzeugte CII-XML (Profil EN16931, eingebettet unter dem Namen `factur-x.xml`, den ZUGFeRD seit 2.1 vorschreibt) ist direkt als ZUGFeRD-Rechnung nutzbar. Die eingebetteten Schemata sind die von Factur-X 1.08.
 
-Quand la fiche société (`$mysoc`) porte un pays **autre que la France** (DOM assimilés à la France, BR-FR-MAP-14), le générateur n'injecte plus les éléments propres au droit français :
+Trägt die Firmenfiche (`$mysoc`) ein anderes Land als Frankreich (gleichgestellte Überseegebiete ausgenommen, BR-FR-MAP-14), injiziert der Generator keine Elemente des französischen Rechts mehr:
 
-| Élément | Vendeur FR | Vendeur hors FR |
+| Element | Verkäufer FR | Verkäufer außerhalb FR |
 |---|---|---|
-| Notes **PMD / PMT / AAB** (BR-FR-05) | textes par défaut du Code de commerce, surchargeables | **aucun défaut** — seules les constantes `AUVOZUGFERD_NOTE_*` explicitement renseignées sont émises |
-| Note **BAR** (BR-FR-07/20/31) | émise (`B2B` / `B2BINT` / `B2C`) | **non émise** (qualifie un flux de la réforme FR) |
-| Cadre de facturation **BT-23** (BR-FR-08) | émis (`B1`/`S1`/`M1`…) | **non émis** (optionnel en EN16931, codes propres à XP Z12-012) |
-| Contrôle **SIREN/SIRET** amont | actif | désactivé (identifiants français) |
-| Bloc de règles **BR-FR** du validateur | actif | désactivé |
+| Hinweise **PMD / PMT / AAB** (BR-FR-05) | Standardtexte aus dem Code de commerce, überschreibbar | **kein Standard** — nur explizit gesetzte `AUVOZUGFERD_NOTE_*`-Konstanten werden ausgegeben |
+| Hinweis **BAR** (BR-FR-07/20/31) | ausgegeben (`B2B` / `B2BINT` / `B2C`) | **nicht ausgegeben** (qualifiziert einen Vorgang der FR-Reform) |
+| Rechnungsstellungsrahmen **BT-23** (BR-FR-08) | ausgegeben (`B1`/`S1`/`M1`…) | **nicht ausgegeben** (optional in EN16931, XP-Z12-012-eigene Codes) |
+| Vorgelagerte **SIREN/SIRET**-Prüfung | aktiv | deaktiviert (französische Kennungen) |
+| Regelblock **BR-FR** des Validators | aktiv | deaktiviert |
 
-**Cas allemand — Kleinunternehmer (§ 19 UStG).** Avec « Assujetti à la TVA » à *Non* sur la fiche société, la catégorie de TVA passe à `E` avec le motif `Kein Ausweis von Umsatzsteuer, da Kleinunternehmer gemäß § 19 UStG` et **sans** code VATEX (aucun code de la liste CEF ne correspond ; le texte libre satisfait BR-E-10). Comme il n'y a pas d'USt-IdNr, BT-31 est absent : le module publie alors la **Steuernummer** en BT-32 (`SpecifiedTaxRegistration/ID schemeID="FC"`) pour satisfaire BR-CO-26.
+**Deutscher Fall — Kleinunternehmer (§ 19 UStG).** Ist „Umsatzsteuerpflichtig" auf der Firmenfiche auf *Nein* gesetzt, wechselt die USt-Kategorie zu `E` mit dem Grund `Kein Ausweis von Umsatzsteuer, da Kleinunternehmer gemäß § 19 UStG` und **ohne** VATEX-Code (kein Code der CEF-Liste passt; der Freitext erfüllt BR-E-10). Da keine USt-IdNr vorliegt, fehlt BT-31: das Modul veröffentlicht dann die **Steuernummer** in BT-32 (`SpecifiedTaxRegistration/ID schemeID="FC"`), um BR-CO-26 zu erfüllen.
 
-> ⚠️ **Où saisir la Steuernummer** — conventions Dolibarr pour l'Allemagne : `idprof1` = **USt-IdNr**, `idprof2` = **USt-Nr**, c'est-à-dire la Steuernummer. C'est donc le champ **« Prof Id 2 »** de la fiche société qu'il faut renseigner. Le champ `idprof1` n'est lu qu'en repli, et seulement si sa valeur ne ressemble pas à un n° de TVA — un n° de TVA ne doit jamais être publié sous le schéma `FC` au lieu de `VA`.
+> ⚠️ **Wo die Steuernummer eintragen** — Dolibarr-Konventionen für Deutschland: `idprof1` = **USt-IdNr**, `idprof2` = **USt-Nr**, also die Steuernummer. Es ist also das Feld **„Prof Id 2"** der Firmenfiche zu befüllen. Das Feld `idprof1` wird nur als Rückfall gelesen, und nur, wenn sein Wert nicht wie eine USt-IdNr aussieht — eine USt-IdNr darf nie unter dem Schema `FC` statt `VA` veröffentlicht werden.
 
-Les mentions de retard de paiement allemandes (§ 288 BGB) ne sont **pas** émises d'office : à saisir dans les trois champs « Mentions légales » de la configuration du module si vous les voulez dans le XML et le pied de page PDF.
+Deutsche Verzugshinweise (§ 288 BGB) werden **nicht** automatisch ausgegeben: in die drei Felder „Gesetzliche Pflichtangaben" der Modulkonfiguration einzutragen, wenn sie im XML und der PDF-Fußzeile erscheinen sollen.
 
-## API REST
+## REST-API
 
-Avec le module API REST Dolibarr activé (clé API utilisateur, droits factures) :
+Mit aktiviertem Dolibarr-REST-API-Modul (Benutzer-API-Schlüssel, Rechnungsrechte):
 
-| Endpoint | Description |
+| Endpoint | Beschreibung |
 |---|---|
-| `GET /api/index.php/auvozugferd/invoice/{id}/xml` | XML Factur-X regénéré + warnings + violations BR |
-| `GET /api/index.php/auvozugferd/invoice/{id}/status` | PDF présent ? XML embarqué ? violations BR du XML embarqué |
+| `GET /api/index.php/auvozugferd/invoice/{id}/xml` | Neu erzeugtes Factur-X-XML + Warnungen + BR-Verstöße |
+| `GET /api/index.php/auvozugferd/invoice/{id}/status` | PDF vorhanden? XML eingebettet? BR-Verstöße des eingebetteten XML |
 
-## Export par lot
+## Stapelexport
 
 ```bash
-php scripts/export_facturx_batch.php /chemin/export [2026]
+php scripts/export_facturx_batch.php /pfad/export [2026]
 ```
 
-Extrait le XML Factur-X embarqué de toutes les factures validées (de l'année si précisée) vers `<ref>.xml`, avec rapport `OK / NO_PDF / NO_XML` — audit, archivage, ou dépôt manuel sur une plateforme.
+Extrahiert das eingebettete Factur-X-XML aller validierten Rechnungen (des angegebenen Jahres, falls angegeben) nach `<ref>.xml`, mit Bericht `OK / NO_PDF / NO_XML` — für Audit, Archivierung oder manuelle Einreichung bei einer Plattform.
 
-## Dépendances embarquées
+## Eingebettete Abhängigkeiten
 
-Le dossier `vendor/` contient les libs nécessaires (pas de Composer requis sur le serveur) :
+Der Ordner `vendor/` enthält die benötigten Libs (kein Composer auf dem Server erforderlich):
 
-- `atgp/factur-x` v3.3.0 — génération PDF Factur-X
-- `setasign/fpdi` v2.6.6 — lecture/écriture PDF
-- `setasign/fpdf` 1.8.6 — moteur PDF (utilisé par atgp, **pas** par Dolibarr)
-- `smalot/pdfparser` v2.12.5 — parsing PDF
-- `symfony/polyfill-mbstring` — compatibilité mbstring
+- `atgp/factur-x` v3.4.1 — Erzeugung von Factur-X-PDFs
+- `setasign/fpdi` v2.6.6 — Lesen/Schreiben von PDFs
+- `setasign/fpdf` 1.8.6 — PDF-Engine (von atgp genutzt, **nicht** von Dolibarr)
+- `smalot/pdfparser` v2.12.5 — PDF-Parsing
+- `symfony/polyfill-mbstring` — mbstring-Kompatibilität
 
-## Conformité PDF/A-3
+## PDF/A-3-Konformität
 
-La conformité PDF/A-3 est assurée par :
-- **Polices embarquées** : choisies via le sélecteur **« Police du PDF généré »** du module (`pdfahelvetica` par défaut) ; le diagnostic vérifie qu'une police embarquée est bien posée. Sans police embarquée (Helvetica base-14), le PDF/A-3 est invalide même si le rendu paraît correct.
-- **AFRelationship `Alternative`** : conforme à la spec Factur-X pour le profil EN16931 (corrigé en 3.0.0, `Data` auparavant)
-- **Annotations /F flag** : patch appliqué dans `vendor/setasign/fpdf/fpdf.php` (ajout `/F 4` aux liens)
-- **Profil ICC sRGB** + **métadonnées XMP** : gérés par la lib `atgp/factur-x`
-- **Post-validation veraPDF** optionnelle (`AUVOZUGFERD_VERAPDF_PATH`) pour détecter les modèles PDF custom non conformes
+Die PDF/A-3-Konformität wird sichergestellt durch:
+- **Eingebettete Schriftarten**: gewählt über den Selektor **„Schriftart der erzeugten PDF"** des Moduls (`pdfahelvetica` standardmäßig); die Diagnose prüft, dass eine eingebettete Schriftart gesetzt ist. Ohne eingebettete Schriftart (Helvetica Base-14) ist die PDF/A-3 ungültig, auch wenn die Darstellung korrekt erscheint.
+- **AFRelationship `Alternative`**: konform zur Factur-X-Spezifikation für das Profil EN16931 (in 3.0.0 korrigiert, vorher `Data`)
+- **Annotationen /F-Flag**: Patch angewendet in `vendor/setasign/fpdf/fpdf.php` (Ergänzung `/F 4` bei Links)
+- **ICC-Profil sRGB** + **XMP-Metadaten**: von der Lib `atgp/factur-x` verwaltet
+- **Optionale Post-Validierung mit veraPDF** (`AUVOZUGFERD_VERAPDF_PATH`), um nicht konforme Custom-PDF-Vorlagen zu erkennen
 
-> **Note** : si un module tiers (ex: milestone/jalons) hardcode la police `'Helvetica'`, il faudra le patcher pour utiliser `pdf_getPDFFont($outputlangs)`.
+> **Hinweis**: hardcodiert ein Drittmodul (z. B. Meilensteine) die Schriftart `'Helvetica'`, muss es gepatcht werden, um `pdf_getPDFFont($outputlangs)` zu nutzen.
 
-## Limitations et cas non traités
+## Einschränkungen und nicht behandelte Fälle
 
-Chaque cas non traité (multidevise, taxes locales, situations BTP, autofacturation, AE domestique, connecteur PDP, annuaire, Order-X...) est documenté avec son comportement et la raison du choix dans **[docs/LIMITATIONS.md](docs/LIMITATIONS.md)**.
+Jeder nicht behandelte Fall (Multiwährung, lokale Steuern, Baufortschritt, Selbstfakturierung, inländisches Reverse-Charge, PDP-Konnektor, Verzeichnis, Order-X...) ist mit seinem Verhalten und dem Grund der Entscheidung in **[docs/LIMITATIONS.md](docs/LIMITATIONS.md)** dokumentiert.
 
-## Validation et tests
+## Validierung und Tests
 
-Validation externe via [B2Brouter Factur-X Validator](https://www.b2brouter.net/fr/factur-x-validator/) ou le validateur FNFE-MPE.
+Externe Validierung über den [B2Brouter Factur-X Validator](https://www.b2brouter.net/fr/factur-x-validator/) oder den FNFE-MPE-Validator.
 
-### Validateurs en ligne : faux positifs connus
+### Online-Validatoren: bekannte Fehlalarme
 
-Tous les validateurs en ligne n'embarquent pas la même version des schémas et listes de codes. Un fichier **conforme aux artefacts officiels actuels** peut être rejeté par un validateur resté sur des artefacts ~2021. Deux rejets à tort identifiés (juin 2026, fichier contre-validé par xmllint/XSD 1.08 + veraPDF 146/146 + second validateur) :
+Nicht alle Online-Validatoren bündeln dieselbe Version der Schemata und Codelisten. Eine Datei, **konform zu den aktuellen offiziellen Artefakten**, kann von einem Validator abgelehnt werden, der auf Artefakten von ~2021 stehengeblieben ist. Zwei fälschlicherweise identifizierte Ablehnungen (Juni 2026, Datei gegengeprüft mit xmllint/XSD 1.08 + veraPDF 146/146 + zweitem Validator):
 
-| Rejet affiché | Cause côté validateur | Réalité |
+| Angezeigte Ablehnung | Ursache seitens Validator | Realität |
 |---|---|---|
-| XSD : « `InvoiceReferencedDocument`… not expected. Expected is (`ReceivableSpecifiedTradeAccountingAccount`) » | XSD de l'ère ZUGFeRD 2.1.1 : `InvoiceReferencedDocument` sans `maxOccurs` → 1 seul autorisé. Le 2e (facture finale avec plusieurs acomptes/avoirs imputés) le fait échouer | BG-3 est **0..n** dans EN16931 ; le XSD Factur-X 1.08 (embarqué ici) le déclare `maxOccurs="unbounded"` |
-| « [BR-CL-25] L'identifiant du schéma… DOIT appartenir à la liste de codes CEF EAS » sur l'endpoint `0225` | Liste EAS des [artefacts de validation](https://github.com/ConnectingEurope/eInvoicing-EN16931) ≤ 1.3.9 (oct. 2021), qui s'arrête à `0220` | `0225` (adresse électronique SIREN, annuaire de la réforme FR) figure dans la liste EAS actuelle |
+| XSD: „`InvoiceReferencedDocument`… not expected. Expected is (`ReceivableSpecifiedTradeAccountingAccount`)" | XSD aus der ZUGFeRD-2.1.1-Ära: `InvoiceReferencedDocument` ohne `maxOccurs` → nur 1 erlaubt. Das 2. Vorkommen (Schlussrechnung mit mehreren verrechneten Anzahlungen/Gutschriften) lässt es fehlschlagen | BG-3 ist **0..n** in EN16931; die XSD Factur-X 1.08 (hier eingebettet) deklariert es als `maxOccurs="unbounded"` |
+| „[BR-CL-25] Die Schema-Kennung… MUSS zur CEF-EAS-Codeliste gehören" beim Endpoint `0225` | EAS-Liste der [Validierungsartefakte](https://github.com/ConnectingEurope/eInvoicing-EN16931) ≤ 1.3.9 (Okt. 2021), die bei `0220` endet | `0225` (elektronische SIREN-Adresse, Verzeichnis der FR-Reform) ist in der aktuellen EAS-Liste enthalten |
 
-En cas de doute, faire foi : validation XSD contre les schémas Factur-X 1.08 embarqués (`xmllint --schema`), artefacts Schematron **à jour** de la Commission européenne, et veraPDF pour le PDF/A-3. Ne pas dégrader le XML (retirer le BG-3 multiple, changer `0225`) pour satisfaire un validateur périmé.
+Im Zweifelsfall gilt: XSD-Validierung gegen die eingebetteten Factur-X-1.08-Schemata (`xmllint --schema`), **aktuelle** Schematron-Artefakte der Europäischen Kommission, und veraPDF für PDF/A-3. Das XML nicht degradieren (das mehrfache BG-3 entfernen, `0225` ändern), um einen veralteten Validator zufriedenzustellen.
 
-### Tests unitaires standalone (CI)
+### Standalone-Unit-Tests (CI)
 
-`tests/unit-tests.php` s'exécute **sans Dolibarr** (stubs embarqués) : 28 scénarios / 170+ assertions couvrant avoirs, remises BG-21, intracom K/AE, export, franchise, stress d'arrondis 50 lignes, acomptes, prélèvement SEPA, multidevise, formats, et les règles France XP Z12-012 (BT-1, cohérence SIREN/SIRET, BG-3 des avoirs/rectificatives — dont la 384 avec acompte imputé, BT-23 socle, note BAR, sanitisation d'endpoint, taux de TVA, non-application du bloc BR-FR à un vendeur étranger). Chaque XML généré est validé **XSD + règles métier**.
+`tests/unit-tests.php` läuft **ohne Dolibarr** (eingebettete Stubs): Szenarien und Assertions decken Gutschriften, Rabatte BG-21, innergemeinschaftlich K/AE, Export, Kleinunternehmerregelung, Rundungs-Stresstest mit 50 Positionen, Anzahlungen, SEPA-Lastschrift, Multiwährung, Formate, die Frankreich-Regeln XP Z12-012 (BT-1, SIREN-/SIRET-Konsistenz, BG-3 von Gutschriften/Korrekturen — inkl. 384 mit verrechneter Anzahlung, BT-23-Grundgerüst, BAR-Hinweis, Endpoint-Bereinigung, USt-Sätze, Nichtanwendung des BR-FR-Blocks bei ausländischem Verkäufer), den deutschen Kleinunternehmer-Fall (BT-32 aus idprof2, § 19 UStG ohne VATEX-Code, kein FR-Regelwerk) und die Leitweg-ID-Priorität in BT-10 für deutsche Behörden-Käufer ab. Jedes erzeugte XML wird **XSD- und geschäftsregelgeprüft**.
 
 ```bash
 php tests/unit-tests.php
 ```
 
-Exécutés automatiquement par la CI GitHub (`.github/workflows/ci.yml`) sur chaque push/PR, et avant chaque build de release.
+Automatisch von der GitHub-CI (`.github/workflows/ci.yml`) bei jedem Push/PR ausgeführt, und vor jedem Release-Build.
 
-### Tests d'intégration
+### Integrationstests
 
-`tests/run-tests.php` couvre les 10 cas de fixtures (`demo/fixtures.php`) contre un Dolibarr réel : TypeCode, CategoryCode, unitCode, blocs optionnels, montants, validation XSD.
+`tests/run-tests.php` deckt die 10 Fixture-Fälle (`demo/fixtures.php`) gegen ein echtes Dolibarr ab: TypeCode, CategoryCode, unitCode, optionale Blöcke, Beträge, XSD-Validierung.
 
 ```bash
-php tests/run-tests.php   # exit 0 = OK, 1 = échec
+php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 ```
 
 ## Changelog
 
-### 3.9.2 (juillet 2026)
+### 3.9.5 — Rebrand, deutsche Ergänzungen (August 2026)
 
-**Le compte bancaire du XML suit celui de la facture** ([issue #16](https://github.com/Fips81/module-dolibarr-lemonfacturx/issues/16)). Le module publiait toujours l'IBAN/BIC du compte figé dans sa configuration, même quand un autre compte était sélectionné au niveau du tiers ou de la facture (le PDF, lui, montrait le bon) — d'où un IBAN incohérent entre PDF et XML. Désormais l'ordre de résolution est : **compte sélectionné sur la facture (`fk_account`) → compte configuré dans le module (repli)**. Rétrocompatible : sans compte sur la facture, le comportement précédent est conservé.
+Privater Fork, umbenannt von LemonFacturX zu AuvoZugferd (siehe [Lizenz](#lizenz) für die GPL-Copyright-Behandlung). Seit dem letzten dokumentierten Stand außerdem:
+- **Deutsche Unterstützung**: Kleinunternehmer/§ 19 UStG (Steuernummer als BT-32 aus `idprof2`), Unterdrückung der FR-only-Elemente für ausländische Verkäufer, deutsche Übersetzung (`langs/de_DE`), UI-Beschriftung „ZUGFeRD" statt „Factur-X" für deutsche Nutzer.
+- **Leitweg-ID** (BT-10) für deutsche Behörden-Käufer: neues Extrafield auf der Tiersfiche, Priorität Leitweg-ID > Chorus-Service-Code > `ref_client`.
+- `atgp/factur-x` aktualisiert v3.3.0 → v3.4.1 (Fix eines Tippfehlers im PDF/A-OutputIntent-Schlüssel, robustere XML-Namespace-Behandlung beim Lesen fremder Factur-X/ZUGFeRD-Dateien).
 
-### 3.9.1 (juillet 2026)
+### 3.9.2 (Juli 2026)
 
-`ActionsAuvoZugferd::verifyInvoicePdf()` passe **publique** : elle est appelée par l'onglet « Facturation électronique » de LemonSuperPDP (bouton « Vérifier la Factur-X ») pour afficher le résultat sans quitter l'onglet. Aucun autre changement.
+**Das Bankkonto des XML folgt dem der Rechnung** ([issue #16](https://github.com/Fips81/auvozugferd/issues/16)). Das Modul veröffentlichte stets den in der Konfiguration fest eingestellten IBAN/BIC, auch wenn auf Tiers- oder Rechnungsebene ein anderes Konto gewählt war (die PDF zeigte dagegen das richtige) — daher ein inkonsistenter IBAN zwischen PDF und XML. Die Auflösungsreihenfolge ist nun: **auf der Rechnung gewähltes Konto (`fk_account`) → in der Modulkonfiguration eingestelltes Konto (Rückfall)**. Abwärtskompatibel: ohne Konto auf der Rechnung bleibt das bisherige Verhalten erhalten.
 
-### 3.9.0 (juillet 2026)
+### 3.9.1 (Juli 2026)
 
-**Mise en conformité XP Z12-012 (édition juin 2026) — socle minimum de la réforme.**
-- **Bloc de règles France au validateur** : BR-FR-01/02 (BT-1 ≤ 35 caractères, charset strict sans espace), BR-FR-04 (liste fermée des types de document BT-3), BR-FR-09 (cohérence SIRET/SIREN vendeur et acheteur), BR-FR-23 (charset des adresses électroniques en schemeID 0225).
-- **Références obligatoires** (BR-FR-CO-04/05) : un avoir sans référence à la facture d'origine est désormais **bloqué** (plus un simple warning) ; une rectificative (384) exige exactement une référence datée — et n'agrège plus les acomptes imputés dans BG-3 (bug corrigé).
-- **BT-23 cadre de facturation** émis pour le profil PDP/B2B (B1/S1/M1 déduit des lignes, x4 pour une facture définitive après acomptes) — le chemin Chorus Pro B2G (codes AIFE) est inchangé.
-- **Note BAR** (BR-FR-20) : qualification du traitement attendue par les plateformes (B2B / B2BINT / B2C) émise dans le XML, déduite du profil du tiers.
-- Sanitisation du suffixe d'endpoint vendeur + borne de longueur (BR-FR-23/25) ; BT-8 vérifié contre la codelist (mapping 5/72 déjà correct, documentation enrichie).
-- **+50 tests unitaires** (177 au total) couvrant toutes les nouvelles règles.
-- Limitation assumée documentée : profil EXTENDED-CTC-FR (multi-vendeurs, sous-lignes) non émis — cible 2027 ; la construction des flux 1/10.1 relève de la Plateforme Agréée.
+`ActionsAuvoZugferd::verifyInvoicePdf()` wird **öffentlich**: sie wird vom Reiter „Elektronische Rechnungsstellung" von LemonSuperPDP (Button „Factur-X prüfen") aufgerufen, um das Ergebnis anzuzeigen, ohne den Reiter zu verlassen. Keine weitere Änderung.
 
-### 3.8.0 (juin 2026)
+### 3.9.0 (Juli 2026)
 
-**Nouveau : support des modèles de facture ODT.** Le module se branche désormais aussi sur le hook `afterODTCreation` (contexte `odtgeneration`) et injecte le Factur-X dans le PDF issu d'un modèle ODT converti par LibreOffice (Factur-X principal + 2e PDF Chorus le cas échéant). Prérequis : `MAIN_ODT_AS_PDF = libreoffice` + `MAIN_ODT_AS_PDFA = 1` (sinon le PDF produit est ≥ 1.5 / xref compressé, illisible par FPDI). Code 100 % best-effort : toute condition manquante dégrade proprement avec un avertissement explicite, sans fatale ni PDF corrompu. Validé en interne (LibreOffice 7.4) et en condition réelle (génération ODT confirmée sur un Dolibarr utilisateur) ; voir la section « Support des modèles ODT ». **Réactiver le module** pour que le nouveau contexte de hook soit pris en compte.
+**Konformität mit XP Z12-012 (Ausgabe Juni 2026) — Mindest-Grundgerüst der Reform.**
+- **Frankreich-Regelblock im Validator**: BR-FR-01/02 (BT-1 ≤ 35 Zeichen, strikter Zeichensatz ohne Leerzeichen), BR-FR-04 (geschlossene Liste der Dokumenttypen BT-3), BR-FR-09 (SIRET-/SIREN-Konsistenz Verkäufer und Käufer), BR-FR-23 (Zeichensatz der elektronischen Adressen unter schemeID 0225).
+- **Pflichtreferenzen** (BR-FR-CO-04/05): eine Gutschrift ohne Referenz auf die Ursprungsrechnung ist jetzt **blockiert** (nicht mehr nur eine Warnung); eine Korrekturrechnung (384) verlangt genau eine datierte Referenz — und aggregiert verrechnete Anzahlungen nicht mehr in BG-3 (Fehler behoben).
+- **BT-23-Rechnungsstellungsrahmen** für das Profil PDP/B2B ausgegeben (B1/S1/M1 aus den Positionen abgeleitet, x4 für eine Schlussrechnung nach Anzahlungen) — der Chorus-Pro-B2G-Pfad (AIFE-Codes) ist unverändert.
+- **BAR-Hinweis** (BR-FR-20): erwartete Verarbeitungsqualifikation der Plattformen (B2B / B2BINT / B2C) im XML ausgegeben, aus dem Profil des Tiers abgeleitet.
+- Bereinigung des Verkäufer-Endpoint-Suffix + Längengrenze (BR-FR-23/25); BT-8 gegen die Codeliste geprüft (Mapping 5/72 bereits korrekt, Dokumentation erweitert).
+- **+50 Unit-Tests** (177 insgesamt) für alle neuen Regeln.
+- Dokumentierte bewusste Einschränkung: Profil EXTENDED-CTC-FR (mehrere Verkäufer, Unterpositionen) nicht ausgegeben — Ziel 2027; die Konstruktion der Flüsse 1/10.1 obliegt der Plateforme Agréée.
 
-### 3.7.3 (juin 2026)
+### 3.8.0 (Juni 2026)
 
-**Correctif de conformité EN16931.** L'identifiant SIRET du vendeur (BT-29) et de l'acheteur (BT-46) était émis dans `ram:ID schemeID="0009"` au niveau du `TradeParty`. Or EN16931 ne lit le `schemeID` que sur `ram:GlobalID` : sur `ram:ID` l'attribut est « not used in the given context » et faisait **échouer la validation Schematron** (constaté avec le validateur FNFE-MPE — « Fully Valid : NO »). L'identifiant qualifié passe désormais dans `ram:GlobalID schemeID="0009"`. Le SIREN en `SpecifiedLegalOrganization` (BT-30, `schemeID="0002"`) et le profil Chorus Pro ne changent pas. Régénérer les factures concernées pour bénéficier du correctif.
+**Neu: Unterstützung von ODT-Rechnungsvorlagen.** Das Modul klinkt sich nun auch in den Hook `afterODTCreation` (Kontext `odtgeneration`) ein und injiziert das Factur-X in die aus einer ODT-Vorlage per LibreOffice konvertierte PDF (Haupt-Factur-X + ggf. 2. PDF Chorus). Voraussetzung: `MAIN_ODT_AS_PDF = libreoffice` + `MAIN_ODT_AS_PDFA = 1` (sonst ist die erzeugte PDF ≥ 1.5 / komprimierte Xref, für FPDI unlesbar). Code zu 100 % best-effort: jede fehlende Bedingung degradiert sauber mit einer expliziten Warnung, ohne Fatal Error oder beschädigte PDF. Intern validiert (LibreOffice 7.4) und unter realen Bedingungen (ODT-Erzeugung bei einem Nutzer bestätigt); siehe Abschnitt „Unterstützung von ODT-Vorlagen". **Modul reaktivieren**, damit der neue Hook-Kontext berücksichtigt wird.
 
-### 3.7.2 (juin 2026)
+### 3.7.3 (Juni 2026)
 
-**Correctif API REST.** L'API n'expose plus la classe core `Facture` dans son spec (`@return object` au lieu de `@return Facture`) : le `@return Facture` faisait planter en **HTTP 500** la génération de `/explorer/swagger.json` dès que le module était actif (Restler tentait de modéliser toute la classe core). Les appels API authentifiés directs n'étaient pas touchés — seul l'explorer / le spec OpenAPI.
+**EN16931-Konformitätskorrektur.** Die SIRET-Kennung des Verkäufers (BT-29) und des Käufers (BT-46) wurde in `ram:ID schemeID="0009"` auf Ebene des `TradeParty` ausgegeben. EN16931 liest das `schemeID` jedoch nur auf `ram:GlobalID`: auf `ram:ID` ist das Attribut „not used in the given context" und ließ die **Schematron-Validierung fehlschlagen** (festgestellt mit dem FNFE-MPE-Validator — „Fully Valid: NO"). Die qualifizierte Kennung wandert nun in `ram:GlobalID schemeID="0009"`. Die SIREN in `SpecifiedLegalOrganization` (BT-30, `schemeID="0002"`) und das Chorus-Pro-Profil ändern sich nicht. Betroffene Rechnungen neu erzeugen, um von der Korrektur zu profitieren.
 
-### 3.7.1 (juin 2026)
+### 3.7.2 (Juni 2026)
 
-**Correctif de régression (à appliquer).** La 3.7.0 avait fait de l'injection in-process le mode par défaut, ce qui déclenche une erreur fatale `Declaration of FpdfTplTrait::setPageFormat must be compatible with TCPDF::setPageFormat` sur un Dolibarr standard : `pdf_getInstance()` charge le moteur `tcpdi` (`class FPDF extends TCPDF`) à chaque génération, et la lib d'injection FPDI en hérite alors → conflit de signature, génération de facture cassée. L'injection repasse par un **sous-process PHP isolé** dès qu'`exec()` est disponible (process vierge, aucun conflit possible — comportement d'avant la 3.7.0). L'in-process n'est tenté que si `exec()` est désactivé, avec un **garde-fou** qui conserve le PDF classique au lieu de planter, et un **diagnostic** qui indique la marche à suivre (activer `exec()`, ou poser `MAIN_DISABLE_TCPDI=1`).
+**REST-API-Korrektur.** Die API exponiert die Core-Klasse `Facture` nicht mehr in ihrer Spec (`@return object` statt `@return Facture`): das `@return Facture` ließ die Erzeugung von `/explorer/swagger.json` mit **HTTP 500** abstürzen, sobald das Modul aktiv war (Restler versuchte, die gesamte Core-Klasse zu modellieren). Direkte authentifizierte API-Aufrufe waren nicht betroffen — nur der Explorer/die OpenAPI-Spec.
 
-### 3.7.0 (juin 2026)
+### 3.7.1 (Juni 2026)
 
-Mode d'injection réglable (`AUVOZUGFERD_INJECTION_MODE`) avec injection in-process sans `exec()`. **Ne pas utiliser tel quel — corrigé en 3.7.1** (conflit FPDF/TCPDF via le moteur `tcpdi` de Dolibarr).
+**Regressionskorrektur (anzuwenden).** 3.7.0 hatte die In-Process-Injektion zum Standardmodus gemacht, was auf einem Standard-Dolibarr eine Fatal Error `Declaration of FpdfTplTrait::setPageFormat must be compatible with TCPDF::setPageFormat` auslöst: `pdf_getInstance()` lädt bei jeder Erzeugung die Engine `tcpdi` (`class FPDF extends TCPDF`), und die Injektionsbibliothek FPDI erbt dann davon → Signaturkonflikt, Rechnungserzeugung kaputt. Die Injektion läuft wieder über einen **isolierten PHP-Subprozess**, sobald `exec()` verfügbar ist (jungfräulicher Prozess, kein Konflikt möglich — Verhalten wie vor 3.7.0). In-Process wird nur versucht, wenn `exec()` deaktiviert ist, mit einer **Absicherung**, die die klassische PDF statt eines Absturzes beibehält, und einer **Diagnose**, die das weitere Vorgehen anzeigt (`exec()` aktivieren, oder `MAIN_DISABLE_TCPDI=1` setzen).
 
-### 3.6.3 (juin 2026)
+### 3.7.0 (Juni 2026)
 
-Sélecteur de **police PDF** dans la configuration (compatibilité Factur-X indiquée pour chaque police) ; mentions légales BR-FR-05 centrées sur le PDF.
+Einstellbarer Injektionsmodus (`AUVOZUGFERD_INJECTION_MODE`) mit In-Process-Injektion ohne `exec()`. **Nicht so verwenden — in 3.7.1 korrigiert** (FPDF/TCPDF-Konflikt über die `tcpdi`-Engine von Dolibarr).
 
-### 3.6.2 (juin 2026)
+### 3.6.3 (Juni 2026)
 
-Recopie des mentions légales BR-FR-05 dans le pied de facture (`INVOICE_FREE_TEXT`) avec option « écraser » ; bouton pour reporter les champs Chorus dans la note publique de la facture.
+**PDF-Schriftart**-Selektor in der Konfiguration (Factur-X-Kompatibilität für jede Schriftart angezeigt); gesetzliche Pflichtangaben BR-FR-05 auf der PDF zentriert.
 
-### 3.6.1 (juin 2026)
+### 3.6.2 (Juni 2026)
 
-Correctif : les champs Chorus n'apparaissent plus comme un bloc parasite dans le corps du PDF sous **Dolibarr 23** (`printable=0` forcé sur les extrafields Chorus).
+Kopie der gesetzlichen Pflichtangaben BR-FR-05 in die Rechnungsfußzeile (`INVOICE_FREE_TEXT`) mit Option „Überschreiben"; Button, um die Chorus-Felder in die öffentliche Notiz der Rechnung zu übertragen.
 
-### 3.6.0 (juin 2026)
+### 3.6.1 (Juni 2026)
 
-Compatibilité **Dolibarr 23** (onglet et hooks Chorus), meilleures performances sur les factures en brouillon, suffixe d'endpoint vendeur (BT-34) pour l'adressage des Plateformes Agréées.
+Korrektur: die Chorus-Felder erscheinen unter **Dolibarr 23** nicht mehr als störender Block im PDF-Rumpf (`printable=0` für die Chorus-Extrafields erzwungen).
 
-### 3.5.1 (juin 2026)
+### 3.6.0 (Juni 2026)
 
-Correctif de la détection du binaire PHP CLI sous **Windows**.
+Kompatibilität mit **Dolibarr 23** (Chorus-Reiter und -Hooks), bessere Performance bei Rechnungsentwürfen, Verkäufer-Endpoint-Suffix (BT-34) für die Adressierung der Plateformes Agréées.
 
-### 3.5.0 (juin 2026)
+### 3.5.1 (Juni 2026)
 
-Réglages simplifiés et **auto-détection du binaire PHP CLI** (plus de configuration manuelle dans le cas courant).
+Korrektur der PHP-CLI-Binary-Erkennung unter **Windows**.
 
-### 3.4.0 (juin 2026)
+### 3.5.0 (Juni 2026)
 
-Support **Chorus Pro (B2G)** : génération d'un second PDF dédié au profil Chorus, sans jamais modifier le Factur-X standard.
+Vereinfachte Einstellungen und **automatische Erkennung des PHP-CLI-Binary** (im üblichen Fall keine manuelle Konfiguration mehr nötig).
 
-### 3.2.1 (juin 2026)
+### 3.4.0 (Juni 2026)
 
-SIREN lu depuis le champ SIREN de Dolibarr (`idprof1`) plutôt que dérivé du SIRET.
+Unterstützung von **Chorus Pro (B2G)**: Erzeugung einer zweiten, dem Chorus-Profil gewidmeten PDF, ohne je das Standard-Factur-X zu verändern.
 
-### 3.2.0 (juin 2026)
+### 3.2.1 (Juni 2026)
 
-**SIRET et SIREN dans deux champs distincts** (SIRET → `ram:ID` 0009 BT-29/46, SIREN → `SpecifiedLegalOrganization` 0002 BT-30/47) — corrige le rejet au dépôt sur les Plateformes Agréées (BR-FR-10).
+SIREN aus dem Dolibarr-SIREN-Feld (`idprof1`) gelesen statt aus der SIRET abgeleitet.
 
-### 3.1.0 (juin 2026)
+### 3.2.0 (Juni 2026)
 
-Mentions légales BR-FR-05 rendues visibles sur le PDF en un clic depuis la configuration.
+**SIRET und SIREN in zwei getrennten Feldern** (SIRET → `ram:ID` 0009 BT-29/46, SIREN → `SpecifiedLegalOrganization` 0002 BT-30/47) — behebt die Ablehnung bei der Einreichung auf den Plateformes Agréées (BR-FR-10).
 
-### 3.0.3 (juin 2026)
+### 3.1.0 (Juni 2026)
 
-Avertissement SIREN/routage : critère « non-assujetti à la TVA » complété pour ne plus signaler à tort certains tiers.
+Gesetzliche Pflichtangaben BR-FR-05 per Klick aus der Konfiguration auf der PDF sichtbar gemacht.
 
-### 3.0.2 (juin 2026)
+### 3.0.3 (Juni 2026)
 
-Correction en un clic de `MAIN_PDF_FORCE_FONT` depuis le diagnostic.
+SIREN-/Routing-Warnung: Kriterium „nicht umsatzsteuerpflichtig" ergänzt, um bestimmte Tiers nicht mehr fälschlich zu melden.
 
-### 3.0.1 (juin 2026)
+### 3.0.2 (Juni 2026)
 
-Plus d'avertissement SIREN pour les clients particuliers (B2C).
+Ein-Klick-Korrektur von `MAIN_PDF_FORCE_FONT` aus der Diagnose.
 
-### 3.0.0 (juin 2026)
+### 3.0.1 (Juni 2026)
 
-Refonte de conformité majeure — **lire les changements de comportement avant mise à jour**.
+Keine SIREN-Warnung mehr für Privatkunden (B2C).
 
-**Corrections de conformité (bloquantes auparavant)** :
-- **Avoirs (381)** : montants désormais émis en **positif** (BR-27) avec `DuePayableAmount` exact (BR-CO-16 — l'écrêtage à zéro produisait des avoirs rejetés par les validateurs Schematron) + référence BG-3 à la facture d'origine.
-- **AFRelationship `Alternative`** au lieu de `Data` (exigé par la spec Factur-X pour le profil EN16931 ; `Data` était signalé en erreur par Mustang/FNFE).
-- **Remises fixes** : converties en remises document BG-21 (les lignes à prix négatif violaient BR-27).
-- **Intracom (K)** : pays de livraison ShipTo (BR-IC-12) et date de livraison (BR-IC-11) émis ; distinction **K (biens) / AE (services art. 196)** par `product_type`.
-- **BR-61** : bloc moyen de paiement omis si virement sans IBAN configuré (au lieu d'un XML rejeté).
-- **Ventilation TVA par (catégorie, taux)** + réconciliation des arrondis avec les totaux facture (BR-CO-14/17) ; totaux BG-22 recalculés de bas en haut (BR-CO-10..16).
-- **Multidevise et taxes locales** : détectées et refusées proprement (le XML divergeait silencieusement du PDF visible).
-- **SIREN/SIRET réservés aux tiers français** : l'identifiant local d'un tiers étranger (HRB allemand...) n'est plus publié sous un scheme SIREN/SIRET — repli email pour l'endpoint.
+### 3.0.0 (Juni 2026)
 
-**Changements de comportement** :
-- **Deux identifiants dans deux champs distincts (depuis 3.2.0)** : le **SIRET** (établissement, 14 chiffres) va dans `ram:ID` schemeID 0009 (BT-29/BT-46), et le **SIREN** (entité légale, 9 chiffres) dans `SpecifiedLegalOrganization/ram:ID` schemeID 0002 (BT-30/BT-47). Jusqu'en 3.1.x le module mettait à tort le SIRET dans `SpecifiedLegalOrganization`, ce qui faisait échouer la règle **BR-FR-10** (« SIREN du vendeur obligatoire, exactement 9 chiffres ») et le dépôt sur les Plateformes Agréées (« l'entreprise liée à la session ne correspond pas au vendeur »). Chorus Pro conserve son SIRET via BT-29/BT-46. Aucun réglage nécessaire : chaque identifiant à sa place.
-- **Mentions légales BR-FR-05 (PMD/PMT/AAB)** : le texte par défaut s'applique désormais réellement quand le champ est laissé vide (auparavant les constantes créées vides à l'activation produisaient des mentions vides dans le XML).
-- **Libellés moyens de paiement corrigés** : 58 = **virement** SEPA (et non prélèvement) ; nouveau code 59 = prélèvement SEPA (avec ICS/RUM/IBAN débiteur BT-89/90/91). **Vérifier votre réglage si vous aviez choisi « 58 - Prélèvement SEPA »**.
-- **BT-72** : date de livraison réelle (`delivery_date`) ou bloc omis — la date d'émission n'est plus forgée en date de livraison (sauf repli intracom).
-- Quantités et prix unitaires émis avec jusqu'à 4 décimales.
+Große Konformitäts-Überarbeitung — **vor dem Update die Verhaltensänderungen lesen**.
 
-**Nouvelles données émises** : BT-8 (TVA débits/encaissements, config), BT-10 (`ref_client`), BT-13 (commande liée), BT-23 (cadre de facturation, config), BG-3 (factures antérieures : avoirs, rectificatives 384, acomptes imputés), BG-14 (période depuis les dates de service), BT-121 (codes VATEX), BT-89/90/91 (prélèvement).
+**Konformitätskorrekturen (vorher blockierend)**:
+- **Gutschriften (381)**: Beträge nun **positiv** ausgegeben (BR-27) mit exaktem `DuePayableAmount` (BR-CO-16 — die Nullkappung erzeugte von Schematron-Validatoren abgelehnte Gutschriften) + BG-3-Referenz auf die Ursprungsrechnung.
+- **AFRelationship `Alternative`** statt `Data` (von der Factur-X-Spezifikation für das Profil EN16931 gefordert; `Data` wurde von Mustang/FNFE als Fehler gemeldet).
+- **Feste Rabatte**: in Dokument-Rabatte BG-21 umgewandelt (Positionen mit negativem Preis verletzten BR-27).
+- **Innergemeinschaftlich (K)**: ShipTo-Lieferland (BR-IC-12) und Lieferdatum (BR-IC-11) ausgegeben; Unterscheidung **K (Waren) / AE (Dienstleistungen Art. 196)** über `product_type`.
+- **BR-61**: Zahlungsmittelblock weggelassen, falls Überweisung ohne konfigurierten IBAN (statt eines abgelehnten XML).
+- **USt-Aufschlüsselung nach (Kategorie, Satz)** + Rundungsabgleich mit den Rechnungssummen (BR-CO-14/17); BG-22-Summen von unten nach oben neu berechnet (BR-CO-10..16).
+- **Multiwährung und lokale Steuern**: erkannt und sauber abgelehnt (das XML wich zuvor still von der sichtbaren PDF ab).
+- **SIREN/SIRET nur für französische Tiers**: die lokale Kennung eines ausländischen Tiers (deutsche HRB...) wird nicht mehr unter einem SIREN-/SIRET-Schema veröffentlicht — Rückfall auf E-Mail für den Endpoint.
 
-**Outillage** :
-- Validateur interne de **règles métier EN16931** (sous-ensemble Schematron en PHP) avant injection — bloquant en mode strict.
-- Boutons **« Vérifier Factur-X »** / **« Régénérer Factur-X »** sur la fiche facture.
-- **API REST** (`/auvozugferd/invoice/{id}/xml` et `/status`) et **export par lot** (`scripts/export_facturx_batch.php`).
-- Post-validation **veraPDF** optionnelle ; diagnostic enrichi (`MAIN_PDF_FORCE_FONT`, `exec()`, binaire PHP CLI, note multidevise).
-- Suite de **tests unitaires standalone** (sans Dolibarr) + **CI GitHub** (lint + tests sur chaque push/PR, et avant chaque release).
-- Traduction **en_US** complète ; messages du hook et des contrôles internationalisés.
+**Verhaltensänderungen**:
+- **Zwei Kennungen in zwei getrennten Feldern (seit 3.2.0)**: die **SIRET** (Niederlassung, 14 Ziffern) geht in `ram:ID` schemeID 0009 (BT-29/BT-46), und die **SIREN** (juristische Einheit, 9 Ziffern) in `SpecifiedLegalOrganization/ram:ID` schemeID 0002 (BT-30/BT-47). Bis 3.1.x setzte das Modul fälschlich die SIRET in `SpecifiedLegalOrganization`, was die Regel **BR-FR-10** („Verkäufer-SIREN pflicht, genau 9 Ziffern") und die Einreichung auf den Plateformes Agréées scheitern ließ („das mit der Sitzung verknüpfte Unternehmen entspricht nicht dem Verkäufer"). Chorus Pro behält seine SIRET über BT-29/BT-46. Keine Einstellung nötig: jede Kennung an ihrem Platz.
+- **Gesetzliche Pflichtangaben BR-FR-05 (PMD/PMT/AAB)**: der Standardtext greift nun tatsächlich, wenn das Feld leer gelassen wird (zuvor erzeugten die bei Aktivierung leer angelegten Konstanten leere Hinweise im XML).
+- **Zahlungsart-Bezeichnungen korrigiert**: 58 = SEPA-**Überweisung** (nicht Lastschrift); neuer Code 59 = SEPA-Lastschrift (mit Gläubiger-ID/Mandatsreferenz/Debitor-IBAN BT-89/90/91). **Einstellung prüfen, falls „58 - SEPA-Lastschrift" gewählt war**.
+- **BT-72**: reales Lieferdatum (`delivery_date`) oder Block weggelassen — das Ausstellungsdatum wird nicht mehr als Lieferdatum vorgetäuscht (außer beim innergemeinschaftlichen Rückfall).
+- Mengen und Einzelpreise mit bis zu 4 Dezimalstellen ausgegeben.
 
-**Robustesse et sécurité** :
-- Écriture **atomique** du PDF dans le subprocess (un disque plein ne peut plus tronquer le PDF) ; retours d'écriture vérifiés ; `catch \Throwable`.
-- Garde CLI sur `demo/*` et `tests/*` (les fixtures créaient un admin de démo accessibles en HTTP si le dépôt était cloné sous la racine web) + `.htaccess` de refus sur `demo/`, `tests/`, `scripts/`.
-- Actions GitHub épinglées par SHA ; cache des échecs du check de version (page admin ne rame plus si GitHub est injoignable) ; garde `curl_init` ; filtre `entity` sur les comptes bancaires (multicompany) et les contacts.
-- Prérequis matérialisés dans le descripteur (`phpmin` 8.1, `need_dolibarr_version` 16).
-- Fonctions globales préfixées (`xmlEncode`/`formatAmount` → `auvozugferd_xml_encode`/`auvozugferd_format_amount`).
+**Neu ausgegebene Daten**: BT-8 (USt Soll-/Ist-Versteuerung, Konfiguration), BT-10 (`ref_client`), BT-13 (verknüpfte Bestellung), BT-23 (Rechnungsstellungsrahmen, Konfiguration), BG-3 (vorangehende Rechnungen: Gutschriften, Korrekturen 384, verrechnete Anzahlungen), BG-14 (Zeitraum aus den Leistungsdaten), BT-121 (VATEX-Codes), BT-89/90/91 (Lastschrift).
 
-**Migration** : aucune migration DB, mais **désactiver puis réactiver le module** après mise à jour pour enregistrer le nouveau hook `invoicecard` (boutons de la fiche facture). Vérifier ensuite : (1) le réglage moyen de paiement si « 58 » était choisi pour du prélèvement → passer à 59 ; (2) régénérer les avoirs récents non transmis pour bénéficier du correctif. L'identifiant légal BT-30/BT-47 est désormais toujours SIRET/0009 (plus de réglage).
+**Werkzeuge**:
+- Interner Validator für **EN16931-Geschäftsregeln** (Teilmenge des Schematron in PHP) vor der Injektion — blockierend im Strikt-Modus.
+- Buttons **„Factur-X prüfen"** / **„Factur-X neu erzeugen"** auf der Rechnungsfiche.
+- **REST-API** (`/auvozugferd/invoice/{id}/xml` und `/status`) und **Stapelexport** (`scripts/export_facturx_batch.php`).
+- Optionale Post-Validierung mit **veraPDF**; erweiterte Diagnose (`MAIN_PDF_FORCE_FONT`, `exec()`, PHP-CLI-Binary, Multiwährungs-Hinweis).
+- Suite von **Standalone-Unit-Tests** (ohne Dolibarr) + **GitHub-CI** (Lint + Tests bei jedem Push/PR, und vor jeder Release).
+- Vollständige **en_US**-Übersetzung; Hook- und Kontrollmeldungen internationalisiert.
 
-### 2.1.2 (juin 2026)
+**Robustheit und Sicherheit**:
+- **Atomares** Schreiben der PDF im Subprozess (eine volle Festplatte kann die PDF nicht mehr abschneiden); Schreibrückgaben geprüft; `catch \Throwable`.
+- CLI-Schutz auf `demo/*` und `tests/*` (die Fixtures erzeugten einen per HTTP erreichbaren Demo-Admin, falls das Repo unter dem Web-Root geklont war) + `.htaccess`-Zugriffsverweigerung auf `demo/`, `tests/`, `scripts/`.
+- GitHub Actions per SHA gepinnt; Cache der Fehlschläge beim Versionscheck (Admin-Seite hakt nicht mehr, wenn GitHub nicht erreichbar ist); `curl_init`-Absicherung; `entity`-Filter auf Bankkonten (Multicompany) und Kontakte.
+- Voraussetzungen im Deskriptor hinterlegt (`phpmin` 8.1, `need_dolibarr_version` 16).
+- Präfigierte globale Funktionen (`xmlEncode`/`formatAmount` → `auvozugferd_xml_encode`/`auvozugferd_format_amount`).
 
-Correctif Chorus Pro — identifiant légal **SIRET** (et non SIREN) dans `SpecifiedLegalOrganization` :
+**Migration**: keine DB-Migration, aber **Modul deaktivieren und wieder aktivieren** nach dem Update, um den neuen Hook `invoicecard` (Buttons der Rechnungsfiche) zu registrieren. Danach prüfen: (1) die Zahlungsart-Einstellung, falls „58" für Lastschrift gewählt war → auf 59 umstellen; (2) kürzlich nicht übermittelte Gutschriften neu erzeugen, um von der Korrektur zu profitieren. Die gesetzliche Kennung BT-30/BT-47 ist jetzt immer SIRET/0009 (keine Einstellung mehr).
 
-- **`<ram:SpecifiedLegalOrganization>/ID` (BT-30 vendeur / BT-47 acheteur)** : émet désormais le **SIRET complet (14 chiffres)** au lieu du SIREN (9 chiffres), `schemeID="0002"` conservé. Chorus Pro identifie les structures par leur SIRET et rejetait un SIREN à 9 chiffres. Le fichier restait valide EN16931, d'où le passage des validateurs Factur-X mais le rejet à la transmission Chorus Pro.
-- **Indépendant de l'adressage de routage** : l'endpoint BT-34/BT-49 (`schemeID="0225"`, introduit en 2.1.0) continue de porter le SIREN.
-- **Diagnostic** : alerte si le SIRET émetteur (BT-30) ou acheteur (BT-47) ne fait pas 14 chiffres.
+### 2.1.2 (Juni 2026)
 
-### 2.1.1 (mai 2026)
+Chorus-Pro-Korrektur — gesetzliche Kennung **SIRET** (statt SIREN) in `SpecifiedLegalOrganization`:
 
-- **Franchise en base TVA** : le diagnostic ne signale plus la TVA intracommunautaire manquante comme une erreur pour une société non assujettie (293 B CGI).
+- **`<ram:SpecifiedLegalOrganization>/ID` (BT-30 Verkäufer / BT-47 Käufer)**: gibt nun die **vollständige SIRET (14 Ziffern)** statt der SIREN (9 Ziffern) aus, `schemeID="0002"` beibehalten. Chorus Pro identifiziert Strukturen über ihre SIRET und lehnte eine 9-stellige SIREN ab. Die Datei blieb EN16931-gültig, daher bestand sie Factur-X-Validatoren, wurde aber bei der Chorus-Pro-Übermittlung abgelehnt.
+- **Unabhängig von der Routing-Adressierung**: der Endpoint BT-34/BT-49 (`schemeID="0225"`, in 2.1.0 eingeführt) trägt weiterhin die SIREN.
+- **Diagnose**: Warnung, falls die SIRET des Ausstellers (BT-30) oder Käufers (BT-47) nicht 14 Ziffern hat.
 
-### 2.1.0 (mai 2026)
+### 2.1.1 (Mai 2026)
 
-- **Endpoint BT-34 / BT-49** : SIREN avec `schemeID="0225"` (annuaire PPF) au lieu de l'email — requis par le routage du réseau des Plateformes Agréées. Schéma configurable (`AUVOZUGFERD_ENDPOINT_SCHEME`), repli email pour les tiers sans SIREN.
+- **Kleinunternehmerregelung**: die Diagnose meldet die fehlende innergemeinschaftliche USt-IdNr nicht mehr als Fehler für ein nicht steuerpflichtiges Unternehmen (293 B CGI).
 
-### 2.0.2 (mai 2026)
+### 2.1.0 (Mai 2026)
 
-- **Compatibilité Windows** ([#4](https://github.com/Fips81/module-dolibarr-lemonfacturx/issues/4), [PR #5](https://github.com/Fips81/module-dolibarr-lemonfacturx/pull/5) de [@Charlymd](https://github.com/Charlymd)) : XML temporaire dans `DOL_DATA_ROOT/facturx/temp/`, regex `AUVOZUGFERD_PHP_CLI_PATH` étendue.
-- **Franchise en base TVA** ([#6](https://github.com/Fips81/module-dolibarr-lemonfacturx/issues/6)) : catégorie `E` (au lieu de `O`), SIREN publié en `SpecifiedTaxRegistration schemeID="FC"` (BR-CO-26/BR-E-09).
+- **Endpoint BT-34 / BT-49**: SIREN mit `schemeID="0225"` (PPF-Verzeichnis) statt E-Mail — vom Routing des Plateformes-Agréées-Netzwerks gefordert. Konfigurierbares Schema (`AUVOZUGFERD_ENDPOINT_SCHEME`), Rückfall auf E-Mail für Tiers ohne SIREN.
 
-### 2.0.1 (mai 2026)
+### 2.0.2 (Mai 2026)
 
-- Boutons **Corriger** du diagnostic ciblés par type d'erreur ; check des modules Dolibarr requis.
+- **Windows-Kompatibilität** ([#4](https://github.com/Fips81/auvozugferd/issues/4), [PR #5](https://github.com/Fips81/auvozugferd/pull/5) von [@Charlymd](https://github.com/Charlymd)): temporäres XML in `DOL_DATA_ROOT/facturx/temp/`, Regex `AUVOZUGFERD_PHP_CLI_PATH` erweitert.
+- **Kleinunternehmerregelung** ([#6](https://github.com/Fips81/auvozugferd/issues/6)): Kategorie `E` (statt `O`), SIREN als `SpecifiedTaxRegistration schemeID="FC"` veröffentlicht (BR-CO-26/BR-E-09).
 
-### 1.1.1 (avril 2026)
+### 2.0.1 (Mai 2026)
 
-Maintenance des dépendances vendored : `atgp/factur-x` v3.3.0, `smalot/pdfparser` v2.12.5, `setasign/fpdf` 1.8.6 (patch `/F 4` réappliqué), `setasign/fpdi` v2.6.6, `symfony/polyfill-mbstring` v1.36.0.
+- **Korrigieren**-Buttons der Diagnose nach Fehlertyp gezielt; Prüfung der benötigten Dolibarr-Module.
 
-### 1.1.0 (avril 2026)
+### 1.1.1 (April 2026)
 
-Module distribué publiquement sur GitHub : acomptes (386, `TotalPrepaidAmount`), CategoryCode contextuel, mapping unités UN/ECE, validation XSD interne, mode strict, demo/ + tests/.
+Wartung der vendorten Abhängigkeiten: `atgp/factur-x` v3.3.0, `smalot/pdfparser` v2.12.5, `setasign/fpdf` 1.8.6 (Patch `/F 4` erneut angewendet), `setasign/fpdi` v2.6.6, `symfony/polyfill-mbstring` v1.36.0.
+
+### 1.1.0 (April 2026)
+
+Modul öffentlich auf GitHub verteilt: Anzahlungen (386, `TotalPrepaidAmount`), kontextabhängiger CategoryCode, Mapping UN/ECE-Einheiten, interne XSD-Validierung, Strikt-Modus, demo/ + tests/.
 
 ### 1.0.0
 
-Version initiale : génération XML EN16931, injection PDF/A-3, conformité B2Brouter sur le cas standard.
+Erste Version: EN16931-XML-Erzeugung, PDF/A-3-Injektion, B2Brouter-Konformität im Standardfall.
 
-## Licence
+## Lizenz
 
-Ce module est distribué sous licence [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) — Copyright (C) 2026 [SASU Lemon](https://hellolemon.fr), Copyright (C) 2026 auvo-design (fork privé, usage interne).
+Dieses Modul steht unter der Lizenz [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) — Copyright (C) 2026 [SASU Lemon](https://hellolemon.fr), Copyright (C) 2026 auvo-design (privater Fork, interne Nutzung).
 
-## À propos
+## Über dieses Projekt
 
-Fork privé maintenu en interne par auvo-design pour ses propres besoins de facturation électronique. Base initiale développée par [Lemon](https://hellolemon.fr). Contact : r.vogel@auvo-design.de
+Privater Fork, intern gepflegt von auvo-design für den eigenen Bedarf an elektronischer Rechnungsstellung. Ursprüngliche Basis entwickelt von [Lemon](https://hellolemon.fr). Kontakt: r.vogel@auvo-design.de
