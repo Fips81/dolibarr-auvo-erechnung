@@ -1,0 +1,207 @@
+Module486213Name = AuvoZugferd
+Module486213Desc = Automatische Erzeugung von ZUGFeRD-EN16931-E-Rechnungen
+
+AuvoZugferdSetup = AuvoZugferd-Einstellungen
+AuvoZugferdBankAccount = Bankkonto (IBAN/BIC)
+AuvoZugferdPaymentMeans = Standard-Zahlungsart
+AuvoZugferdPaymentMeansHint = UNTDID-4461-Code. 30/58 (Überweisung) erfordern eine IBAN: Ohne konfiguriertes Bankkonto wird der Zahlungsblock im XML weggelassen (BR-61). 59 (SEPA-Lastschrift) gibt die Gläubiger-ID (Dolibarr-Konstante PRELEVEMENT_ICS), die Mandatsreferenz und die IBAN des Standard-Bankkontos des Geschäftspartners aus.
+PaymentMeans30 = Überweisung
+PaymentMeans58 = SEPA-Überweisung
+PaymentMeans59 = SEPA-Lastschrift
+PaymentMeans49 = Lastschrift (national)
+AuvoZugferdBrCheck = Prüfung der EN16931-Geschäftsregeln
+AuvoZugferdBrCheckHint = Prüft vor der Injektion eine Teilmenge der EN16931-Schematron-Regeln (BR-CO-10..17, BR-27, BR-61, BR-IC-11/12, Konsistenz der MwSt-Kategorien ...). Verstöße blockieren im Strikt-Modus, andernfalls werden sie den Warnungen hinzugefügt.
+AuvoZugferdVeraPdfPath = PDF/A-3-Validierung mit veraPDF (optional, externes Tool)
+AuvoZugferdVeraPdfPathHint = Standardmäßig leer = deaktiviert, und das ist in Ordnung: Die EN16931-XSD-Prüfung und die internen BR-Regeln laufen bereits. veraPDF wird NICHT mit dem Modul ausgeliefert — es ist ein Drittanbieter-Tool, das Sie selbst installieren (https://verapdf.org) und hier eintragen. Wenn gesetzt, wird jede PDF nach der Injektion erneut als PDF/A-3b validiert: nicht blockierend (ein Fehlschlag erzeugt nur eine Warnung), verlangsamt die Erzeugung um einige Sekunden.
+AuvoZugferdVeraPdfPlaceholder = z. B. /usr/local/bin/verapdf — leer = deaktiviert
+AuvoZugferdInfo = Erzeugte PDF-Rechnungen werden automatisch in ZUGFeRD EN16931 umgewandelt (PDF/A-3 mit eingebettetem CrossIndustryInvoice-XML). IBAN und BIC werden aus dem ausgewählten Bankkonto gelesen.
+AuvoZugferdDiagTitle = Diagnose der Pflichtangaben
+AuvoZugferdDiagResults = Prüfung ZUGFeRD EN16931 + BR-FR-Regeln
+AuvoZugferdDiagSellerName = Firmenname des Verkäufers
+AuvoZugferdDiagSellerAddress = Adresse des Verkäufers
+AuvoZugferdDiagSellerVAT = Umsatzsteuer-Identifikationsnummer
+AuvoZugferdDiagSellerVATFranchise = nicht erforderlich (Kleinunternehmerregelung) — als Steuerkennung (BT-32) wird die Steuernummer ausgegeben, bei französischen Verkäufern die SIREN
+AuvoZugferdDiagSellerSIRET = SIRET / SIREN
+AuvoZugferdDiagSellerEmail = E-Mail des Verkäufers
+AuvoZugferdDiagIBAN = IBAN des Bankkontos
+AuvoZugferdDiagBIC = BIC des Bankkontos
+AuvoZugferdDiagBankNotFound = Bankkonto nicht gefunden
+AuvoZugferdDiagBankNotSet = Kein Bankkonto ausgewählt
+AuvoZugferdDiagModuleBankEnabled = Bank-Modul aktiviert
+AuvoZugferdDiagModuleBankDisabled = Bank-Modul deaktiviert (erforderlich zur Verwaltung des Bankkontos)
+AuvoZugferdDiagModuleInvoiceEnabled = Rechnungs-Modul aktiviert
+AuvoZugferdDiagModuleInvoiceDisabled = Rechnungs-Modul deaktiviert (erforderlich zur Erzeugung von Rechnungen)
+AuvoZugferdDiagForceFontOk = Eingebettete PDF-Schriftart erzwungen (MAIN_PDF_FORCE_FONT)
+AuvoZugferdDiagForceFontMissing = MAIN_PDF_FORCE_FONT nicht gesetzt — ohne eingebettete Schriftarten ist die PDF nicht PDF/A-3-konform
+AuvoZugferdDiagInjInProcess = In-Process-Injektion (ohne exec) erzwungen — funktioniert auf Servern, auf denen exec() deaktiviert ist
+AuvoZugferdDiagInjAuto = Automatischer Modus: Injektion per Subprozess (exec verfügbar) — isolierter PHP-Prozess, der sicherste Weg
+AuvoZugferdDiagInjAutoNoExec = Automatischer Modus: In-Process-Injektion (exec auf diesem Server deaktiviert — keine Alternative verfügbar)
+AuvoZugferdDiagInjSubprocess = Injektion per Subprozess (exec) — Legacy-Modus erzwungen
+AuvoZugferdDiagExecRequiredSub = Modus „Subprozess" gewählt, aber exec() ist auf diesem Server deaktiviert — wechseln Sie in der Konfiguration zu „Automatisch" oder „In-Process"
+AuvoZugferdDiagTcpdiConflict = Die In-Process-Injektion wird fehlschlagen: Dolibarr lädt bei jeder Erzeugung seine PDF-Engine „tcpdi" (ein TCPDF-basiertes FPDF, inkompatibel mit der Factur-X-Injektionsbibliothek). Zwei Lösungen: Aktivieren Sie die exec()-Funktion auf dem Server (das Modul nutzt dann einen isolierten Subprozess, empfohlen), ODER setzen Sie die Konstante MAIN_DISABLE_TCPDI = 1 (gibt In-Process frei, deaktiviert aber die PDF-Zusammenführungsfunktionen von Dolibarr — Seitenhintergründe, Verkettung).
+AuvoZugferdErrTcpdiConflict = FPDF/TCPDF-Konflikt: Dolibarr hat seine tcpdi-Engine geladen (%s), inkompatibel mit der In-Process-Injektion. Aktivieren Sie exec() (Subprozess-Modus) oder setzen Sie die Konstante MAIN_DISABLE_TCPDI=1 (deaktiviert die PDF-Zusammenführung von Dolibarr).
+AuvoZugferdDiagPhpCliOk = PHP-CLI-Binärdatei
+AuvoZugferdDiagPhpCliNotFound = Die konfigurierte PHP-CLI-Binärdatei wurde nicht gefunden oder ist nicht ausführbar: %s
+AuvoZugferdDiagMulticurrencyNote = Multiwährungs-Modul aktiviert: Rechnungen in Fremdwährung werden NICHT in ZUGFeRD umgewandelt (dokumentierte Einschränkung, die klassische PDF bleibt erhalten)
+AuvoZugferdDiagFixLink = Beheben
+AuvoZugferdDiagFixForceFont = Automatisch beheben (setzt „pdfahelvetica")
+AuvoZugferdForceFontSet = MAIN_PDF_FORCE_FONT auf „pdfahelvetica" gesetzt: Erzeugte PDFs betten Schriftarten jetzt ein (PDF/A-3). Globale Einstellung, wirkt auf alle PDF-Dokumente in Dolibarr.
+AuvoZugferdDiagAllOk = Alle Pflichtangaben sind ausgefüllt!
+AuvoZugferdDiagNoBlocker = Kein Blocker: Die ZUGFeRD-Konformität ist sichergestellt. Es verbleiben einige empfohlene Punkte (in Orange), die Sie für ein optimales Ergebnis noch angehen können.
+
+AuvoZugferdStrictMode = Fehlerbehandlungsmodus
+AuvoZugferdStrictModeHint = Best-Effort: Schlägt die ZUGFeRD-Erzeugung fehl, wird die klassische PDF mit einer Warnung ausgeliefert. Strikt: Blockiert die Erzeugung mit sichtbarem Fehler, wenn das XML ungültig ist oder die PDF-Injektion fehlschlägt. Hinweis: Auch im Strikt-Modus bleibt die bereits von Dolibarr erzeugte klassische PDF auf der Festplatte erhalten.
+AuvoZugferdStrictModeBestEffort = Best-Effort (Standard, nicht blockierend)
+AuvoZugferdStrictModeStrict = Strikt (blockiert, wenn ZUGFeRD fehlschlägt)
+AuvoZugferdInjectionMode = XML-Injektionsmodus
+AuvoZugferdInjectionModeHint = „Automatisch" (empfohlen): Subprozess, wenn exec() verfügbar ist (der sicherste, isolierte Weg), und In-Process nur, wenn exec() deaktiviert ist (gehärtetes Shared Hosting). „Nur In-Process" erzwingt die Injektion ohne exec() — nur für Server ohne exec() verwenden, da ein PDF-Bibliothekskonflikt mit einem anderen Modul die Injektion dann verhindern kann. „Subprozess" erzwingt das Legacy-Verhalten (erfordert exec()).
+AuvoZugferdInjectionModeAuto = Automatisch (Subprozess wenn exec, sonst In-Process)
+AuvoZugferdInjectionModeInProcess = Nur In-Process (ohne exec)
+AuvoZugferdInjectionModeSubprocess = Subprozess (exec, Legacy)
+AuvoZugferdPhpCliPath = Pfad zur PHP-CLI-Binärdatei
+AuvoZugferdPhpCliPathHint = Wird nur vom Modus „Subprozess" verwendet. Leer lassen: Das Modul erkennt die richtige PHP-CLI-Binärdatei automatisch. Nur einen Pfad setzen, um eine bestimmte Binärdatei zu erzwingen (exotisches Setup).
+AuvoZugferdLegalNotes = Französische Pflichtangaben (BR-FR-05)
+AuvoZugferdNotePMD = Verzugszinsen (PMD)
+AuvoZugferdNotePMT = Pauschale Beitreibungsentschädigung (PMT)
+AuvoZugferdNoteAAB = Skonto bei vorzeitiger Zahlung (AAB)
+AuvoZugferdLegalNotesForeignHint = Verkäufer außerhalb Frankreichs: Es werden keine Standardangaben gesetzt (die Vorgabetexte stammen aus dem französischen Code de commerce). Leere Felder erzeugen keine Note im XML — tragen Sie hier Ihre eigenen Angaben ein, etwa Verzugszinsen nach § 288 BGB oder Ihre Skontoregelung.
+
+AuvoZugferdUpdateAvailable = Neue Version verfügbar
+AuvoZugferdUpdateAvailableMsg = Eine neuere Version des Moduls ist auf GitHub veröffentlicht (%s, aktuell: %s).
+AuvoZugferdUpdateSeeRelease = Release und Upgrade-Anleitung ansehen
+
+AuvoZugferdBtnVerify = ZUGFeRD prüfen
+AuvoZugferdBtnRegenerate = ZUGFeRD neu erzeugen
+AuvoZugferdMsgNoPdf = Keine PDF für diese Rechnung gefunden — erzeugen Sie zuerst das Dokument.
+AuvoZugferdMsgNoFacturX = Kein ZUGFeRD-XML in %s eingebettet — verwenden Sie „ZUGFeRD neu erzeugen".
+AuvoZugferdMsgVerifyOk = %s: eingebettetes ZUGFeRD-XML gefunden, EN16931-XSD gültig und Geschäftsregeln geprüft.
+AuvoZugferdMsgVerifyKo = %s: eingebettetes ZUGFeRD-XML gefunden, aber nicht konform:
+AuvoZugferdMsgRegenerateFailed = PDF-Neuerzeugung fehlgeschlagen
+AuvoZugferdMsgSuccess = ZUGFeRD-EN16931-E-Rechnung in PDF %s eingebettet.
+AuvoZugferdMsgSuccessWithWarnings = ZUGFeRD-EN16931-E-Rechnung in PDF %s eingebettet. %s nicht blockierende Warnung(en), die für volle Konformität zu beheben sind:
+
+# ODT template support (experimental, v3.8.0) — afterODTCreation hook
+AuvoZugferdOdtErrNoPdfConv = ODT-Template ohne PDF-Konvertierung: Factur-X erfordert eine PDF, es wurde aber nur die .odt-Datei erzeugt
+AuvoZugferdOdtHintEnable = Setzen Sie MAIN_ODT_AS_PDF = libreoffice (und installieren Sie LibreOffice auf dem Server), um die ODT vor der Injektion in eine PDF zu konvertieren
+AuvoZugferdOdtErrNoPdfa = Die aus dem ODT-Template erzeugte PDF ist kein PDF/A: LibreOffice erzeugt dann eine PDF >= 1.5 (komprimierte Xref-Tabelle), die die Factur-X-Injektionsbibliothek nicht lesen kann
+AuvoZugferdOdtHintEnablePdfa = Setzen Sie MAIN_ODT_AS_PDF = libreoffice + MAIN_ODT_AS_PDFA = 1, um eine lesbare, injizierbare PDF/A-1 zu erzeugen
+AuvoZugferdOdtErrPdfMissing = Erwartete PDF neben dem ODT-Template nicht gefunden (%s): Die LibreOffice-Konvertierung ist vermutlich fehlgeschlagen (soffice-Binärdatei fehlt oder ist nicht im PATH)
+
+AuvoZugferdErrMulticurrency = Rechnung in Fremdwährung (%s ≠ Firmenwährung %s) — nicht unterstützt: Das XML würde von der sichtbaren PDF abweichen (dokumentierte Einschränkung)
+AuvoZugferdErrLocalTax = Rechnung mit lokalen Steuern (localtax1/2) — nicht unterstützt: EN16931 bildet nur die MwSt ab, die XML-Gesamtsumme würde von der sichtbaren PDF-Gesamtsumme abweichen (dokumentierte Einschränkung)
+AuvoZugferdErrNoDate = Rechnung hat kein Ausstellungsdatum
+AuvoZugferdErrNoThirdparty = Käufer-Geschäftspartner nicht gefunden (fetch_thirdparty fehlgeschlagen)
+AuvoZugferdErrNoMysoc = Ausstellende Firma ($mysoc) nicht initialisiert
+AuvoZugferdErrInvalidXml = Ungültiges XML
+AuvoZugferdErrBrViolations = EN16931-Geschäftsregeln verletzt
+AuvoZugferdErrTempDir = Temporäre Datei in %s kann nicht erstellt werden
+AuvoZugferdErrTempWrite = Temporäres XML in %s kann nicht geschrieben werden
+AuvoZugferdErrNoExec = Die exec()-Funktion ist auf diesem Server deaktiviert
+AuvoZugferdErrPhpCliChars = AUVOZUGFERD_PHP_CLI_PATH enthält unzulässige Zeichen (erwartet: alphanumerischer Pfad, „/ . _ - : ( ) \" und Leerzeichen)
+AuvoZugferdErrPhpCliNotFound = Die konfigurierte PHP-Binärdatei wurde nicht gefunden oder ist nicht ausführbar: %s
+AuvoZugferdErrInjectFailed = PDF-Injektion fehlgeschlagen
+AuvoZugferdHintPdfKept = klassische PDF ohne ZUGFeRD beibehalten
+AuvoZugferdHintPdfKeptShort = klassische PDF beibehalten
+AuvoZugferdHintBestEffort = Best-Effort-Modus
+
+AuvoZugferdWarnSellerName = Firmenname des Verkäufers fehlt
+AuvoZugferdWarnSellerAddress = Firmenadresse des Verkäufers fehlt
+AuvoZugferdWarnSellerZip = Postleitzahl des Verkäufers fehlt
+AuvoZugferdWarnSellerTown = Ort des Verkäufers fehlt
+AuvoZugferdWarnSellerVAT = Umsatzsteuer-Identifikationsnummer fehlt (Firma)
+AuvoZugferdWarnSellerSIRET = SIRET/SIREN fehlt (Firma) — Pflicht nach BR-FR-10
+AuvoZugferdWarnSellerEndpoint = Elektronische Adresse des Verkäufers fehlt (keine SIREN/SIRET, keine E-Mail) — Pflicht nach BR-FR-13 (BT-34)
+AuvoZugferdWarnSellerSIRETLen = Die SIRET des Verkäufers muss genau 14 Ziffern enthalten (BT-30), %s eingegeben — eine 9-stellige SIREN wird von Chorus Pro abgelehnt
+AuvoZugferdWarnBuyerName = Name des Käufers fehlt
+AuvoZugferdWarnBuyerAddress = Adresse des Käufers fehlt
+AuvoZugferdWarnBuyerZip = Postleitzahl des Käufers fehlt
+AuvoZugferdWarnBuyerTown = Ort des Käufers fehlt
+AuvoZugferdWarnBuyerEndpoint = Elektronische Adresse des Käufers fehlt (keine SIREN/SIRET, keine E-Mail) — Pflicht nach BR-FR-12 (BT-49)
+AuvoZugferdWarnBuyerSIRENRouting = SIREN/SIRET des Käufers fehlt — erforderlich für das Routing im Netzwerk der zugelassenen Plattformen (Endpoint BT-49, schemeID 0225); eine E-Mail allein ist nicht routbar
+AuvoZugferdWarnBuyerSIRETLen = Die SIRET des Käufers muss genau 14 Ziffern enthalten (BT-47), %s eingegeben
+AuvoZugferdWarnNoBank = Kein Bankkonto im Modul konfiguriert
+AuvoZugferdWarnNoForceFont = MAIN_PDF_FORCE_FONT nicht gesetzt — die erzeugte PDF ist nicht garantiert PDF/A-3 (Schriftarten nicht eingebettet); mit einem Klick in den AuvoZugferd-Einstellungen behebbar (Diagnose)
+AuvoZugferdWarnPaymentMeansOmitted = Zahlungsart %s (Überweisung) im XML weggelassen: keine IBAN konfiguriert (BR-61 — konfigurieren Sie ein Bankkonto im Modul)
+AuvoZugferdWarnDirectDebitNoICS = SEPA-Lastschrift: Gläubiger-Identifikationsnummer fehlt (BT-90) — setzen Sie die Dolibarr-Konstante PRELEVEMENT_ICS
+AuvoZugferdWarnDirectDebitNoRUM = SEPA-Lastschrift: Mandatsreferenz fehlt (BT-89) — hinterlegen Sie die Mandatsreferenz im Standard-Bankkonto des Geschäftspartners
+AuvoZugferdWarnCreditNoteNoSource = Gutschrift ohne verknüpfte Ursprungsrechnung: Die Referenz auf die Originalrechnung (BG-3, französische Pflichtangabe) kann nicht ausgegeben werden — erstellen Sie die Gutschrift aus der Originalrechnung
+AuvoZugferdWarnAllNegativeLines = Vollständig negative Rechnung, die keine Gutschrift ist: Positionen werden unverändert ausgegeben, das XML verletzt BR-27 (verwenden Sie eine Dolibarr-Gutschrift)
+AuvoZugferdWarnSituationInvoice = Abschlagsrechnung (Baufortschritt): wird als TypeCode 380 ausgegeben, aber die Abbildung kumulierter Beträge/Einbehalte ist nicht garantiert konform (dokumentierte Einschränkung)
+AuvoZugferdWarnRoundingAdjusted = MwSt-Rundungsdifferenz von %s auf die Hauptkategorie verteilt, um BR-CO-14 zu gewährleisten (Summen prüfen)
+AuvoZugferdWarnTaxMismatch = Differenz von %s zwischen Positions-MwSt und der MwSt-Gesamtsumme der Rechnung, nicht zuordenbar (keine besteuerte Kategorie)
+AuvoZugferdWarnTaxRecomputed = MwSt der Kategorie %s aus ihrer Bemessungsgrundlage neu berechnet (%s statt %s), um BR-CO-17 zu erfüllen — die Differenz zur Dolibarr-Summe stammt aus positionsweiser Rundung (Rundungsmodus prüfen)
+AuvoZugferdWarnTotalsMismatch = XML-Gesamtsumme (%s) weicht von der Dolibarr-Summe (%s) ab — lokale Steuern oder inkonsistente Positionen; das XML priorisiert die interne EN16931-Konsistenz (BR-CO-15)
+AuvoZugferdWarnVeraPdfNotFound = veraPDF nicht gefunden oder nicht ausführbar: %s (AUVOZUGFERD_VERAPDF_PATH)
+AuvoZugferdWarnVeraPdfFailed = veraPDF: Die erzeugte PDF ist nicht PDF/A-3b-konform (Details im Syslog) — prüfen Sie MAIN_PDF_FORCE_FONT und die Bilder des PDF-Templates
+AuvoZugferdWarnBrPrefix = EN16931-Geschäftsregel:
+AuvoZugferdWarnCorrectiveNoSource = Korrekturrechnung ohne verknüpfte Ursprungsrechnung: Die Referenz auf die ersetzte Rechnung (BT-25, gefordert durch Regel BR-FR-CO-04) kann nicht ausgegeben werden — erstellen Sie die Ersatzrechnung aus der Originalrechnung
+AuvoZugferdWarnRefTooLong = Rechnungsnummer (BT-1) zu lang: %s Zeichen, maximal 35 (Regel BR-FR-01)
+AuvoZugferdWarnRefCharset = Rechnungsnummer (BT-1) „%s" enthält unzulässige Zeichen — erlaubt: Buchstaben, Ziffern und - + _ / , kein Leerzeichen (Regel BR-FR-02)
+AuvoZugferdWarnSellerSirenSiretMismatch = SIREN (%s) und SIRET (%s) des Verkäufers sind inkonsistent: Die ersten 9 Ziffern der SIRET müssen der SIREN entsprechen (Regel BR-FR-09) — korrigieren Sie die Firmendaten
+AuvoZugferdWarnBuyerSirenSiretMismatch = SIREN (%s) und SIRET (%s) des Käufers sind inkonsistent: Die ersten 9 Ziffern der SIRET müssen der SIREN entsprechen (Regel BR-FR-09) — korrigieren Sie die Geschäftspartnerdaten
+AuvoZugferdWarnVatRateNotFR = MwSt-Satz %s %% ist nicht in der Liste der zulässigen französischen Sätze (Festland und Überseedepartements) enthalten (Regel BR-FR-16) — prüfen Sie die Eingabe, falls dieser Satz nicht beabsichtigt ist
+AuvoZugferdWarnEndpointSuffixCharset = Das Suffix der elektronischen Verkäuferadresse (AUVOZUGFERD_ENDPOINT_SUFFIX_SELLER) enthält unzulässige Zeichen — bei der Ausgabe werden nur Buchstaben, Ziffern und - _ . übernommen (Regel BR-FR-23)
+AuvoZugferdWarnEndpointTooLong = Elektronische Verkäuferadresse ist %s Zeichen lang: maximal 125 (Regel BR-FR-25) — kürzen Sie das konfigurierte Suffix
+
+AuvoZugferdAboutTitle = Maintenu par auvo-design
+AuvoZugferdAboutIntro = AuvoZugferd ist ein privater Fork, intern gepflegt von auvo-design für den eigenen Bedarf an elektronischer Rechnungsstellung.
+AuvoZugferdAboutLocation = Kontakt: r.vogel@auvo-design.de
+
+# v3.1 — BR-FR-05 mentions bridge to the invoice footer (FACTURE_FREE_TEXT)
+AuvoZugferdCopyNotesDone = %s Angabe(n) zur Dolibarr-Rechnungsfußzeile hinzugefügt („Ergänzender Hinweis auf Rechnungen")
+AuvoZugferdDiagFreeTextMissing = Dolibarr-Rechnungsfußzeile leer („Ergänzender Hinweis auf Rechnungen") — die BR-FR-05-Angaben stehen im XML, erscheinen aber nicht im Klartext auf der gedruckten PDF. Empfohlen, nicht blockierend: Aktivieren Sie „Angaben in die Rechnungsfußzeile kopieren" unter Pflichtangaben.
+AuvoZugferdDiagFreeTextOk = Dolibarr-Rechnungsfußzeile ausgefüllt (Angaben auf der PDF sichtbar)
+
+# v3.4.0 — Chorus Pro profile (B2G): 2nd PDF + extrafields
+AuvoZugferdEfChorus = Chorus-Pro-Rechnung (öffentlicher Sektor)
+AuvoZugferdEfServiceCode = Service-Code (Chorus, BT-10)
+AuvoZugferdEfEngagement = Nummer der rechtlichen Verpflichtung (Chorus, BT-13)
+AuvoZugferdEfMarche = Vertrags-/Auftragsnummer (Chorus, BT-12)
+AuvoZugferdEfLeitwegId = Leitweg-ID (öffentlicher Auftraggeber, BT-10)
+AuvoZugferdChorusGenerated = Chorus-Pro-PDF zusätzlich erzeugt: %s
+AuvoZugferdChorusErr = Die Chorus-Pro-PDF konnte nicht erzeugt werden (die Standard-ZUGFeRD-PDF bleibt gültig)
+
+# Factur-X dropdown menu (v3.4.1)
+AuvoZugferdMenuLabel = ZUGFeRD
+AuvoZugferdBtnGenerateChorus = Chorus-PDF erzeugen
+
+# Chorus Pro tab (v3.4.0)
+AuvoZugferdChorusTab = Chorus Pro
+AuvoZugferdChorusTabHelp = Einstellungen für das Profil „öffentlicher Sektor". Fällt diese Rechnung unter Chorus Pro, wird zusätzlich zur Standard-ZUGFeRD eine zweite Datei „{ref}-CHORUS.pdf" in dem von Chorus erwarteten Format erzeugt (SIRET in der rechtlichen Kennung + Referenzen unten).
+AuvoZugferdChorusDetected = Chorus-Pro-Profil für diese Rechnung erkannt
+AuvoZugferdEfCadre = Rechnungsstellungsrahmen (Chorus, BT-23)
+AuvoZugferdEfChorusHint = Chorus-PDF-Erzeugung auch ohne automatische Erkennung erzwingen
+AuvoZugferdChorusTabGenerateHint = Die -CHORUS.pdf wird (neu) erzeugt, wenn die Rechnungs-PDF neu erzeugt wird, oder über das Menü „ZUGFeRD › Chorus-PDF erzeugen".
+
+# Chorus Pro opt-in toggle
+AuvoZugferdChorusEnabled = Chorus-Pro-Funktionen (öffentlicher Sektor)
+AuvoZugferdChorusEnabledHint = Zeigt den Chorus-Pro-Reiter auf Rechnungen und die Chorus-PDF-Erzeugung an. Nur aktivieren, wenn Sie an den öffentlichen Sektor fakturieren.
+AuvoZugferdChorusSuggested = Diese Rechnung scheint an den öffentlichen Sektor gerichtet zu sein (staatliche SIRET). Aktivieren Sie die Chorus-Pro-Funktionen in den Moduleinstellungen, falls Sie sie bei Chorus Pro einreichen müssen.
+
+# Setup reorganised into blocks (v3.4.0)
+AuvoZugferdSecBilling = Rechnungsstellung
+AuvoZugferdSecPublic = Öffentlicher Sektor (Chorus Pro)
+AuvoZugferdSecValidation = Validierung und Konformität
+AuvoZugferdSecTech = Technik (erweitert)
+AuvoZugferdNotesInFooter = Angaben in die Rechnungsfußzeile kopieren
+AuvoZugferdNotesInFooterHint = Bei Ja werden die obigen Angaben an „Zusätzlicher Text auf Rechnungen" (Fußzeile jeder PDF) angehängt, ohne bestehenden Text zu verändern. Wird beim Speichern angewendet.
+AuvoZugferdPhpCliAutoPlaceholder = auto (erkannt)
+AuvoZugferdDiagPhpCliAuto = automatisch erkannt
+AuvoZugferdSecPA = Adressierung über zugelassene Plattform (PA)
+AuvoZugferdEndpointSuffixSeller = Endpoint-Suffix des Verkäufers (BT-34)
+AuvoZugferdEndpointSuffixSellerHint = Suffix, das an die SIREN des Ausstellers in der elektronischen Verkäuferadresse angehängt wird. Manche zugelassenen Plattformen (z. B. Hubtimize/Esalink) verlangen, dass diese Adresse NICHT die bloße SIREN ist, sondern ein Peppol-Endpoint mit Suffix — „SIREN_Status" (Rückgabeadresse für Lifecycle-Status), wie bei der Registrierung der Einheit konfiguriert. Muss Byte für Byte mit der auf der PA registrierten Adresse übereinstimmen. Leer = bloße SIREN (Legacy-PPF-Verzeichnis). Beeinflusst NICHT die Käuferadresse (BT-49), die immer als bloße SIREN ausgegeben wird.
+AuvoZugferdEndpointSuffixSellerPlaceholder = z. B. _Status — leer = bloße SIREN
+AuvoZugferdNotesOverwrite = Bestehende Dolibarr-Angabe überschreiben
+AuvoZugferdNotesOverwriteHint = Bei Nein werden unsere Angaben nach dem bestehenden „Zusätzlicher Text auf Rechnungen" angehängt. Bei Ja ersetzen sie ihn vollständig. Ein leeres Feld wird in beiden Fällen mit unseren Angaben gefüllt.
+AuvoZugferdNotesAppend = anhängen
+AuvoZugferdNotesReplace = ersetzen
+AuvoZugferdChorusToNote = Chorus-Referenzen in die öffentliche Notiz kopieren
+AuvoZugferdChorusToNoteHint = Fügt die ausgefüllten Chorus-Felder (Rahmen, Service-Code, Verpflichtungs-Nr., Vertrags-Nr.) der öffentlichen Notiz der Rechnung hinzu, die auf der PDF gedruckt wird. Leere Felder werden ignoriert, keine Duplikate.
+AuvoZugferdChorusToNoteDone = %s Chorus-Referenz(en) zur öffentlichen Notiz hinzugefügt
+AuvoZugferdChorusToNoteAlready = Die Chorus-Referenzen stehen bereits in der öffentlichen Notiz
+AuvoZugferdChorusToNoteEmpty = Kein ausgefülltes Chorus-Feld zum Kopieren vorhanden
+AuvoZugferdPdfFont = Schriftart der erzeugten PDF
+AuvoZugferdPdfFontHint = Schriftart, die für alle Dolibarr-PDFs erzwungen wird. Für ZUGFeRD-Konformität (PDF/A-3) muss die Schriftart eingebettet sein (✓). Nicht konforme Schriftarten (⚠, Base-14) machen die PDF/A-3-Gültigkeit zunichte, auch wenn die Darstellung gut aussieht. „Standardschriftart" hebt die Erzwingung auf.
+AuvoZugferdPdfFontDefault = — Dolibarr-Standardschriftart (keine Erzwingung) —
+AuvoZugferdPdfFontOk = ✓ ZUGFeRD-konform (eingebettet)
+AuvoZugferdPdfFontKo = ⚠ nicht PDF/A-3-konform (nicht eingebettet)

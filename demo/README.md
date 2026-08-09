@@ -1,4 +1,4 @@
-# Dolibarr de démo — LemonFacturX
+# Dolibarr de démo — AuvoZugferd
 
 Environnement de test isolé pour valider le module sans toucher à un Dolibarr de production.
 
@@ -17,7 +17,7 @@ Aucun mail n'est envoyé à l'extérieur : Postfix est désactivé et Dolibarr e
 |---|---|
 | LXC | 115 (alias SSH `dolibarr-ard`, IP 192.168.1.224) |
 | Dolibarr | 22.0.4 dans `/var/www/dolibarr/htdocs/` |
-| Module | `/var/www/dolibarr/htdocs/custom/lemonfacturx/` |
+| Module | `/var/www/dolibarr/htdocs/custom/auvozugferd/` |
 | DB | `dolibarr_ard` (MariaDB) |
 | Snapshot | `/root/dolibarr-demo-snapshot.sql.gz` |
 
@@ -55,14 +55,14 @@ Script PHP invoqué par `rebuild-demo.sh`. Crée user/société/tiers/factures. 
 
 ```
 # sur le poste de dev
-cd ~/Claude/Modules\ Dolibarr/module-dolibarr-lemonfacturx
+cd ~/Claude/Modules\ Dolibarr/module-dolibarr-auvozugferd
 # ... modifier le code ...
 tar czf /tmp/lmx.tgz --exclude='.git' .
 scp /tmp/lmx.tgz proxmox:/tmp/
 
 # sur proxmox
 pct push 115 /tmp/lmx.tgz /tmp/lmx.tgz
-pct exec 115 -- bash -c 'rm -rf /var/www/dolibarr/htdocs/custom/lemonfacturx && mkdir /var/www/dolibarr/htdocs/custom/lemonfacturx && tar xzf /tmp/lmx.tgz -C /var/www/dolibarr/htdocs/custom/lemonfacturx && chown -R www-data:www-data /var/www/dolibarr/htdocs/custom/lemonfacturx && bash /var/www/dolibarr/htdocs/custom/lemonfacturx/demo/reset-demo.sh'
+pct exec 115 -- bash -c 'rm -rf /var/www/dolibarr/htdocs/custom/auvozugferd && mkdir /var/www/dolibarr/htdocs/custom/auvozugferd && tar xzf /tmp/lmx.tgz -C /var/www/dolibarr/htdocs/custom/auvozugferd && chown -R www-data:www-data /var/www/dolibarr/htdocs/custom/auvozugferd && bash /var/www/dolibarr/htdocs/custom/auvozugferd/demo/reset-demo.sh'
 ```
 
 Puis ouvrir http://ard.hellolemon.dev, générer les PDF des 10 factures, valider manuellement ou via un script de test.

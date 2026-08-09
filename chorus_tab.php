@@ -1,6 +1,7 @@
 <?php
 /*
  * Copyright (C) 2026 SASU LEMON <https://hellolemon.fr>
+ * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — renamed/modified for private use as AuvoZugferd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,9 +23,9 @@ if (!$res) die("Include of main fails");
 require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/invoice.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
-require_once dol_buildpath('/lemonfacturx/core/lib/lemonfacturx.lib.php');
+require_once dol_buildpath('/auvozugferd/core/lib/auvozugferd.lib.php');
 
-$langs->loadLangs(array('bills', 'lemonfacturx@lemonfacturx'));
+$langs->loadLangs(array('bills', 'auvozugferd@auvozugferd'));
 
 $id = GETPOSTINT('id');
 $action = GETPOST('action', 'aZ09');
@@ -73,21 +74,21 @@ if ($action === 'writechorusnote' && $user->hasRight('facture', 'creer')) {
 	$o = $object->array_options;
 	$lines = array();
 	if (!empty($o['options_lfxcadre'])) {
-		$frameworks = lemonfacturx_chorus_frameworks();
+		$frameworks = auvozugferd_chorus_frameworks();
 		$code = $o['options_lfxcadre'];
-		$lines[] = $langs->trans('LemonFacturXEfCadre').' : '.(isset($frameworks[$code]) ? $frameworks[$code] : $code);
+		$lines[] = $langs->trans('AuvoZugferdEfCadre').' : '.(isset($frameworks[$code]) ? $frameworks[$code] : $code);
 	}
 	if (!empty($o['options_lfxservicecode'])) {
-		$lines[] = $langs->trans('LemonFacturXEfServiceCode').' : '.$o['options_lfxservicecode'];
+		$lines[] = $langs->trans('AuvoZugferdEfServiceCode').' : '.$o['options_lfxservicecode'];
 	}
 	if (!empty($o['options_lfxengagement'])) {
-		$lines[] = $langs->trans('LemonFacturXEfEngagement').' : '.$o['options_lfxengagement'];
+		$lines[] = $langs->trans('AuvoZugferdEfEngagement').' : '.$o['options_lfxengagement'];
 	}
 	if (!empty($o['options_lfxmarche'])) {
-		$lines[] = $langs->trans('LemonFacturXEfMarche').' : '.$o['options_lfxmarche'];
+		$lines[] = $langs->trans('AuvoZugferdEfMarche').' : '.$o['options_lfxmarche'];
 	}
 	if (empty($lines)) {
-		setEventMessages($langs->trans('LemonFacturXChorusToNoteEmpty'), null, 'warnings');
+		setEventMessages($langs->trans('AuvoZugferdChorusToNoteEmpty'), null, 'warnings');
 	} else {
 		$note = (string) $object->note_public;
 		$added = 0;
@@ -99,9 +100,9 @@ if ($action === 'writechorusnote' && $user->hasRight('facture', 'creer')) {
 			$added++;
 		}
 		if ($added > 0 && $object->update_note($note, '_public') > 0) {
-			setEventMessages($langs->trans('LemonFacturXChorusToNoteDone', $added), null, 'mesgs');
+			setEventMessages($langs->trans('AuvoZugferdChorusToNoteDone', $added), null, 'mesgs');
 		} elseif ($added === 0) {
-			setEventMessages($langs->trans('LemonFacturXChorusToNoteAlready'), null, 'mesgs');
+			setEventMessages($langs->trans('AuvoZugferdChorusToNoteAlready'), null, 'mesgs');
 		} else {
 			setEventMessages($object->error, $object->errors, 'errors');
 		}
@@ -111,20 +112,20 @@ if ($action === 'writechorusnote' && $user->hasRight('facture', 'creer')) {
 /*
  * Vue
  */
-llxHeader('', $langs->trans('LemonFacturXChorusTab').' — '.$object->ref);
+llxHeader('', $langs->trans('AuvoZugferdChorusTab').' — '.$object->ref);
 
 $head = facture_prepare_head($object);
-print dol_get_fiche_head($head, 'lemonfacturxchorus', $langs->trans('Bill'), -1, 'bill');
+print dol_get_fiche_head($head, 'auvozugferdchorus', $langs->trans('Bill'), -1, 'bill');
 
 $linkback = '<a href="'.DOL_URL_ROOT.'/compta/facture/list.php?restore_lastsearch_values=1">'.$langs->trans("BackToList").'</a>';
 dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref');
 
 print '<div class="fichecenter">';
-print '<div class="opacitymedium" style="margin:6px 0 14px 0;">'.$langs->trans('LemonFacturXChorusTabHelp').'</div>';
+print '<div class="opacitymedium" style="margin:6px 0 14px 0;">'.$langs->trans('AuvoZugferdChorusTabHelp').'</div>';
 
 // État de détection courant
-$isChorus = lemonfacturx_is_chorus_invoice($object);
-print '<div class="info" style="margin-bottom:12px;">'.$langs->trans('LemonFacturXChorusDetected').' : <strong>'
+$isChorus = auvozugferd_is_chorus_invoice($object);
+print '<div class="info" style="margin-bottom:12px;">'.$langs->trans('AuvoZugferdChorusDetected').' : <strong>'
 	.($isChorus ? $langs->trans('Yes') : $langs->trans('No')).'</strong></div>';
 
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int) $object->id).'">';
@@ -134,29 +135,29 @@ print '<input type="hidden" name="action" value="savechorus">';
 print '<table class="border centpercent tableforfield">';
 
 // Case d'activation (forçage du profil Chorus)
-print '<tr><td class="titlefieldcreate">'.$langs->trans('LemonFacturXEfChorus').'</td><td>';
+print '<tr><td class="titlefieldcreate">'.$langs->trans('AuvoZugferdEfChorus').'</td><td>';
 print '<input type="checkbox" name="lfxchorus" value="1"'.(!empty($object->array_options['options_lfxchorus']) ? ' checked' : '').'>';
-print ' <span class="opacitymedium">'.$langs->trans('LemonFacturXEfChorusHint').'</span>';
+print ' <span class="opacitymedium">'.$langs->trans('AuvoZugferdEfChorusHint').'</span>';
 print '</td></tr>';
 
 // Cadre de facturation BT-23
-print '<tr><td>'.$langs->trans('LemonFacturXEfCadre').'</td><td>';
+print '<tr><td>'.$langs->trans('AuvoZugferdEfCadre').'</td><td>';
 $curCadre = !empty($object->array_options['options_lfxcadre']) ? $object->array_options['options_lfxcadre'] : 'A1';
-print $form->selectarray('lfxcadre', lemonfacturx_chorus_frameworks(), $curCadre, 0, 0, 0, '', 0, 0, 0, '', 'minwidth400');
+print $form->selectarray('lfxcadre', auvozugferd_chorus_frameworks(), $curCadre, 0, 0, 0, '', 0, 0, 0, '', 'minwidth400');
 print '</td></tr>';
 
 // Code service exécutant BT-10
-print '<tr><td>'.$langs->trans('LemonFacturXEfServiceCode').'</td><td>';
+print '<tr><td>'.$langs->trans('AuvoZugferdEfServiceCode').'</td><td>';
 print '<input type="text" name="lfxservicecode" class="flat minwidth300" value="'.dol_escape_htmltag($object->array_options['options_lfxservicecode'] ?? '').'">';
 print '</td></tr>';
 
 // N° engagement BT-13
-print '<tr><td>'.$langs->trans('LemonFacturXEfEngagement').'</td><td>';
+print '<tr><td>'.$langs->trans('AuvoZugferdEfEngagement').'</td><td>';
 print '<input type="text" name="lfxengagement" class="flat minwidth300" value="'.dol_escape_htmltag($object->array_options['options_lfxengagement'] ?? '').'">';
 print '</td></tr>';
 
 // N° marché BT-12
-print '<tr><td>'.$langs->trans('LemonFacturXEfMarche').'</td><td>';
+print '<tr><td>'.$langs->trans('AuvoZugferdEfMarche').'</td><td>';
 print '<input type="text" name="lfxmarche" class="flat minwidth300" value="'.dol_escape_htmltag($object->array_options['options_lfxmarche'] ?? '').'">';
 print '</td></tr>';
 
@@ -174,12 +175,12 @@ if ($user->hasRight('facture', 'creer')) {
 	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int) $object->id).'" class="center" style="margin-top:16px;">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
 	print '<input type="hidden" name="action" value="writechorusnote">';
-	print '<input type="submit" class="button button-add" value="'.dol_escape_htmltag($langs->trans('LemonFacturXChorusToNote')).'">';
-	print '<div class="opacitymedium small" style="margin-top:5px;">'.$langs->trans('LemonFacturXChorusToNoteHint').'</div>';
+	print '<input type="submit" class="button button-add" value="'.dol_escape_htmltag($langs->trans('AuvoZugferdChorusToNote')).'">';
+	print '<div class="opacitymedium small" style="margin-top:5px;">'.$langs->trans('AuvoZugferdChorusToNoteHint').'</div>';
 	print '</form>';
 }
 
-print '<div class="opacitymedium center" style="margin-top:18px;">'.$langs->trans('LemonFacturXChorusTabGenerateHint').'</div>';
+print '<div class="opacitymedium center" style="margin-top:18px;">'.$langs->trans('AuvoZugferdChorusTabGenerateHint').'</div>';
 
 print dol_get_fiche_end();
 

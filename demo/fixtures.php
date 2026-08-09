@@ -1,13 +1,13 @@
 <?php
 /*
- * LemonFacturX - Fixtures de démo
+ * AuvoZugferd - Fixtures de démo
  *
  * Crée : user admin axel, société émettrice, compte bancaire, 6 tiers variés,
  * 10 factures couvrant tous les cas métier Factur-X
  * (standard, multi-TVA, TVA 0%, avoir, heures, jours, sans email,
  *  UE autoliquidation, acompte TYPE_DEPOSIT, finale avec acompte imputé).
  *
- * Usage : php /var/www/dolibarr/htdocs/custom/lemonfacturx/demo/fixtures.php
+ * Usage : php /var/www/dolibarr/htdocs/custom/auvozugferd/demo/fixtures.php
  */
 
 // Sécurité : ce script crée un compte admin de démo — exécution CLI uniquement.
@@ -89,7 +89,7 @@ if ($bankId <= 0) {
 	exit(1);
 }
 echo "  compte id=$bankId (IBAN ".$bank->iban.")\n";
-dolibarr_set_const($db, 'LEMONFACTURX_BANK_ACCOUNT', $bankId, 'int', 0, '', 1);
+dolibarr_set_const($db, 'AUVOZUGFERD_BANK_ACCOUNT', $bankId, 'int', 0, '', 1);
 
 echo "=== Tiers ===\n";
 function createTier($db, $user, $p)

@@ -1,12 +1,12 @@
-# Politique de sécurité — LemonFacturX
+# Politique de sécurité — AuvoZugferd
 
-Ce document décrit le modèle de menace du module LemonFacturX, les protections en place, les limitations assumées, et le processus de signalement responsable d'une faille.
+Ce document décrit le modèle de menace du module AuvoZugferd, les protections en place, les limitations assumées, et le processus de signalement responsable d'une faille.
 
 ## Signaler une vulnérabilité
 
 Merci de **ne pas** ouvrir d'issue publique pour une faille de sécurité. Écrivez à :
 
-**hello@hellolemon.fr**
+**r.vogel@auvo-design.de**
 
 Précisez :
 
@@ -26,13 +26,13 @@ Merci d'éviter toute action qui pourrait dégrader un service en production, ac
 
 ## Modèle de menace
 
-LemonFacturX est un module Dolibarr qui convertit automatiquement les PDF factures clients au format Factur-X EN16931 (PDF/A-3 avec XML CII embarqué). Il s'exécute **à l'intérieur** d'une instance Dolibarr authentifiée, branché sur le hook `afterPDFCreation`. Le modèle de menace est celui d'une application métier en intranet.
+AuvoZugferd est un module Dolibarr qui convertit automatiquement les PDF factures clients au format Factur-X EN16931 (PDF/A-3 avec XML CII embarqué). Il s'exécute **à l'intérieur** d'une instance Dolibarr authentifiée, branché sur le hook `afterPDFCreation`. Le modèle de menace est celui d'une application métier en intranet.
 
 ### Rôles
 
 | Rôle | Accès | Confiance |
 |---|---|---|
-| Administrateur Dolibarr | Configuration du module, y compris `LEMONFACTURX_PHP_CLI_PATH` | **Confiance forte**. Un admin compromis implique de toute façon une compromission totale de Dolibarr. |
+| Administrateur Dolibarr | Configuration du module, y compris `AUVOZUGFERD_PHP_CLI_PATH` | **Confiance forte**. Un admin compromis implique de toute façon une compromission totale de Dolibarr. |
 | Utilisateur Dolibarr avec droit de générer un PDF facture | Déclenche l'injection Factur-X via le hook standard | Confiance interne. |
 | Utilisateur anonyme (hors Dolibarr) | Aucun accès | Non concerné : le module n'expose aucun endpoint public. |
 
@@ -41,10 +41,10 @@ LemonFacturX est un module Dolibarr qui convertit automatiquement les PDF factur
 - **Hook `afterPDFCreation`** : exécuté dans le contexte d'une génération PDF facture (utilisateur authentifié)
 - **Hooks `invoicecard`** (boutons « Vérifier / Régénérer Factur-X ») : réservés aux utilisateurs authentifiés avec droits factures (`lire` / `creer`), protégés par token CSRF (`currentToken()`)
 - **Page de configuration admin** : `admin/setup.php`, réservée aux admins via `accessforbidden()` + protection CSRF sur le POST de mise à jour
-- **API REST** : `class/api_lemonfacturx.class.php`, exposée uniquement si le module API REST Dolibarr est activé ; clé API requise, droits `facture->lire` + `_checkAccessToResource()` vérifiés
+- **API REST** : `class/api_auvozugferd.class.php`, exposée uniquement si le module API REST Dolibarr est activé ; clé API requise, droits `facture->lire` + `_checkAccessToResource()` vérifiés
 - **Scripts CLI** : `scripts/inject_facturx.php`, `scripts/export_facturx_batch.php`, `tests/*.php`, `demo/*.php` — tous protégés contre l'accès HTTP direct par `PHP_SAPI === 'cli'`, et les dossiers `scripts/`, `tests/`, `demo/` portent un `.htaccess` `Require all denied` en défense en profondeur
 - **Appel HTTP sortant unique** : vérification de la dernière release GitHub via `api.github.com`, au chargement de la page de configuration admin, avec cache 24h (succès **et** échecs) et timeout 5s (aucune donnée locale envoyée, uniquement une requête `GET` anonyme)
-- **Binaire externe optionnel** : veraPDF (`LEMONFACTURX_VERAPDF_PATH`, constante admin), invoqué via `escapeshellarg()` + `is_executable()`
+- **Binaire externe optionnel** : veraPDF (`AUVOZUGFERD_VERAPDF_PATH`, constante admin), invoqué via `escapeshellarg()` + `is_executable()`
 - **Aucun endpoint web exposé publiquement**
 
 ### Ce qui est **hors** modèle de menace
@@ -56,10 +56,10 @@ LemonFacturX est un module Dolibarr qui convertit automatiquement les PDF factur
 
 ### Injection PDF : sous-process isolé par défaut
 
-Par défaut (mode `auto` avec `exec()` disponible), l'injection du XML dans le PDF se fait dans un **sous-process PHP isolé** (`scripts/inject_facturx.php`). C'est le chemin le plus robuste : le process est vierge — aucune classe Dolibarr ou tierce chargée — donc **aucun conflit de bibliothèques** possible. Le binaire PHP CLI est configurable via `LEMONFACTURX_PHP_CLI_PATH`. Protections de l'appel :
+Par défaut (mode `auto` avec `exec()` disponible), l'injection du XML dans le PDF se fait dans un **sous-process PHP isolé** (`scripts/inject_facturx.php`). C'est le chemin le plus robuste : le process est vierge — aucune classe Dolibarr ou tierce chargée — donc **aucun conflit de bibliothèques** possible. Le binaire PHP CLI est configurable via `AUVOZUGFERD_PHP_CLI_PATH`. Protections de l'appel :
 
 - `escapeshellarg()` est appliqué sur **tous** les tokens de la commande (binaire PHP, script, PDF, fichier XML temporaire). Une valeur piégée dans la constante est quotée, et le shell cherche un binaire avec ce nom littéral qui n'existe pas → `command not found`. Pas de chaînage de commandes possible.
-- Validation par regex `^[A-Za-z0-9/._:() \\-]+$` sur `LEMONFACTURX_PHP_CLI_PATH` avant l'appel (`: \ ( )` et espace autorisés pour les chemins Windows). Toute valeur contenant des caractères exotiques (`;`, `&`, `$`, guillemets, etc.) est refusée.
+- Validation par regex `^[A-Za-z0-9/._:() \\-]+$` sur `AUVOZUGFERD_PHP_CLI_PATH` avant l'appel (`: \ ( )` et espace autorisés pour les chemins Windows). Toute valeur contenant des caractères exotiques (`;`, `&`, `$`, guillemets, etc.) est refusée.
 - Si le chemin est absolu, `is_executable()` vérifie qu'un exécutable existe effectivement.
 - `function_exists('exec')` est testé en amont.
 - Le script CLI `inject_facturx.php` refuse tout appel via HTTP : `if (php_sapi_name() !== 'cli') { http_response_code(403); die(...); }`
@@ -85,7 +85,7 @@ Depuis la v1.1.0, avant d'écrire le XML sur disque et d'invoquer le subprocess 
 1. **XML well-formed** via `DOMDocument::loadXML()`. Un XML cassé (cas peu probable puisque la génération est programmatique, mais défense en profondeur) est rejeté avant qu'il atteigne la lib tierce.
 2. **Conformité XSD EN16931** via `DOMDocument::schemaValidate()` contre le schéma embarqué dans `vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.08_EN16931.xsd`. Les erreurs sont loggées dans `dol_syslog` pour diagnostic.
 
-En mode `LEMONFACTURX_STRICT_MODE=1`, ces validations échouées bloquent la génération avec une erreur visible. En mode best-effort (défaut), un warning est affiché et le PDF classique reste disponible (fail-open). Cette option permet de choisir explicitement la politique fail-open vs fail-closed selon le besoin de conformité.
+En mode `AUVOZUGFERD_STRICT_MODE=1`, ces validations échouées bloquent la génération avec une erreur visible. En mode best-effort (défaut), un warning est affiché et le PDF classique reste disponible (fail-open). Cette option permet de choisir explicitement la politique fail-open vs fail-closed selon le besoin de conformité.
 
 ### CSRF de la page admin
 
@@ -101,19 +101,19 @@ Toutes les constantes du module sont stockées en clair dans `llx_const` (conven
 
 | Constante | Nature |
 |---|---|
-| `LEMONFACTURX_BANK_ACCOUNT` | ID du compte bancaire configuré |
-| `LEMONFACTURX_PAYMENT_MEANS` | Code moyen de paiement UNTDID 4461 |
-| `LEMONFACTURX_STRICT_MODE` | Politique erreur (best-effort / strict) |
-| `LEMONFACTURX_BR_CHECK` | Contrôle interne des règles métier EN16931 |
-| `LEMONFACTURX_INJECTION_MODE` | Mode d'injection XML (auto / in-process / sous-process) |
-| `LEMONFACTURX_PHP_CLI_PATH` | Chemin du binaire PHP (validé par regex) |
-| `LEMONFACTURX_VERAPDF_PATH` | Chemin du binaire veraPDF (optionnel, `is_executable()` vérifié) |
-| `LEMONFACTURX_ENDPOINT_SUFFIX_SELLER` | Suffixe ajouté au SIREN vendeur dans l'endpoint BT-34 |
-| `LEMONFACTURX_NOTE_PMD/PMT/AAB` | Mentions légales BR-FR-05 |
-| `LEMONFACTURX_NOTES_IN_FOOTER` | Recopie des mentions BR-FR-05 dans le pied de facture (flag) |
-| `LEMONFACTURX_NOTES_OVERWRITE` | Recopie pied : écraser (1) ou ajouter à la suite (0) |
-| `LEMONFACTURX_CHORUS_ENABLED` | Flag d'activation des fonctionnalités Chorus Pro |
-| `LEMONFACTURX_UPDATE_CHECK_CACHE` | JSON cache de la dernière version GitHub (TTL 24h, succès et échecs) |
+| `AUVOZUGFERD_BANK_ACCOUNT` | ID du compte bancaire configuré |
+| `AUVOZUGFERD_PAYMENT_MEANS` | Code moyen de paiement UNTDID 4461 |
+| `AUVOZUGFERD_STRICT_MODE` | Politique erreur (best-effort / strict) |
+| `AUVOZUGFERD_BR_CHECK` | Contrôle interne des règles métier EN16931 |
+| `AUVOZUGFERD_INJECTION_MODE` | Mode d'injection XML (auto / in-process / sous-process) |
+| `AUVOZUGFERD_PHP_CLI_PATH` | Chemin du binaire PHP (validé par regex) |
+| `AUVOZUGFERD_VERAPDF_PATH` | Chemin du binaire veraPDF (optionnel, `is_executable()` vérifié) |
+| `AUVOZUGFERD_ENDPOINT_SUFFIX_SELLER` | Suffixe ajouté au SIREN vendeur dans l'endpoint BT-34 |
+| `AUVOZUGFERD_NOTE_PMD/PMT/AAB` | Mentions légales BR-FR-05 |
+| `AUVOZUGFERD_NOTES_IN_FOOTER` | Recopie des mentions BR-FR-05 dans le pied de facture (flag) |
+| `AUVOZUGFERD_NOTES_OVERWRITE` | Recopie pied : écraser (1) ou ajouter à la suite (0) |
+| `AUVOZUGFERD_CHORUS_ENABLED` | Flag d'activation des fonctionnalités Chorus Pro |
+| `AUVOZUGFERD_UPDATE_CHECK_CACHE` | JSON cache de la dernière version GitHub (TTL 24h, succès et échecs) |
 
 ## Dépendances vendored
 
@@ -127,7 +127,7 @@ Le dossier `vendor/` embarque les bibliothèques suivantes (pas de Composer requ
 | `smalot/pdfparser` | Parsing PDF |
 | `symfony/polyfill-mbstring` | Compatibilité mbstring |
 
-Ces bibliothèques ne sont pas maintenues par Lemon. Leur sécurité dépend des mainteneurs amont. Tout signalement de CVE amont nous sera transmis par les canaux habituels (GitHub, composer audit, etc.) et une nouvelle version vendored sera publiée au besoin.
+Ces bibliothèques ne sont pas maintenues par auvo-design. Leur sécurité dépend des mainteneurs amont. Tout signalement de CVE amont nous sera transmis par les canaux habituels (GitHub, composer audit, etc.) et une nouvelle version vendored sera publiée au besoin.
 
 ## Historique des avis
 
@@ -135,4 +135,4 @@ _Aucune vulnérabilité corrigée n'a été publiée à ce jour._
 
 ---
 
-Pour toute question sur la sécurité de ce module : hello@hellolemon.fr
+Pour toute question sur la sécurité de ce module : r.vogel@auvo-design.de

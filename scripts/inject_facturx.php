@@ -1,6 +1,7 @@
 <?php
 /*
  * Copyright (C) 2026 SASU LEMON <https://hellolemon.fr>
+ * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — renamed/modified for private use as AuvoZugferd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

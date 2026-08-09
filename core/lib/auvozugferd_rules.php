@@ -1,6 +1,7 @@
 <?php
 /*
  * Copyright (C) 2026 SASU LEMON <https://hellolemon.fr>
+ * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — renamed/modified for private use as AuvoZugferd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +17,7 @@
  * exécutable avec l'extension XSL de PHP, limitée à XSLT 1.0) : c'est un
  * filet de sécurité couvrant les rejets les plus courants.
  *
- * Dépend de lemonfacturx.lib.php (constante LEMONFACTURX_FR_OVERSEAS_COUNTRIES),
+ * Dépend de auvozugferd.lib.php (constante AUVOZUGFERD_FR_OVERSEAS_COUNTRIES),
  * toujours incluse avant ce fichier par le hook, l'API et les tests.
  */
 
@@ -30,7 +31,7 @@
  * @return string|null        Message d'erreur si invalide, null si OK
  *                            (ou si le XSD est absent : well-formed seul)
  */
-function lemonfacturx_validate_xsd($xml, $modulePath)
+function auvozugferd_validate_xsd($xml, $modulePath)
 {
 	if (empty($xml)) {
 		return 'XML vide';
@@ -75,7 +76,7 @@ function lemonfacturx_validate_xsd($xml, $modulePath)
  * @param string $xml XML CrossIndustryInvoice généré
  * @return array      Liste de violations ("BR-XX : message"), vide si conforme
  */
-function lemonfacturx_validate_business_rules($xml)
+function auvozugferd_validate_business_rules($xml)
 {
 	$violations = [];
 
@@ -309,7 +310,7 @@ function lemonfacturx_validate_business_rules($xml)
 	// les règles EN16931 ci-dessus restent, elles, universelles.
 	// =========================================================================
 	$sellerCountry = $str('//ram:SellerTradeParty/ram:PostalTradeAddress/ram:CountryID');
-	if ($sellerCountry === 'FR' || in_array($sellerCountry, LEMONFACTURX_FR_OVERSEAS_COUNTRIES, true)) {
+	if ($sellerCountry === 'FR' || in_array($sellerCountry, AUVOZUGFERD_FR_OVERSEAS_COUNTRIES, true)) {
 
 		// === BR-FR-01 / BR-FR-02 : identifiant de facture (BT-1) ===
 		$bt1 = $str('//rsm:ExchangedDocument/ram:ID');
@@ -357,7 +358,7 @@ function lemonfacturx_validate_business_rules($xml)
 		// === BR-FR-CO-04 / BR-FR-CO-05 : référence à la facture antérieure (BG-3) ===
 		// Rectificatives : exactement UNE référence (BT-25) avec sa date (BT-26) —
 		// le générateur ne référence QUE la facture remplacée dans ce cas (les
-		// acomptes imputés restent en BT-113, cf. lemonfacturx_get_preceding_invoices).
+		// acomptes imputés restent en BT-113, cf. auvozugferd_get_preceding_invoices).
 		// Avoirs : au moins une référence avec sa date. (La variante « référence en
 		// ligne » EXT-FR-FE-136 relève du profil EXTENDED-CTC-FR, non émis ici.)
 		$precedingDocs = $xp->query('//ram:ApplicableHeaderTradeSettlement/ram:InvoiceReferencedDocument');

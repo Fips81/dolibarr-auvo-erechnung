@@ -1,38 +1,38 @@
-# LemonFacturX
+# AuvoZugferd
 
-[![Dernière version](https://img.shields.io/github/v/release/hello-lemon/module-dolibarr-lemonfacturx?label=version&sort=semver)](https://github.com/hello-lemon/module-dolibarr-lemonfacturx/releases/latest)
+[![Dernière version](https://img.shields.io/github/v/release/Fips81/module-dolibarr-lemonfacturx?label=version&sort=semver)](https://github.com/Fips81/module-dolibarr-lemonfacturx/releases/latest)
 
 Module Dolibarr pour la génération automatique de factures **Factur-X EN16931** (PDF/A-3 avec XML CrossIndustryInvoice embarqué) — soit, sous son autre nom, **ZUGFeRD 2.x profil EN16931 (COMFORT)**.
 
 Chaque facture client générée dans Dolibarr est automatiquement convertie au format Factur-X, conforme aux règles **BR-FR** (norme XP Z12-012, édition juin 2026) pour la facturation électronique française.
 
-Développé et maintenu par [Lemon](https://hellolemon.fr), agence web et communication à Clermont-Ferrand, spécialisée dans Dolibarr, WordPress et la facturation électronique.
+Fork privé maintenu par auvo-design (base initiale par [Lemon](https://hellolemon.fr), agence web et communication à Clermont-Ferrand — voir [Licence](#licence)).
 
 ## Prérequis
 
 - **Dolibarr** 19.0 → 23.x — vérifié à l'activation (`need_dolibarr_version`)
 - **PHP** 8.1+ (testé sur 8.2/8.4) — vérifié à l'activation (`phpmin`)
-- **Fonction `exec()`** : utilisée par défaut pour l'injection PDF (sous-process PHP isolé, le chemin le plus robuste). **Pas strictement obligatoire** : si `exec()` est désactivé (`disable_functions`, hébergements mutualisés durcis), le module bascule automatiquement en injection **in-process**. Le mode est réglable (`LEMONFACTURX_INJECTION_MODE` : `auto` / `inprocess` / `subprocess`) — voir la section Injection.
+- **Fonction `exec()`** : utilisée par défaut pour l'injection PDF (sous-process PHP isolé, le chemin le plus robuste). **Pas strictement obligatoire** : si `exec()` est désactivé (`disable_functions`, hébergements mutualisés durcis), le module bascule automatiquement en injection **in-process**. Le mode est réglable (`AUVOZUGFERD_INJECTION_MODE` : `auto` / `inprocess` / `subprocess`) — voir la section Injection.
 - **Une police PDF à glyphes embarqués** (nécessaire à la validité PDF/A-3). Pas de constante à poser à la main : le module fournit un **sélecteur « Police du PDF généré »** dans sa config, qui marque chaque police ✓ (embarquée, conforme) ou ⚠ (base-14, non conforme). `pdfahelvetica` est proposée par défaut.
 
 ## Installation
 
 1. **Télécharger l'archive de la dernière release** sur
-   [github.com/hello-lemon/module-dolibarr-lemonfacturx/releases/latest](https://github.com/hello-lemon/module-dolibarr-lemonfacturx/releases/latest).
+   [github.com/Fips81/module-dolibarr-lemonfacturx/releases/latest](https://github.com/Fips81/module-dolibarr-lemonfacturx/releases/latest).
 
-   Récupérer l'asset `module_lemonfacturx-X.Y.Z.zip` attaché à la release (et **non** le
+   Récupérer l'asset `module_auvozugferd-X.Y.Z.zip` attaché à la release (et **non** le
    bouton "Download ZIP" du code source — voir l'avertissement plus bas).
 
-2. Décompresser et copier le dossier `lemonfacturx/` dans le répertoire custom de Dolibarr :
+2. Décompresser et copier le dossier `auvozugferd/` dans le répertoire custom de Dolibarr :
 
    ```bash
-   unzip module_lemonfacturx-X.Y.Z.zip
-   cp -r lemonfacturx/ /var/www/html/custom/
-   chown -R www-data:www-data /var/www/html/custom/lemonfacturx
+   unzip module_auvozugferd-X.Y.Z.zip
+   cp -r auvozugferd/ /var/www/html/custom/
+   chown -R www-data:www-data /var/www/html/custom/auvozugferd
    ```
 
 3. Activer le module : **Accueil > Configuration > Modules**
-4. Configurer via **Accueil > Configuration > Modules > LemonFacturX** :
+4. Configurer via **Accueil > Configuration > Modules > AuvoZugferd** :
    - Compte bancaire (IBAN/BIC)
    - Moyen de paiement par défaut (virement, virement SEPA, prélèvement SEPA, prélèvement)
    - Identifiants vendeur/acheteur : SIRET en BT-29/BT-46 (schemeID 0009), SIREN en BT-30/BT-47 (schemeID 0002)
@@ -44,7 +44,7 @@ Développé et maintenu par [Lemon](https://hellolemon.fr), agence web et commun
 
 > **Attention** — N'utilisez pas le bouton "Download ZIP" de la page d'accueil du dépôt
 > (le code source brut). Cette archive se décompresse en `module-dolibarr-lemonfacturx-main/`
-> au lieu de `lemonfacturx/`, ce qui casse l'installation Dolibarr (erreur *"You requested
+> au lieu de `auvozugferd/`, ce qui casse l'installation Dolibarr (erreur *"You requested
 > a website or a page that does not exists"* en ouvrant la page de configuration du module).
 > Téléchargez l'asset ZIP de la release, ou clonez directement avec `git clone`
 > (cf. section [Mise à jour](#mise-à-jour)).
@@ -53,13 +53,13 @@ Développé et maintenu par [Lemon](https://hellolemon.fr), agence web et commun
 
 ```bash
 # Sauvegarder l'ancienne version (au cas où)
-cp -r /var/www/html/custom/lemonfacturx /var/www/html/custom/lemonfacturx.bak
+cp -r /var/www/html/custom/auvozugferd /var/www/html/custom/auvozugferd.bak
 
 # Récupérer la nouvelle version
-git clone https://github.com/hello-lemon/module-dolibarr-lemonfacturx.git /tmp/lemonfacturx-new
-rm -rf /var/www/html/custom/lemonfacturx
-mv /tmp/lemonfacturx-new /var/www/html/custom/lemonfacturx
-chown -R www-data:www-data /var/www/html/custom/lemonfacturx
+git clone https://github.com/Fips81/module-dolibarr-lemonfacturx.git /tmp/auvozugferd-new
+rm -rf /var/www/html/custom/auvozugferd
+mv /tmp/auvozugferd-new /var/www/html/custom/auvozugferd
+chown -R www-data:www-data /var/www/html/custom/auvozugferd
 ```
 
 Dolibarr ne notifie pas automatiquement des mises à jour d'un module custom ; la page de configuration du module affiche en revanche un bandeau quand une release plus récente est publiée sur GitHub (check 24h, cache en DB). Consulter la section **Changelog** en bas de ce README pour connaître les changements et migrations éventuelles.
@@ -67,19 +67,19 @@ Dolibarr ne notifie pas automatiquement des mises à jour d'un module custom ; l
 ## Architecture
 
 ```
-lemonfacturx/
-├── core/modules/modLemonFacturX.class.php   # Descripteur module (n° 210000)
+auvozugferd/
+├── core/modules/modAuvoZugferd.class.php   # Descripteur module (n° 486213)
 ├── core/lib/
-│   ├── lemonfacturx.lib.php                 # Générateur XML EN16931
-│   └── lemonfacturx_rules.php               # Validateur règles métier (BR-*)
+│   ├── auvozugferd.lib.php                 # Générateur XML EN16931
+│   └── auvozugferd_rules.php               # Validateur règles métier (BR-*)
 ├── class/
-│   ├── actions_lemonfacturx.class.php       # Hooks afterPDFCreation + invoicecard
-│   └── api_lemonfacturx.class.php           # API REST (xml / status)
+│   ├── actions_auvozugferd.class.php       # Hooks afterPDFCreation + invoicecard
+│   └── api_auvozugferd.class.php           # API REST (xml / status)
 ├── scripts/
 │   ├── inject_facturx.php                   # Injection PDF (subprocess, CLI only)
 │   └── export_facturx_batch.php             # Export par lot des XML embarqués
 ├── admin/setup.php                          # Page de configuration + diagnostic
-├── langs/fr_FR + en_US/lemonfacturx.lang    # Traductions
+├── langs/fr_FR + en_US/auvozugferd.lang    # Traductions
 ├── tests/
 │   ├── unit-tests.php                       # Tests standalone (sans Dolibarr, CI)
 │   └── run-tests.php                        # Tests d'intégration (fixtures demo/)
@@ -98,7 +98,7 @@ Le module se branche sur le hook `afterPDFCreation` (contexte `pdfgeneration`). 
 5. **Injection** du XML dans le PDF via la lib `atgp/factur-x` (sous-process isolé par défaut, in-process si `exec()` indisponible ; écriture atomique, `AFRelationship=Alternative`)
 6. **Post-validation veraPDF** optionnelle (PDF/A-3b)
 
-#### Mode d'injection (`LEMONFACTURX_INJECTION_MODE`)
+#### Mode d'injection (`AUVOZUGFERD_INJECTION_MODE`)
 
 | Mode | Comportement |
 |------|--------------|
@@ -123,24 +123,24 @@ Depuis la 3.8.0, le module se branche aussi sur le hook `afterODTCreation` (cont
 | `MAIN_ODT_AS_PDF` | `libreoffice` | Convertit le `.odt` en `.pdf` à la génération (nécessite **LibreOffice installé** sur le serveur, binaire `soffice` accessible) |
 | `MAIN_ODT_AS_PDFA` | `1` | Force l'export en **PDF/A-1** (PDF 1.4). Indispensable : sans ça, LibreOffice produit un PDF ≥ 1.5 (table xref compressée) que la bibliothèque d'injection (FPDI) ne sait pas lire, et l'injection échoue proprement avec un avertissement |
 
-Comportement **best-effort** : si l'un de ces prérequis manque (conversion désactivée, PDF/A non forcé, PDF introuvable, LibreOffice absent), le module **n'injecte pas**, conserve le PDF/ODT classique et affiche un **avertissement clair** indiquant la constante à poser — jamais de fatale ni de PDF corrompu. Le mode strict (`LEMONFACTURX_STRICT_MODE`) transforme cet avertissement en erreur bloquante, comme pour le flux TCPDF.
+Comportement **best-effort** : si l'un de ces prérequis manque (conversion désactivée, PDF/A non forcé, PDF introuvable, LibreOffice absent), le module **n'injecte pas**, conserve le PDF/ODT classique et affiche un **avertissement clair** indiquant la constante à poser — jamais de fatale ni de PDF corrompu. Le mode strict (`AUVOZUGFERD_STRICT_MODE`) transforme cet avertissement en erreur bloquante, comme pour le flux TCPDF.
 
-> **Statut** — la chaîne d'injection a été **validée en interne sur LibreOffice 7.4** (le PDF/A-1 produit par LibreOffice est lu par la bibliothèque d'injection (FPDI), le Factur-X s'y embarque, le handler `afterODTCreation` dérive le bon PDF et injecte) **et en condition réelle** : un utilisateur a confirmé la génération d'une facture via modèle ODT sur son Dolibarr, avec le XML Factur-X présent dans le PDF (Factur-X principal + 2e PDF Chorus). Sur des templates variés (`.odt`/`.ods`), il reste conseillé de vérifier le PDF avec un validateur Factur-X (bouton **Vérifier Factur-X** de la fiche facture, ou un validateur en ligne type FNFE-MPE) pour confirmer le niveau PDF/A-3. Remontez tout problème via [SECURITY.md](SECURITY.md) / hello@hellolemon.fr.
+> **Statut** — la chaîne d'injection a été **validée en interne sur LibreOffice 7.4** (le PDF/A-1 produit par LibreOffice est lu par la bibliothèque d'injection (FPDI), le Factur-X s'y embarque, le handler `afterODTCreation` dérive le bon PDF et injecte) **et en condition réelle** : un utilisateur a confirmé la génération d'une facture via modèle ODT sur son Dolibarr, avec le XML Factur-X présent dans le PDF (Factur-X principal + 2e PDF Chorus). Sur des templates variés (`.odt`/`.ods`), il reste conseillé de vérifier le PDF avec un validateur Factur-X (bouton **Vérifier Factur-X** de la fiche facture, ou un validateur en ligne type FNFE-MPE) pour confirmer le niveau PDF/A-3. Remontez tout problème via [SECURITY.md](SECURITY.md) / r.vogel@auvo-design.de.
 >
 > **Activation** : ce nouveau contexte de hook n'est pris en compte qu'après **désactivation/réactivation** du module (la désactivation ne supprime aucune donnée).
 
 ### Sécurité
 
 - Scripts CLI (`scripts/`, `tests/`, `demo/`) protégés par `PHP_SAPI === 'cli'` **et** `.htaccess` `Require all denied`
-- **`exec()` non obligatoire** : sur un hébergement durci qui le désactive, le module bascule en injection in-process et reste fonctionnel (compatibilité mutualisés). Quand le sous-process est utilisé (cas par défaut), la commande est protégée : `escapeshellarg()` sur tous les tokens, binaire PHP CLI configurable via `LEMONFACTURX_PHP_CLI_PATH`, validé par regex et `is_executable()` si absolu
+- **`exec()` non obligatoire** : sur un hébergement durci qui le désactive, le module bascule en injection in-process et reste fonctionnel (compatibilité mutualisés). Quand le sous-process est utilisé (cas par défaut), la commande est protégée : `escapeshellarg()` sur tous les tokens, binaire PHP CLI configurable via `AUVOZUGFERD_PHP_CLI_PATH`, validé par regex et `is_executable()` si absolu
 - Écriture **atomique** du PDF (fichier temporaire + `rename()`), quel que soit le mode
 - Validation XML interne avant injection PDF (well-formed + XSD EN16931 + règles métier)
-- Mode `LEMONFACTURX_STRICT_MODE` : choisir fail-open (best-effort) vs fail-closed (strict)
+- Mode `AUVOZUGFERD_STRICT_MODE` : choisir fail-open (best-effort) vs fail-closed (strict)
 - CSRF sur le POST admin et sur les actions de la fiche facture (`currentToken()`)
 - API REST : droits `facture->lire` + `_checkAccessToResource()` ; boutons fiche : droits `lire`/`creer`
 - Un seul appel HTTP sortant : check de version GitHub toutes les 24h (cache en DB, échecs inclus)
 
-Modèle de menace, protections détaillées et processus de signalement : voir [SECURITY.md](SECURITY.md). Contact disclosure : **hello@hellolemon.fr**.
+Modèle de menace, protections détaillées et processus de signalement : voir [SECURITY.md](SECURITY.md). Contact disclosure : **r.vogel@auvo-design.de**.
 
 ## Données mappées (Dolibarr → Factur-X)
 
@@ -227,7 +227,7 @@ La réforme française repose sur **deux réseaux distincts et permanents** qui 
 - **PDP / B2B** (réseau des Plateformes Agréées) : **SIREN** (9 chiffres), conforme EN16931 / règle BR-FR-10 ;
 - **Chorus Pro / B2G** (secteur public) : **SIRET** (14 chiffres), clé de routage de son annuaire.
 
-Un même XML ne peut pas satisfaire les deux. LemonFacturX résout ça **sans jamais dégrader le PDF principal** :
+Un même XML ne peut pas satisfaire les deux. AuvoZugferd résout ça **sans jamais dégrader le PDF principal** :
 
 - Le **PDF de la facture reste le Factur-X standard EN16931** (profil PDP, SIREN) — c'est l'objet du module, toujours conforme.
 - Quand la facture relève du secteur public, le module génère **en plus** un second fichier **`{ref}-CHORUS.pdf`** dans la liste des documents, au profil Chorus Pro (SIRET-14 dans `SpecifiedLegalOrganization` + champs BT-10/12/13). Vous déposez celui-ci sur Chorus Pro, l'autre part sur votre PDP.
@@ -264,32 +264,32 @@ Le XML inclut automatiquement les notes obligatoires :
 
 ## Constantes du module
 
-Toutes sont configurables via l'écran d'administration du module (**Accueil > Configuration > Modules > LemonFacturX**).
+Toutes sont configurables via l'écran d'administration du module (**Accueil > Configuration > Modules > AuvoZugferd**).
 
 | Constante | Type | Défaut | Description |
 |---|---|---|---|
-| `LEMONFACTURX_BANK_ACCOUNT` | int | 0 | ID du compte bancaire Dolibarr |
-| `LEMONFACTURX_PAYMENT_MEANS` | string | 30 | Code UNTDID 4461 : 30 virement, 58 virement SEPA, 59 prélèvement SEPA, 49 prélèvement |
-| `LEMONFACTURX_STRICT_MODE` | int | 0 | 0 = best-effort (défaut), 1 = strict (voir ci-dessous) |
-| `LEMONFACTURX_BR_CHECK` | int | 1 | Contrôle interne des règles métier EN16931 avant injection |
-| `LEMONFACTURX_INJECTION_MODE` | string | auto | Mode d'injection : `auto` (in-process + repli sous-process), `inprocess` (sans exec), `subprocess` (exec uniquement) |
-| `LEMONFACTURX_PHP_CLI_PATH` | string | *(vide)* | Chemin du binaire PHP CLI, utilisé **uniquement** par le mode `subprocess` (vide = auto-détection ; voir note ci-dessous) |
-| `LEMONFACTURX_VERAPDF_PATH` | string | *(vide)* | Chemin veraPDF : post-validation PDF/A-3b de chaque PDF généré (non bloquant) |
-| `LEMONFACTURX_ENDPOINT_SUFFIX_SELLER` | string | *(vide)* | Suffixe ajouté au SIREN vendeur dans l'endpoint électronique BT-34 (ex `_Status`) — exigé par certaines PA ; vide = SIREN nu |
-| `LEMONFACTURX_NOTE_PMD/PMT/AAB` | text | mentions FR | Mentions légales BR-FR-05 (le texte par défaut s'applique si le champ est laissé vide) |
-| `LEMONFACTURX_NOTES_IN_FOOTER` | int | 0 | Recopier les mentions BR-FR-05 dans le pied de facture (`INVOICE_FREE_TEXT`) |
-| `LEMONFACTURX_NOTES_OVERWRITE` | int | 0 | Recopie pied de facture : écraser la mention Dolibarr existante (1) au lieu d'ajouter nos mentions à la suite (0) |
-| `LEMONFACTURX_CHORUS_ENABLED` | int | 0 | Activer les fonctionnalités Chorus Pro (onglet, menu, 2ᵉ PDF) — opt-in |
+| `AUVOZUGFERD_BANK_ACCOUNT` | int | 0 | ID du compte bancaire Dolibarr |
+| `AUVOZUGFERD_PAYMENT_MEANS` | string | 30 | Code UNTDID 4461 : 30 virement, 58 virement SEPA, 59 prélèvement SEPA, 49 prélèvement |
+| `AUVOZUGFERD_STRICT_MODE` | int | 0 | 0 = best-effort (défaut), 1 = strict (voir ci-dessous) |
+| `AUVOZUGFERD_BR_CHECK` | int | 1 | Contrôle interne des règles métier EN16931 avant injection |
+| `AUVOZUGFERD_INJECTION_MODE` | string | auto | Mode d'injection : `auto` (in-process + repli sous-process), `inprocess` (sans exec), `subprocess` (exec uniquement) |
+| `AUVOZUGFERD_PHP_CLI_PATH` | string | *(vide)* | Chemin du binaire PHP CLI, utilisé **uniquement** par le mode `subprocess` (vide = auto-détection ; voir note ci-dessous) |
+| `AUVOZUGFERD_VERAPDF_PATH` | string | *(vide)* | Chemin veraPDF : post-validation PDF/A-3b de chaque PDF généré (non bloquant) |
+| `AUVOZUGFERD_ENDPOINT_SUFFIX_SELLER` | string | *(vide)* | Suffixe ajouté au SIREN vendeur dans l'endpoint électronique BT-34 (ex `_Status`) — exigé par certaines PA ; vide = SIREN nu |
+| `AUVOZUGFERD_NOTE_PMD/PMT/AAB` | text | mentions FR | Mentions légales BR-FR-05 (le texte par défaut s'applique si le champ est laissé vide) |
+| `AUVOZUGFERD_NOTES_IN_FOOTER` | int | 0 | Recopier les mentions BR-FR-05 dans le pied de facture (`INVOICE_FREE_TEXT`) |
+| `AUVOZUGFERD_NOTES_OVERWRITE` | int | 0 | Recopie pied de facture : écraser la mention Dolibarr existante (1) au lieu d'ajouter nos mentions à la suite (0) |
+| `AUVOZUGFERD_CHORUS_ENABLED` | int | 0 | Activer les fonctionnalités Chorus Pro (onglet, menu, 2ᵉ PDF) — opt-in |
 
-> **Note PHP CLI** : pertinente **uniquement en mode `subprocess`** (l'injection par défaut est in-process et n'utilise aucun binaire externe). Dans ce mode, le module auto-détecte le bon binaire PHP CLI. Sur les serveurs avec plusieurs versions de PHP, ou si l'auto-détection échoue, configurer `LEMONFACTURX_PHP_CLI_PATH` avec le chemin complet (ex: `/usr/bin/php8.2`). Ne **pas** utiliser `PHP_BINARY` : en contexte php-fpm, cette constante pointe vers le binaire fpm et non le CLI.
+> **Note PHP CLI** : pertinente **uniquement en mode `subprocess`** (l'injection par défaut est in-process et n'utilise aucun binaire externe). Dans ce mode, le module auto-détecte le bon binaire PHP CLI. Sur les serveurs avec plusieurs versions de PHP, ou si l'auto-détection échoue, configurer `AUVOZUGFERD_PHP_CLI_PATH` avec le chemin complet (ex: `/usr/bin/php8.2`). Ne **pas** utiliser `PHP_BINARY` : en contexte php-fpm, cette constante pointe vers le binaire fpm et non le CLI.
 
 > **Note prélèvement SEPA (59)** : le module publie l'ICS créancier (constante Dolibarr `PRELEVEMENT_ICS`, BT-90), la RUM du mandat (RIB par défaut du tiers, BT-89) et l'IBAN débiteur (BT-91). Des warnings signalent les données manquantes.
 
 ### Mode strict vs best-effort
 
-Par défaut le module est en **best-effort** : si le XML Factur-X est invalide ou si l'injection PDF échoue, un warning est affiché à l'utilisateur et le PDF classique (sans Factur-X embarqué) est conservé. Les erreurs sont loguées dans `syslog` avec le tag `LemonFacturX`.
+Par défaut le module est en **best-effort** : si le XML Factur-X est invalide ou si l'injection PDF échoue, un warning est affiché à l'utilisateur et le PDF classique (sans Factur-X embarqué) est conservé. Les erreurs sont loguées dans `syslog` avec le tag `AuvoZugferd`.
 
-En **mode strict** (`LEMONFACTURX_STRICT_MODE=1`), la même situation retourne une erreur bloquante visible, et les violations de règles métier (BR-\*) deviennent bloquantes. **Limite assumée** : le hook intervenant après la création du PDF par Dolibarr, le PDF classique déjà généré reste sur le disque même en strict — utiliser « Vérifier Factur-X » avant envoi pour contrôler un fichier.
+En **mode strict** (`AUVOZUGFERD_STRICT_MODE=1`), la même situation retourne une erreur bloquante visible, et les violations de règles métier (BR-\*) deviennent bloquantes. **Limite assumée** : le hook intervenant après la création du PDF par Dolibarr, le PDF classique déjà généré reste sur le disque même en strict — utiliser « Vérifier Factur-X » avant envoi pour contrôler un fichier.
 
 ### Validation interne
 
@@ -297,7 +297,7 @@ Avant injection PDF, le module valide systématiquement le XML :
 
 1. **Well-formed** : `DOMDocument::loadXML()`
 2. **XSD EN16931** : `DOMDocument::schemaValidate()` contre le XSD embarqué
-3. **Règles métier** (`LEMONFACTURX_BR_CHECK`, défaut activé) : sous-ensemble des règles Schematron EN16931 vérifié en PHP — règles de calcul BR-CO-10..17, BR-27 (prix négatifs), BR-61 (IBAN), BR-16, BR-IC-02/11/12 (intracom), BR-AE-02, motifs d'exonération BR-\*-10, BR-CO-25/26, BR-09/11 — **plus le bloc de règles France BR-FR** (voir section suivante)
+3. **Règles métier** (`AUVOZUGFERD_BR_CHECK`, défaut activé) : sous-ensemble des règles Schematron EN16931 vérifié en PHP — règles de calcul BR-CO-10..17, BR-27 (prix négatifs), BR-61 (IBAN), BR-16, BR-IC-02/11/12 (intracom), BR-AE-02, motifs d'exonération BR-\*-10, BR-CO-25/26, BR-09/11 — **plus le bloc de règles France BR-FR** (voir section suivante)
 
 Le Schematron officiel complet (XSLT 2.0) n'est pas exécutable en PHP : pour une validation exhaustive, utiliser un validateur externe — voir [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
@@ -318,7 +318,7 @@ Règles du socle réforme française contrôlées ou émises par le module. Tout
 | BR-FR-23 / BR-FR-25 | Adresse électronique 0225 : alphanumériques + `- _ .` uniquement (le suffixe vendeur configuré est sanitisé à l'émission), 125 caractères max | Violation bloquante (charset) + warning (longueur) |
 | BR-FR-MAP-03 / MAP-29 | Exigibilité TVA (BT-8) : `5` = débits (seule valeur CII attendue par le PPF), `72` = encaissements, dérivée de `TAX_MODE` | Émis automatiquement |
 
-Rappel du fonctionnement : les « violations bloquantes » n'interrompent la génération qu'en mode strict (`LEMONFACTURX_STRICT_MODE=1`) ; en best-effort elles sont consolidées dans le message d'avertissement et le syslog.
+Rappel du fonctionnement : les « violations bloquantes » n'interrompent la génération qu'en mode strict (`AUVOZUGFERD_STRICT_MODE=1`) ; en best-effort elles sont consolidées dans le message d'avertissement et le syslog.
 
 **Limitations assumées** :
 - le profil **EXTENDED-CTC-FR n'est pas émis** (le module produit du EN16931) — cible envisagée pour 2027 ; la variante « référence en ligne » d'un avoir (EXT-FR-FE-136, BR-FR-CO-05) est donc sans objet ;
@@ -333,7 +333,7 @@ Quand la fiche société (`$mysoc`) porte un pays **autre que la France** (DOM a
 
 | Élément | Vendeur FR | Vendeur hors FR |
 |---|---|---|
-| Notes **PMD / PMT / AAB** (BR-FR-05) | textes par défaut du Code de commerce, surchargeables | **aucun défaut** — seules les constantes `LEMONFACTURX_NOTE_*` explicitement renseignées sont émises |
+| Notes **PMD / PMT / AAB** (BR-FR-05) | textes par défaut du Code de commerce, surchargeables | **aucun défaut** — seules les constantes `AUVOZUGFERD_NOTE_*` explicitement renseignées sont émises |
 | Note **BAR** (BR-FR-07/20/31) | émise (`B2B` / `B2BINT` / `B2C`) | **non émise** (qualifie un flux de la réforme FR) |
 | Cadre de facturation **BT-23** (BR-FR-08) | émis (`B1`/`S1`/`M1`…) | **non émis** (optionnel en EN16931, codes propres à XP Z12-012) |
 | Contrôle **SIREN/SIRET** amont | actif | désactivé (identifiants français) |
@@ -351,8 +351,8 @@ Avec le module API REST Dolibarr activé (clé API utilisateur, droits factures)
 
 | Endpoint | Description |
 |---|---|
-| `GET /api/index.php/lemonfacturx/invoice/{id}/xml` | XML Factur-X regénéré + warnings + violations BR |
-| `GET /api/index.php/lemonfacturx/invoice/{id}/status` | PDF présent ? XML embarqué ? violations BR du XML embarqué |
+| `GET /api/index.php/auvozugferd/invoice/{id}/xml` | XML Factur-X regénéré + warnings + violations BR |
+| `GET /api/index.php/auvozugferd/invoice/{id}/status` | PDF présent ? XML embarqué ? violations BR du XML embarqué |
 
 ## Export par lot
 
@@ -379,7 +379,7 @@ La conformité PDF/A-3 est assurée par :
 - **AFRelationship `Alternative`** : conforme à la spec Factur-X pour le profil EN16931 (corrigé en 3.0.0, `Data` auparavant)
 - **Annotations /F flag** : patch appliqué dans `vendor/setasign/fpdf/fpdf.php` (ajout `/F 4` aux liens)
 - **Profil ICC sRGB** + **métadonnées XMP** : gérés par la lib `atgp/factur-x`
-- **Post-validation veraPDF** optionnelle (`LEMONFACTURX_VERAPDF_PATH`) pour détecter les modèles PDF custom non conformes
+- **Post-validation veraPDF** optionnelle (`AUVOZUGFERD_VERAPDF_PATH`) pour détecter les modèles PDF custom non conformes
 
 > **Note** : si un module tiers (ex: milestone/jalons) hardcode la police `'Helvetica'`, il faudra le patcher pour utiliser `pdf_getPDFFont($outputlangs)`.
 
@@ -424,11 +424,11 @@ php tests/run-tests.php   # exit 0 = OK, 1 = échec
 
 ### 3.9.2 (juillet 2026)
 
-**Le compte bancaire du XML suit celui de la facture** ([issue #16](https://github.com/hello-lemon/module-dolibarr-lemonfacturx/issues/16)). Le module publiait toujours l'IBAN/BIC du compte figé dans sa configuration, même quand un autre compte était sélectionné au niveau du tiers ou de la facture (le PDF, lui, montrait le bon) — d'où un IBAN incohérent entre PDF et XML. Désormais l'ordre de résolution est : **compte sélectionné sur la facture (`fk_account`) → compte configuré dans le module (repli)**. Rétrocompatible : sans compte sur la facture, le comportement précédent est conservé.
+**Le compte bancaire du XML suit celui de la facture** ([issue #16](https://github.com/Fips81/module-dolibarr-lemonfacturx/issues/16)). Le module publiait toujours l'IBAN/BIC du compte figé dans sa configuration, même quand un autre compte était sélectionné au niveau du tiers ou de la facture (le PDF, lui, montrait le bon) — d'où un IBAN incohérent entre PDF et XML. Désormais l'ordre de résolution est : **compte sélectionné sur la facture (`fk_account`) → compte configuré dans le module (repli)**. Rétrocompatible : sans compte sur la facture, le comportement précédent est conservé.
 
 ### 3.9.1 (juillet 2026)
 
-`ActionsLemonFacturX::verifyInvoicePdf()` passe **publique** : elle est appelée par l'onglet « Facturation électronique » de LemonSuperPDP (bouton « Vérifier la Factur-X ») pour afficher le résultat sans quitter l'onglet. Aucun autre changement.
+`ActionsAuvoZugferd::verifyInvoicePdf()` passe **publique** : elle est appelée par l'onglet « Facturation électronique » de LemonSuperPDP (bouton « Vérifier la Factur-X ») pour afficher le résultat sans quitter l'onglet. Aucun autre changement.
 
 ### 3.9.0 (juillet 2026)
 
@@ -459,7 +459,7 @@ php tests/run-tests.php   # exit 0 = OK, 1 = échec
 
 ### 3.7.0 (juin 2026)
 
-Mode d'injection réglable (`LEMONFACTURX_INJECTION_MODE`) avec injection in-process sans `exec()`. **Ne pas utiliser tel quel — corrigé en 3.7.1** (conflit FPDF/TCPDF via le moteur `tcpdi` de Dolibarr).
+Mode d'injection réglable (`AUVOZUGFERD_INJECTION_MODE`) avec injection in-process sans `exec()`. **Ne pas utiliser tel quel — corrigé en 3.7.1** (conflit FPDF/TCPDF via le moteur `tcpdi` de Dolibarr).
 
 ### 3.6.3 (juin 2026)
 
@@ -539,7 +539,7 @@ Refonte de conformité majeure — **lire les changements de comportement avant 
 **Outillage** :
 - Validateur interne de **règles métier EN16931** (sous-ensemble Schematron en PHP) avant injection — bloquant en mode strict.
 - Boutons **« Vérifier Factur-X »** / **« Régénérer Factur-X »** sur la fiche facture.
-- **API REST** (`/lemonfacturx/invoice/{id}/xml` et `/status`) et **export par lot** (`scripts/export_facturx_batch.php`).
+- **API REST** (`/auvozugferd/invoice/{id}/xml` et `/status`) et **export par lot** (`scripts/export_facturx_batch.php`).
 - Post-validation **veraPDF** optionnelle ; diagnostic enrichi (`MAIN_PDF_FORCE_FONT`, `exec()`, binaire PHP CLI, note multidevise).
 - Suite de **tests unitaires standalone** (sans Dolibarr) + **CI GitHub** (lint + tests sur chaque push/PR, et avant chaque release).
 - Traduction **en_US** complète ; messages du hook et des contrôles internationalisés.
@@ -549,7 +549,7 @@ Refonte de conformité majeure — **lire les changements de comportement avant 
 - Garde CLI sur `demo/*` et `tests/*` (les fixtures créaient un admin de démo accessibles en HTTP si le dépôt était cloné sous la racine web) + `.htaccess` de refus sur `demo/`, `tests/`, `scripts/`.
 - Actions GitHub épinglées par SHA ; cache des échecs du check de version (page admin ne rame plus si GitHub est injoignable) ; garde `curl_init` ; filtre `entity` sur les comptes bancaires (multicompany) et les contacts.
 - Prérequis matérialisés dans le descripteur (`phpmin` 8.1, `need_dolibarr_version` 16).
-- Fonctions globales préfixées (`xmlEncode`/`formatAmount` → `lemonfacturx_xml_encode`/`lemonfacturx_format_amount`).
+- Fonctions globales préfixées (`xmlEncode`/`formatAmount` → `auvozugferd_xml_encode`/`auvozugferd_format_amount`).
 
 **Migration** : aucune migration DB, mais **désactiver puis réactiver le module** après mise à jour pour enregistrer le nouveau hook `invoicecard` (boutons de la fiche facture). Vérifier ensuite : (1) le réglage moyen de paiement si « 58 » était choisi pour du prélèvement → passer à 59 ; (2) régénérer les avoirs récents non transmis pour bénéficier du correctif. L'identifiant légal BT-30/BT-47 est désormais toujours SIRET/0009 (plus de réglage).
 
@@ -567,12 +567,12 @@ Correctif Chorus Pro — identifiant légal **SIRET** (et non SIREN) dans `Speci
 
 ### 2.1.0 (mai 2026)
 
-- **Endpoint BT-34 / BT-49** : SIREN avec `schemeID="0225"` (annuaire PPF) au lieu de l'email — requis par le routage du réseau des Plateformes Agréées. Schéma configurable (`LEMONFACTURX_ENDPOINT_SCHEME`), repli email pour les tiers sans SIREN.
+- **Endpoint BT-34 / BT-49** : SIREN avec `schemeID="0225"` (annuaire PPF) au lieu de l'email — requis par le routage du réseau des Plateformes Agréées. Schéma configurable (`AUVOZUGFERD_ENDPOINT_SCHEME`), repli email pour les tiers sans SIREN.
 
 ### 2.0.2 (mai 2026)
 
-- **Compatibilité Windows** ([#4](https://github.com/hello-lemon/module-dolibarr-lemonfacturx/issues/4), [PR #5](https://github.com/hello-lemon/module-dolibarr-lemonfacturx/pull/5) de [@Charlymd](https://github.com/Charlymd)) : XML temporaire dans `DOL_DATA_ROOT/facturx/temp/`, regex `LEMONFACTURX_PHP_CLI_PATH` étendue.
-- **Franchise en base TVA** ([#6](https://github.com/hello-lemon/module-dolibarr-lemonfacturx/issues/6)) : catégorie `E` (au lieu de `O`), SIREN publié en `SpecifiedTaxRegistration schemeID="FC"` (BR-CO-26/BR-E-09).
+- **Compatibilité Windows** ([#4](https://github.com/Fips81/module-dolibarr-lemonfacturx/issues/4), [PR #5](https://github.com/Fips81/module-dolibarr-lemonfacturx/pull/5) de [@Charlymd](https://github.com/Charlymd)) : XML temporaire dans `DOL_DATA_ROOT/facturx/temp/`, regex `AUVOZUGFERD_PHP_CLI_PATH` étendue.
+- **Franchise en base TVA** ([#6](https://github.com/Fips81/module-dolibarr-lemonfacturx/issues/6)) : catégorie `E` (au lieu de `O`), SIREN publié en `SpecifiedTaxRegistration schemeID="FC"` (BR-CO-26/BR-E-09).
 
 ### 2.0.1 (mai 2026)
 
@@ -592,17 +592,8 @@ Version initiale : génération XML EN16931, injection PDF/A-3, conformité B2Br
 
 ## Licence
 
-Ce module est distribué sous licence [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) — Copyright (C) 2026 [SASU Lemon](https://hellolemon.fr).
+Ce module est distribué sous licence [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) — Copyright (C) 2026 [SASU Lemon](https://hellolemon.fr), Copyright (C) 2026 auvo-design (fork privé, usage interne).
 
-## À propos de Lemon
+## À propos
 
-[Lemon](https://hellolemon.fr) est une agence web et communication basée à Clermont-Ferrand, fondée en 2012. Nous accompagnons TPE, PME et indépendants bien au-delà du simple site web :
-
-- **Déploiement et hébergement Dolibarr** : installation, migration, paramétrage métier, formation de vos équipes
-- **Modules Dolibarr sur mesure** : CRM, pointeuse NFC, facturation électronique, intégrations API, automatisations — on développe le module qui manque à votre ERP
-- **Facturation électronique** : mise en conformité Factur-X EN16931, raccordement aux Plateformes Agréées (PA/PDP), accompagnement réforme 2026-2027
-- **IA au service des pros** : extraction automatique de factures fournisseurs, rapprochement bancaire, génération de contenus, assistants métier — on met l'IA au travail pour vous faire gagner du temps
-- **Sites web** : WordPress, Astro, Symfony — performance, SEO, éco-conception
-- **Communication & print** : identité visuelle, impression, fabrication (laser, 3D)
-
-Un projet Dolibarr, une idée d'automatisation, un besoin IA ? [Parlons-en](https://hellolemon.fr) — Clermont-Ferrand (63).
+Fork privé maintenu en interne par auvo-design pour ses propres besoins de facturation électronique. Base initiale développée par [Lemon](https://hellolemon.fr). Contact : r.vogel@auvo-design.de

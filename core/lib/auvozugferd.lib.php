@@ -1,6 +1,7 @@
 <?php
 /*
  * Copyright (C) 2026 SASU LEMON <https://hellolemon.fr>
+ * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — renamed/modified for private use as AuvoZugferd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,34 +17,34 @@
  * la catégorie de TVA EN16931 sur les opérations B2B intracommunautaires).
  *
  * Mentions légales BR-FR par défaut (BG-3 IncludedNote) : surchargeable via
- * les constantes Dolibarr LEMONFACTURX_NOTE_*.
+ * les constantes Dolibarr AUVOZUGFERD_NOTE_*.
  *
  * define() (au lieu de const) pour rester tolérant si la lib est incluse depuis
  * deux chemins distincts (custom + dol_buildpath) sur certains setups.
  */
-if (!defined('LEMONFACTURX_EU_COUNTRIES')) {
-	define('LEMONFACTURX_EU_COUNTRIES', [
+if (!defined('AUVOZUGFERD_EU_COUNTRIES')) {
+	define('AUVOZUGFERD_EU_COUNTRIES', [
 		'AT','BE','BG','CY','CZ','DE','DK','EE','ES','FI','FR','GR','HR','HU',
 		'IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK',
 	]);
 	// Codes pays des DOM/COM remplacés par FR dans les flux de la réforme
 	// (BR-FR-MAP-14) : assimilés à la France pour la note BAR et pour
 	// l'applicabilité du bloc de règles BR-FR du validateur interne.
-	define('LEMONFACTURX_FR_OVERSEAS_COUNTRIES', ['GF', 'TF', 'GP', 'GY', 'MQ', 'YT', 'RE', 'BL', 'MF', 'PM']);
-	define('LEMONFACTURX_DEFAULT_NOTE_PMD', 'En cas de retard de paiement, une pénalité égale à 3 fois le taux d\'intérêt légal sera exigible (article L.441-10 du Code de commerce).');
-	define('LEMONFACTURX_DEFAULT_NOTE_PMT', 'Une indemnité forfaitaire de 40 euros sera exigible pour frais de recouvrement en cas de retard de paiement.');
-	define('LEMONFACTURX_DEFAULT_NOTE_AAB', 'Pas d\'escompte pour paiement anticipé.');
+	define('AUVOZUGFERD_FR_OVERSEAS_COUNTRIES', ['GF', 'TF', 'GP', 'GY', 'MQ', 'YT', 'RE', 'BL', 'MF', 'PM']);
+	define('AUVOZUGFERD_DEFAULT_NOTE_PMD', 'En cas de retard de paiement, une pénalité égale à 3 fois le taux d\'intérêt légal sera exigible (article L.441-10 du Code de commerce).');
+	define('AUVOZUGFERD_DEFAULT_NOTE_PMT', 'Une indemnité forfaitaire de 40 euros sera exigible pour frais de recouvrement en cas de retard de paiement.');
+	define('AUVOZUGFERD_DEFAULT_NOTE_AAB', 'Pas d\'escompte pour paiement anticipé.');
 }
 
 /**
  * Traduit une clé via $langs si l'environnement Dolibarr est chargé,
  * sinon renvoie la clé brute (contexte tests unitaires standalone).
  */
-function lemonfacturx_trans($key, ...$args)
+function auvozugferd_trans($key, ...$args)
 {
 	global $langs;
 	if (is_object($langs) && method_exists($langs, 'trans')) {
-		$langs->load('lemonfacturx@lemonfacturx');
+		$langs->load('auvozugferd@auvozugferd');
 		return $langs->trans($key, ...$args);
 	}
 	return $args ? $key.' ('.implode(', ', array_map('strval', $args)).')' : $key;
@@ -63,12 +64,12 @@ function lemonfacturx_trans($key, ...$args)
  * @param Societe|object $mysoc  Société émettrice
  * @return bool
  */
-function lemonfacturx_seller_is_fr($mysoc)
+function auvozugferd_seller_is_fr($mysoc)
 {
 	// Pays inconnu (objet absent, fiche société incomplète) : on retombe sur FR,
 	// comportement historique du module.
 	$country = (is_object($mysoc) && !empty($mysoc->country_code)) ? strtoupper($mysoc->country_code) : 'FR';
-	return ($country === 'FR' || in_array($country, LEMONFACTURX_FR_OVERSEAS_COUNTRIES, true));
+	return ($country === 'FR' || in_array($country, AUVOZUGFERD_FR_OVERSEAS_COUNTRIES, true));
 }
 
 /**
@@ -84,24 +85,24 @@ function lemonfacturx_seller_is_fr($mysoc)
  * @param Facture $invoice
  * @return string|null
  */
-function lemonfacturx_check_supported($invoice)
+function auvozugferd_check_supported($invoice)
 {
 	global $conf;
 
 	$companyCurrency = !empty($conf->currency) ? $conf->currency : 'EUR';
 	if (!empty($invoice->multicurrency_code) && $invoice->multicurrency_code !== $companyCurrency) {
-		return lemonfacturx_trans('LemonFacturXErrMulticurrency', $invoice->multicurrency_code, $companyCurrency);
+		return auvozugferd_trans('AuvoZugferdErrMulticurrency', $invoice->multicurrency_code, $companyCurrency);
 	}
 
 	// Taxes locales (localtax1/2, RE/IRPF...) : non représentables dans le XML
 	// EN16931 (TVA uniquement). Le total XML divergerait du TTC visible sur le
 	// PDF — même principe de refus que le multidevise.
 	if (abs((float) ($invoice->total_localtax1 ?? 0)) > 0.005 || abs((float) ($invoice->total_localtax2 ?? 0)) > 0.005) {
-		return lemonfacturx_trans('LemonFacturXErrLocalTax');
+		return auvozugferd_trans('AuvoZugferdErrLocalTax');
 	}
 
 	if (empty($invoice->date)) {
-		return lemonfacturx_trans('LemonFacturXErrNoDate');
+		return auvozugferd_trans('AuvoZugferdErrNoDate');
 	}
 
 	return null;
@@ -120,7 +121,7 @@ function lemonfacturx_check_supported($invoice)
  * @param array   $buildWarnings  (sortie) Avertissements non bloquants détectés pendant la génération
  * @return string                 XML CrossIndustryInvoice
  */
-function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options = [])
+function auvozugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options = [])
 {
 	global $conf;
 
@@ -132,9 +133,9 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 	// Tout le bloc « socle réforme française » (BT-23, note BAR, mentions
 	// légales) est conditionné à un vendeur établi en France : hors de France
 	// le document reste un Factur-X/ZUGFeRD EN16931 pur.
-	$sellerIsFR = lemonfacturx_seller_is_fr($mysoc);
+	$sellerIsFR = auvozugferd_seller_is_fr($mysoc);
 
-	$typeCode = lemonfacturx_resolve_document_type($invoice, $buildWarnings);
+	$typeCode = auvozugferd_resolve_document_type($invoice, $buildWarnings);
 	$isCreditNote = ($typeCode === '381');
 	$sign = $isCreditNote ? -1.0 : 1.0;
 
@@ -143,20 +144,20 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 	$currency = !empty($conf->currency) ? $conf->currency : 'EUR';
 
 	$buyer = $invoice->thirdparty;
-	$bank = lemonfacturx_get_bank_account($invoice->db, $invoice);
-	$paymentMeans = getDolGlobalString('LEMONFACTURX_PAYMENT_MEANS', '30');
+	$bank = auvozugferd_get_bank_account($invoice->db, $invoice);
+	$paymentMeans = getDolGlobalString('AUVOZUGFERD_PAYMENT_MEANS', '30');
 
 	// Lignes utiles : on filtre une seule fois les lignes sans montant
 	// (descriptions, titres, sous-totaux) pour les réutiliser ci-dessous.
-	$billableLines = lemonfacturx_filter_billable_lines($invoice->lines);
+	$billableLines = auvozugferd_filter_billable_lines($invoice->lines);
 
 	// Sépare lignes facturables et remises pied de facture (BG-21) : une ligne
 	// à total négatif (remise fixe Dolibarr) devient une SpecifiedTradeAllowanceCharge
 	// document pour respecter BR-27 (prix net de ligne jamais négatif).
-	$prepared = lemonfacturx_prepare_lines($billableLines, $sign, $invoice, $buyer, $mysoc, $buildWarnings);
+	$prepared = auvozugferd_prepare_lines($billableLines, $sign, $invoice, $buyer, $mysoc, $buildWarnings);
 
 	// Ventilation TVA par (catégorie, taux), réconciliée avec les totaux facture
-	$breakdown = lemonfacturx_get_tax_breakdown($prepared, $invoice, $sign, $buildWarnings);
+	$breakdown = auvozugferd_get_tax_breakdown($prepared, $invoice, $sign, $buildWarnings);
 
 	// BR-61 : un moyen de paiement 30/58 (virement) exige un IBAN. Sans compte
 	// bancaire configuré, on omet le bloc PaymentMeans plutôt que d'émettre un
@@ -164,11 +165,11 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 	$emitPaymentMeans = true;
 	if (in_array($paymentMeans, ['30', '58'], true) && empty($bank['iban'])) {
 		$emitPaymentMeans = false;
-		$buildWarnings[] = lemonfacturx_trans('LemonFacturXWarnPaymentMeansOmitted', $paymentMeans);
+		$buildWarnings[] = auvozugferd_trans('AuvoZugferdWarnPaymentMeansOmitted', $paymentMeans);
 	}
 
 	// Prélèvement SEPA (59) : ICS créancier (BT-90), RUM mandat (BT-89), IBAN débiteur (BT-91)
-	$directDebit = ($paymentMeans === '59') ? lemonfacturx_get_direct_debit_info($invoice->db, $buyer, $buildWarnings) : null;
+	$directDebit = ($paymentMeans === '59') ? auvozugferd_get_direct_debit_info($invoice->db, $buyer, $buildWarnings) : null;
 
 	$xml  = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
 	$xml .= '<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"';
@@ -188,11 +189,11 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 	$bt23 = ($profile === 'choruspro')
 		? (!empty($options['cadre']) ? $options['cadre'] : 'A1')
 		: ($sellerIsFR
-			? lemonfacturx_resolve_business_process($billableLines, $typeCode, lemonfacturx_get_prepaid_amount($invoice))
+			? auvozugferd_resolve_business_process($billableLines, $typeCode, auvozugferd_get_prepaid_amount($invoice))
 			: '');
 	if ($bt23 !== '') {
 		$xml .= '  <ram:BusinessProcessSpecifiedDocumentContextParameter>'."\n";
-		$xml .= '    <ram:ID>'.lemonfacturx_xml_encode($bt23).'</ram:ID>'."\n";
+		$xml .= '    <ram:ID>'.auvozugferd_xml_encode($bt23).'</ram:ID>'."\n";
 		$xml .= '  </ram:BusinessProcessSpecifiedDocumentContextParameter>'."\n";
 	}
 	$xml .= '  <ram:GuidelineSpecifiedDocumentContextParameter>'."\n";
@@ -202,17 +203,17 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 
 	// === ExchangedDocument ===
 	$xml .= '<rsm:ExchangedDocument>'."\n";
-	$xml .= '  <ram:ID>'.lemonfacturx_xml_encode($invoice->ref).'</ram:ID>'."\n";
-	$xml .= '  <ram:TypeCode>'.lemonfacturx_xml_encode($typeCode).'</ram:TypeCode>'."\n";
+	$xml .= '  <ram:ID>'.auvozugferd_xml_encode($invoice->ref).'</ram:ID>'."\n";
+	$xml .= '  <ram:TypeCode>'.auvozugferd_xml_encode($typeCode).'</ram:TypeCode>'."\n";
 	$xml .= '  <ram:IssueDateTime>'."\n";
-	$xml .= '    <udt:DateTimeString format="102">'.lemonfacturx_xml_encode($issueDate).'</udt:DateTimeString>'."\n";
+	$xml .= '    <udt:DateTimeString format="102">'.auvozugferd_xml_encode($issueDate).'</udt:DateTimeString>'."\n";
 	$xml .= '  </ram:IssueDateTime>'."\n";
 	// Note BAR (BR-FR-07/20) : qualification du traitement attendu, émise sur le
 	// profil PDP uniquement (le B2G Chorus a son propre marquage, hors périmètre)
 	// et pour un vendeur français uniquement — le code qualifie le flux de la
 	// réforme FR (e-invoicing / e-reporting), sans objet pour un vendeur étranger.
-	$barCode = ($profile === 'choruspro' || !$sellerIsFR) ? '' : lemonfacturx_resolve_bar_code($buyer);
-	$xml .= lemonfacturx_build_legal_notes_xml($barCode, $sellerIsFR);
+	$barCode = ($profile === 'choruspro' || !$sellerIsFR) ? '' : auvozugferd_resolve_bar_code($buyer);
+	$xml .= auvozugferd_build_legal_notes_xml($barCode, $sellerIsFR);
 	$xml .= '</rsm:ExchangedDocument>'."\n";
 
 	// === SupplyChainTradeTransaction ===
@@ -221,7 +222,7 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 	$xmlLineNum = 0;
 	foreach ($prepared['lines'] as $pl) {
 		$xmlLineNum++;
-		$xml .= lemonfacturx_build_line_xml($pl, $xmlLineNum);
+		$xml .= auvozugferd_build_line_xml($pl, $xmlLineNum);
 	}
 
 	$xml .= '  <ram:ApplicableHeaderTradeAgreement>'."\n";
@@ -230,7 +231,7 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 	// prime donc sur le code service Chorus et sur ref_client. Hors Allemagne,
 	// comportement inchangé : code service Chorus (profil choruspro) sinon ref_client.
 	$buyerCountry = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : 'FR');
-	$leitwegId = ($buyerCountry === 'DE') ? lemonfacturx_party_leitwegid($buyer) : '';
+	$leitwegId = ($buyerCountry === 'DE') ? auvozugferd_party_leitwegid($buyer) : '';
 	if ($leitwegId !== '') {
 		$buyerRef = $leitwegId;
 	} elseif ($profile === 'choruspro' && !empty($options['service_code'])) {
@@ -239,23 +240,23 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 		$buyerRef = !empty($invoice->ref_client) ? $invoice->ref_client : '';
 	}
 	if ($buyerRef !== '') {
-		$xml .= '    <ram:BuyerReference>'.lemonfacturx_xml_encode($buyerRef).'</ram:BuyerReference>'."\n";
+		$xml .= '    <ram:BuyerReference>'.auvozugferd_xml_encode($buyerRef).'</ram:BuyerReference>'."\n";
 	}
-	$xml .= lemonfacturx_build_trade_party_xml('Seller', $mysoc, $mysoc->email ?? '', $legalIdMode);
-	$xml .= lemonfacturx_build_trade_party_xml('Buyer', $buyer, lemonfacturx_get_buyer_email($buyer, $invoice->db), $legalIdMode);
+	$xml .= auvozugferd_build_trade_party_xml('Seller', $mysoc, $mysoc->email ?? '', $legalIdMode);
+	$xml .= auvozugferd_build_trade_party_xml('Buyer', $buyer, auvozugferd_get_buyer_email($buyer, $invoice->db), $legalIdMode);
 	// BT-13 : n° d'engagement juridique (Chorus) sinon référence de la commande liée.
 	$orderRef = ($profile === 'choruspro' && !empty($options['engagement']))
 		? $options['engagement']
-		: lemonfacturx_get_linked_order_ref($invoice);
+		: auvozugferd_get_linked_order_ref($invoice);
 	if ($orderRef !== '') {
 		$xml .= '    <ram:BuyerOrderReferencedDocument>'."\n";
-		$xml .= '      <ram:IssuerAssignedID>'.lemonfacturx_xml_encode($orderRef).'</ram:IssuerAssignedID>'."\n";
+		$xml .= '      <ram:IssuerAssignedID>'.auvozugferd_xml_encode($orderRef).'</ram:IssuerAssignedID>'."\n";
 		$xml .= '    </ram:BuyerOrderReferencedDocument>'."\n";
 	}
 	// BT-12 : référence du marché (Chorus Pro). Séquence XSD : après BuyerOrder.
 	if ($profile === 'choruspro' && !empty($options['marche'])) {
 		$xml .= '    <ram:ContractReferencedDocument>'."\n";
-		$xml .= '      <ram:IssuerAssignedID>'.lemonfacturx_xml_encode($options['marche']).'</ram:IssuerAssignedID>'."\n";
+		$xml .= '      <ram:IssuerAssignedID>'.auvozugferd_xml_encode($options['marche']).'</ram:IssuerAssignedID>'."\n";
 		$xml .= '    </ram:ContractReferencedDocument>'."\n";
 	}
 	$xml .= '  </ram:ApplicableHeaderTradeAgreement>'."\n";
@@ -287,14 +288,14 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 		$shipToCountry = !empty($buyer->country_code) ? $buyer->country_code : 'FR';
 		$xml .= '    <ram:ShipToTradeParty>'."\n";
 		$xml .= '      <ram:PostalTradeAddress>'."\n";
-		$xml .= '        <ram:CountryID>'.lemonfacturx_xml_encode($shipToCountry).'</ram:CountryID>'."\n";
+		$xml .= '        <ram:CountryID>'.auvozugferd_xml_encode($shipToCountry).'</ram:CountryID>'."\n";
 		$xml .= '      </ram:PostalTradeAddress>'."\n";
 		$xml .= '    </ram:ShipToTradeParty>'."\n";
 	}
 	if ($deliveryDate !== null) {
 		$xml .= '    <ram:ActualDeliverySupplyChainEvent>'."\n";
 		$xml .= '      <ram:OccurrenceDateTime>'."\n";
-		$xml .= '        <udt:DateTimeString format="102">'.lemonfacturx_xml_encode($deliveryDate).'</udt:DateTimeString>'."\n";
+		$xml .= '        <udt:DateTimeString format="102">'.auvozugferd_xml_encode($deliveryDate).'</udt:DateTimeString>'."\n";
 		$xml .= '      </ram:OccurrenceDateTime>'."\n";
 		$xml .= '    </ram:ActualDeliverySupplyChainEvent>'."\n";
 	}
@@ -304,26 +305,26 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 	$xml .= '  <ram:ApplicableHeaderTradeSettlement>'."\n";
 	// BT-90 : identifiant créancier SEPA (ICS) pour le prélèvement
 	if ($directDebit !== null && $directDebit['ics'] !== '') {
-		$xml .= '    <ram:CreditorReferenceID>'.lemonfacturx_xml_encode($directDebit['ics']).'</ram:CreditorReferenceID>'."\n";
+		$xml .= '    <ram:CreditorReferenceID>'.auvozugferd_xml_encode($directDebit['ics']).'</ram:CreditorReferenceID>'."\n";
 	}
-	$xml .= '    <ram:InvoiceCurrencyCode>'.lemonfacturx_xml_encode($currency).'</ram:InvoiceCurrencyCode>'."\n";
+	$xml .= '    <ram:InvoiceCurrencyCode>'.auvozugferd_xml_encode($currency).'</ram:InvoiceCurrencyCode>'."\n";
 
 	if ($emitPaymentMeans) {
 		$xml .= '    <ram:SpecifiedTradeSettlementPaymentMeans>'."\n";
-		$xml .= '      <ram:TypeCode>'.lemonfacturx_xml_encode($paymentMeans).'</ram:TypeCode>'."\n";
+		$xml .= '      <ram:TypeCode>'.auvozugferd_xml_encode($paymentMeans).'</ram:TypeCode>'."\n";
 		// BT-91 : compte débité (prélèvement)
 		if ($directDebit !== null && $directDebit['debtor_iban'] !== '') {
 			$xml .= '      <ram:PayerPartyDebtorFinancialAccount>'."\n";
-			$xml .= '        <ram:IBANID>'.lemonfacturx_xml_encode($directDebit['debtor_iban']).'</ram:IBANID>'."\n";
+			$xml .= '        <ram:IBANID>'.auvozugferd_xml_encode($directDebit['debtor_iban']).'</ram:IBANID>'."\n";
 			$xml .= '      </ram:PayerPartyDebtorFinancialAccount>'."\n";
 		}
 		if (!empty($bank['iban'])) {
 			$xml .= '      <ram:PayeePartyCreditorFinancialAccount>'."\n";
-			$xml .= '        <ram:IBANID>'.lemonfacturx_xml_encode($bank['iban']).'</ram:IBANID>'."\n";
+			$xml .= '        <ram:IBANID>'.auvozugferd_xml_encode($bank['iban']).'</ram:IBANID>'."\n";
 			$xml .= '      </ram:PayeePartyCreditorFinancialAccount>'."\n";
 			if (!empty($bank['bic'])) {
 				$xml .= '      <ram:PayeeSpecifiedCreditorFinancialInstitution>'."\n";
-				$xml .= '        <ram:BICID>'.lemonfacturx_xml_encode($bank['bic']).'</ram:BICID>'."\n";
+				$xml .= '        <ram:BICID>'.auvozugferd_xml_encode($bank['bic']).'</ram:BICID>'."\n";
 				$xml .= '      </ram:PayeeSpecifiedCreditorFinancialInstitution>'."\n";
 			}
 		}
@@ -333,46 +334,46 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 	// BT-8 : exigibilité TVA (5 = débits, 72 = encaissements), émise sur les
 	// catégories taxées uniquement. Dérivée automatiquement du régime TVA de
 	// Dolibarr (constante TAX_MODE, Configuration > Taxes) — plus de réglage dédié.
-	$dueDateTypeCode = lemonfacturx_resolve_vat_due_date_code();
+	$dueDateTypeCode = auvozugferd_resolve_vat_due_date_code();
 
 	foreach ($breakdown as $amounts) {
 		$xml .= '    <ram:ApplicableTradeTax>'."\n";
-		$xml .= '      <ram:CalculatedAmount>'.lemonfacturx_format_amount($amounts['tax']).'</ram:CalculatedAmount>'."\n";
+		$xml .= '      <ram:CalculatedAmount>'.auvozugferd_format_amount($amounts['tax']).'</ram:CalculatedAmount>'."\n";
 		$xml .= '      <ram:TypeCode>VAT</ram:TypeCode>'."\n";
 		// ExemptionReason émis pour toute catégorie non-standard quand un motif est disponible
 		if (!empty($amounts['exemption']) && in_array($amounts['categoryCode'], ['E', 'K', 'G', 'O', 'Z', 'AE'], true)) {
-			$xml .= '      <ram:ExemptionReason>'.lemonfacturx_xml_encode($amounts['exemption']).'</ram:ExemptionReason>'."\n";
+			$xml .= '      <ram:ExemptionReason>'.auvozugferd_xml_encode($amounts['exemption']).'</ram:ExemptionReason>'."\n";
 		}
-		$xml .= '      <ram:BasisAmount>'.lemonfacturx_format_amount($amounts['base']).'</ram:BasisAmount>'."\n";
-		$xml .= '      <ram:CategoryCode>'.lemonfacturx_xml_encode($amounts['categoryCode']).'</ram:CategoryCode>'."\n";
+		$xml .= '      <ram:BasisAmount>'.auvozugferd_format_amount($amounts['base']).'</ram:BasisAmount>'."\n";
+		$xml .= '      <ram:CategoryCode>'.auvozugferd_xml_encode($amounts['categoryCode']).'</ram:CategoryCode>'."\n";
 		// BT-121 : code d'exonération VATEX (attendu par la réforme FR)
 		if (!empty($amounts['vatex'])) {
-			$xml .= '      <ram:ExemptionReasonCode>'.lemonfacturx_xml_encode($amounts['vatex']).'</ram:ExemptionReasonCode>'."\n";
+			$xml .= '      <ram:ExemptionReasonCode>'.auvozugferd_xml_encode($amounts['vatex']).'</ram:ExemptionReasonCode>'."\n";
 		}
 		if ($dueDateTypeCode !== '' && $amounts['categoryCode'] === 'S') {
-			$xml .= '      <ram:DueDateTypeCode>'.lemonfacturx_xml_encode($dueDateTypeCode).'</ram:DueDateTypeCode>'."\n";
+			$xml .= '      <ram:DueDateTypeCode>'.auvozugferd_xml_encode($dueDateTypeCode).'</ram:DueDateTypeCode>'."\n";
 		}
 		// BR-O-05 : pas de RateApplicablePercent pour CategoryCode='O' (services hors champ)
 		if ($amounts['categoryCode'] !== 'O') {
-			$xml .= '      <ram:RateApplicablePercent>'.lemonfacturx_format_amount($amounts['rate']).'</ram:RateApplicablePercent>'."\n";
+			$xml .= '      <ram:RateApplicablePercent>'.auvozugferd_format_amount($amounts['rate']).'</ram:RateApplicablePercent>'."\n";
 		}
 		$xml .= '    </ram:ApplicableTradeTax>'."\n";
 	}
 
 	// BG-14 : période de facturation (dates de service des lignes Dolibarr)
-	$xml .= lemonfacturx_build_billing_period_xml($billableLines);
+	$xml .= auvozugferd_build_billing_period_xml($billableLines);
 
 	// BG-21 : remises pied de facture (issues des lignes à montant négatif)
 	foreach ($prepared['allowances'] as $al) {
 		$xml .= '    <ram:SpecifiedTradeAllowanceCharge>'."\n";
 		$xml .= '      <ram:ChargeIndicator><udt:Indicator>false</udt:Indicator></ram:ChargeIndicator>'."\n";
-		$xml .= '      <ram:ActualAmount>'.lemonfacturx_format_amount($al['amount']).'</ram:ActualAmount>'."\n";
-		$xml .= '      <ram:Reason>'.lemonfacturx_xml_encode($al['reason']).'</ram:Reason>'."\n";
+		$xml .= '      <ram:ActualAmount>'.auvozugferd_format_amount($al['amount']).'</ram:ActualAmount>'."\n";
+		$xml .= '      <ram:Reason>'.auvozugferd_xml_encode($al['reason']).'</ram:Reason>'."\n";
 		$xml .= '      <ram:CategoryTradeTax>'."\n";
 		$xml .= '        <ram:TypeCode>VAT</ram:TypeCode>'."\n";
-		$xml .= '        <ram:CategoryCode>'.lemonfacturx_xml_encode($al['categoryCode']).'</ram:CategoryCode>'."\n";
+		$xml .= '        <ram:CategoryCode>'.auvozugferd_xml_encode($al['categoryCode']).'</ram:CategoryCode>'."\n";
 		if ($al['categoryCode'] !== 'O') {
-			$xml .= '        <ram:RateApplicablePercent>'.lemonfacturx_format_amount($al['rate']).'</ram:RateApplicablePercent>'."\n";
+			$xml .= '        <ram:RateApplicablePercent>'.auvozugferd_format_amount($al['rate']).'</ram:RateApplicablePercent>'."\n";
 		}
 		$xml .= '      </ram:CategoryTradeTax>'."\n";
 		$xml .= '    </ram:SpecifiedTradeAllowanceCharge>'."\n";
@@ -380,25 +381,25 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 
 	$xml .= '    <ram:SpecifiedTradePaymentTerms>'."\n";
 	$xml .= '      <ram:DueDateDateTime>'."\n";
-	$xml .= '        <udt:DateTimeString format="102">'.lemonfacturx_xml_encode($dueDate).'</udt:DateTimeString>'."\n";
+	$xml .= '        <udt:DateTimeString format="102">'.auvozugferd_xml_encode($dueDate).'</udt:DateTimeString>'."\n";
 	$xml .= '      </ram:DueDateDateTime>'."\n";
 	// BT-89 : référence unique de mandat (RUM) pour le prélèvement SEPA
 	if ($directDebit !== null && $directDebit['rum'] !== '') {
-		$xml .= '      <ram:DirectDebitMandateID>'.lemonfacturx_xml_encode($directDebit['rum']).'</ram:DirectDebitMandateID>'."\n";
+		$xml .= '      <ram:DirectDebitMandateID>'.auvozugferd_xml_encode($directDebit['rum']).'</ram:DirectDebitMandateID>'."\n";
 	}
 	$xml .= '    </ram:SpecifiedTradePaymentTerms>'."\n";
 
-	$xml .= lemonfacturx_build_monetary_summation_xml($invoice, $currency, $sign, $prepared, $breakdown, $buildWarnings);
+	$xml .= auvozugferd_build_monetary_summation_xml($invoice, $currency, $sign, $prepared, $breakdown, $buildWarnings);
 
 	// BG-3 : références aux factures antérieures (facture d'origine d'un avoir /
 	// d'une rectificative, factures d'acompte imputées sur une facture finale).
 	// Rectificative (384) : seule la facture remplacée est référencée (BR-FR-CO-04).
-	foreach (lemonfacturx_get_preceding_invoices($invoice, $typeCode) as $prev) {
+	foreach (auvozugferd_get_preceding_invoices($invoice, $typeCode) as $prev) {
 		$xml .= '    <ram:InvoiceReferencedDocument>'."\n";
-		$xml .= '      <ram:IssuerAssignedID>'.lemonfacturx_xml_encode($prev['ref']).'</ram:IssuerAssignedID>'."\n";
+		$xml .= '      <ram:IssuerAssignedID>'.auvozugferd_xml_encode($prev['ref']).'</ram:IssuerAssignedID>'."\n";
 		if (!empty($prev['date'])) {
 			$xml .= '      <ram:FormattedIssueDateTime>'."\n";
-			$xml .= '        <qdt:DateTimeString format="102">'.lemonfacturx_xml_encode($prev['date']).'</qdt:DateTimeString>'."\n";
+			$xml .= '        <qdt:DateTimeString format="102">'.auvozugferd_xml_encode($prev['date']).'</qdt:DateTimeString>'."\n";
 			$xml .= '      </ram:FormattedIssueDateTime>'."\n";
 		}
 		$xml .= '    </ram:InvoiceReferencedDocument>'."\n";
@@ -414,9 +415,9 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 	// actionnable ici ; le validateur interne porte la violation bloquante.
 	if (empty($invoice->fk_facture_source)) {
 		if ($isCreditNote) {
-			$buildWarnings[] = lemonfacturx_trans('LemonFacturXWarnCreditNoteNoSource');
+			$buildWarnings[] = auvozugferd_trans('AuvoZugferdWarnCreditNoteNoSource');
 		} elseif ($typeCode === '384') {
-			$buildWarnings[] = lemonfacturx_trans('LemonFacturXWarnCorrectiveNoSource');
+			$buildWarnings[] = auvozugferd_trans('AuvoZugferdWarnCorrectiveNoSource');
 		}
 	}
 
@@ -431,7 +432,7 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
  * @param array $lines Lignes Dolibarr
  * @return array
  */
-function lemonfacturx_filter_billable_lines($lines)
+function auvozugferd_filter_billable_lines($lines)
 {
 	$out = [];
 	foreach ((array) $lines as $line) {
@@ -466,7 +467,7 @@ function lemonfacturx_filter_billable_lines($lines)
  *
  * @return array ['lines' => array, 'allowances' => array]
  */
-function lemonfacturx_prepare_lines($billableLines, $sign, $invoice, $thirdparty, $mysoc, &$buildWarnings)
+function auvozugferd_prepare_lines($billableLines, $sign, $invoice, $thirdparty, $mysoc, &$buildWarnings)
 {
 	// Constructeur unique de ligne préparée : utilisé par le chemin nominal ET
 	// le fallback "tout négatif" pour que les deux émettent le même mapping.
@@ -484,8 +485,8 @@ function lemonfacturx_prepare_lines($billableLines, $sign, $invoice, $thirdparty
 			'lineTotal' => $lineTotal,
 			'lineTax'   => $sign * (float) $line->total_tva,
 			'vatRate'   => (float) $line->tva_tx,
-			'taxCat'    => lemonfacturx_resolve_tax_category($line, $invoice, $thirdparty, $mysoc),
-			'unitCode'  => lemonfacturx_map_unit_code($line),
+			'taxCat'    => auvozugferd_resolve_tax_category($line, $invoice, $thirdparty, $mysoc),
+			'unitCode'  => auvozugferd_map_unit_code($line),
 		];
 	};
 
@@ -510,7 +511,7 @@ function lemonfacturx_prepare_lines($billableLines, $sign, $invoice, $thirdparty
 	if (empty($lines) && !empty($allowances)) {
 		// Facture intégralement négative hors avoir : pas de conversion BG-21
 		// possible (il faut au moins une ligne). On ré-émet les lignes brutes.
-		$buildWarnings[] = lemonfacturx_trans('LemonFacturXWarnAllNegativeLines');
+		$buildWarnings[] = auvozugferd_trans('AuvoZugferdWarnAllNegativeLines');
 		$lines = array_map($buildLine, $billableLines);
 		$allowances = [];
 	}
@@ -526,17 +527,17 @@ function lemonfacturx_prepare_lines($billableLines, $sign, $invoice, $thirdparty
  *      que Dolibarr imprime dans le PDF quand un compte est sélectionné au
  *      niveau du tiers ou de la facture ;
  *   2. à défaut, le compte figé dans la config du module
- *      (LEMONFACTURX_BANK_ACCOUNT) — repli historique, préserve l'existant.
+ *      (AUVOZUGFERD_BANK_ACCOUNT) — repli historique, préserve l'existant.
  *
  * @param object      $db      Handle DB Dolibarr
  * @param object|null $invoice Facture courante (pour lire fk_account) ; null = config seule
  * @return array ['iban' => string, 'bic' => string] (chaînes vides si aucun compte résolu)
  */
-function lemonfacturx_get_bank_account($db, $invoice = null)
+function auvozugferd_get_bank_account($db, $invoice = null)
 {
 	$bankAccountId = ($invoice !== null && !empty($invoice->fk_account))
 		? (int) $invoice->fk_account
-		: getDolGlobalInt('LEMONFACTURX_BANK_ACCOUNT');
+		: getDolGlobalInt('AUVOZUGFERD_BANK_ACCOUNT');
 	if ($bankAccountId <= 0) {
 		return ['iban' => '', 'bic' => ''];
 	}
@@ -558,7 +559,7 @@ function lemonfacturx_get_bank_account($db, $invoice = null)
  *
  * @return array ['ics' => string, 'rum' => string, 'debtor_iban' => string]
  */
-function lemonfacturx_get_direct_debit_info($db, $buyer, &$buildWarnings)
+function auvozugferd_get_direct_debit_info($db, $buyer, &$buildWarnings)
 {
 	$info = [
 		'ics'         => trim(getDolGlobalString('PRELEVEMENT_ICS', '')),
@@ -584,10 +585,10 @@ function lemonfacturx_get_direct_debit_info($db, $buyer, &$buildWarnings)
 	}
 
 	if ($info['ics'] === '') {
-		$buildWarnings[] = lemonfacturx_trans('LemonFacturXWarnDirectDebitNoICS');
+		$buildWarnings[] = auvozugferd_trans('AuvoZugferdWarnDirectDebitNoICS');
 	}
 	if ($info['rum'] === '') {
-		$buildWarnings[] = lemonfacturx_trans('LemonFacturXWarnDirectDebitNoRUM');
+		$buildWarnings[] = auvozugferd_trans('AuvoZugferdWarnDirectDebitNoRUM');
 	}
 
 	return $info;
@@ -599,7 +600,7 @@ function lemonfacturx_get_direct_debit_info($db, $buyer, &$buildWarnings)
  * clé n'existe pas ; or nos constantes de configuration sont créées vides à
  * l'activation du module, donc le défaut ne s'appliquait jamais sans ce garde-fou.
  */
-function lemonfacturx_conf_or_default($key, $default)
+function auvozugferd_conf_or_default($key, $default)
 {
 	$val = trim(getDolGlobalString($key, ''));
 	return $val !== '' ? $val : $default;
@@ -614,26 +615,26 @@ function lemonfacturx_conf_or_default($key, $default)
  * vendeur établi hors de France, aucun défaut n'est appliqué : Factur-X est
  * la même spécification que ZUGFeRD, et imprimer d'office des mentions
  * françaises — ou leur transposition devinée — dans la facture d'un vendeur
- * étranger serait faux. Les constantes LEMONFACTURX_NOTE_* restent
+ * étranger serait faux. Les constantes AUVOZUGFERD_NOTE_* restent
  * pleinement utilisables : un vendeur allemand y saisit ses propres mentions
  * (§ 288 BGB, escompte…), et elles sont alors émises normalement.
  *
- * @param bool $sellerIsFR  cf. lemonfacturx_seller_is_fr()
+ * @param bool $sellerIsFR  cf. auvozugferd_seller_is_fr()
  * @return array<string,string>  ['PMD' => texte, 'PMT' => texte, 'AAB' => texte]
  */
-function lemonfacturx_resolve_legal_notes($sellerIsFR = true)
+function auvozugferd_resolve_legal_notes($sellerIsFR = true)
 {
 	$defaults = $sellerIsFR
 		? [
-			'PMD' => LEMONFACTURX_DEFAULT_NOTE_PMD,
-			'PMT' => LEMONFACTURX_DEFAULT_NOTE_PMT,
-			'AAB' => LEMONFACTURX_DEFAULT_NOTE_AAB,
+			'PMD' => AUVOZUGFERD_DEFAULT_NOTE_PMD,
+			'PMT' => AUVOZUGFERD_DEFAULT_NOTE_PMT,
+			'AAB' => AUVOZUGFERD_DEFAULT_NOTE_AAB,
 		]
 		: ['PMD' => '', 'PMT' => '', 'AAB' => ''];
 
 	$notes = [];
 	foreach ($defaults as $code => $default) {
-		$notes[$code] = lemonfacturx_conf_or_default('LEMONFACTURX_NOTE_'.$code, $default);
+		$notes[$code] = auvozugferd_conf_or_default('AUVOZUGFERD_NOTE_'.$code, $default);
 	}
 	return $notes;
 }
@@ -644,13 +645,13 @@ function lemonfacturx_resolve_legal_notes($sellerIsFR = true)
  * plus la note BAR (qualification du traitement attendu, BR-FR-07/20) quand un
  * code est fourni. Chaque code sujet n'est émis qu'une fois (BR-FR-06, BR-FR-31).
  *
- * @param string $barCode     'B2B', 'B2BINT' ou 'B2C' (cf. lemonfacturx_resolve_bar_code),
+ * @param string $barCode     'B2B', 'B2BINT' ou 'B2C' (cf. auvozugferd_resolve_bar_code),
  *                            ou '' pour ne pas émettre de note BAR
- * @param bool   $sellerIsFR  cf. lemonfacturx_seller_is_fr()
+ * @param bool   $sellerIsFR  cf. auvozugferd_seller_is_fr()
  */
-function lemonfacturx_build_legal_notes_xml($barCode = '', $sellerIsFR = true)
+function auvozugferd_build_legal_notes_xml($barCode = '', $sellerIsFR = true)
 {
-	$notes = lemonfacturx_resolve_legal_notes($sellerIsFR);
+	$notes = auvozugferd_resolve_legal_notes($sellerIsFR);
 	if ($barCode !== '') {
 		// BR-FR-20 : le contenu (BT-22) est le code brut, sans texte libre autour
 		$notes['BAR'] = $barCode;
@@ -664,7 +665,7 @@ function lemonfacturx_build_legal_notes_xml($barCode = '', $sellerIsFR = true)
 			continue;
 		}
 		$xml .= '  <ram:IncludedNote>'."\n";
-		$xml .= '    <ram:Content>'.lemonfacturx_xml_encode($content).'</ram:Content>'."\n";
+		$xml .= '    <ram:Content>'.auvozugferd_xml_encode($content).'</ram:Content>'."\n";
 		$xml .= '    <ram:SubjectCode>'.$code.'</ram:SubjectCode>'."\n";
 		$xml .= '  </ram:IncludedNote>'."\n";
 	}
@@ -693,14 +694,14 @@ function lemonfacturx_build_legal_notes_xml($barCode = '', $sellerIsFR = true)
  * @param Societe|object $buyer  Tiers acheteur
  * @return string 'B2B', 'B2BINT' ou 'B2C'
  */
-function lemonfacturx_resolve_bar_code($buyer)
+function auvozugferd_resolve_bar_code($buyer)
 {
-	if (lemonfacturx_is_non_assujetti($buyer)) {
+	if (auvozugferd_is_non_assujetti($buyer)) {
 		return 'B2C';
 	}
 	$country = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : 'FR');
 	// Codes remplacés par FR dans les flux (BR-FR-MAP-14) : traités comme FR
-	if ($country !== 'FR' && !in_array($country, LEMONFACTURX_FR_OVERSEAS_COUNTRIES, true)) {
+	if ($country !== 'FR' && !in_array($country, AUVOZUGFERD_FR_OVERSEAS_COUNTRIES, true)) {
 		return 'B2BINT';
 	}
 	return 'B2B';
@@ -718,12 +719,12 @@ function lemonfacturx_resolve_bar_code($buyer)
  * autofacturation, multi-vendeurs x8, bidirectionnel x9) ne correspondent à
  * aucun flux produit par ce module : non émis.
  *
- * @param array  $billableLines  Lignes facturables (cf. lemonfacturx_filter_billable_lines)
+ * @param array  $billableLines  Lignes facturables (cf. auvozugferd_filter_billable_lines)
  * @param string $typeCode       TypeCode BT-3 émis ('380', '386', '381'...)
  * @param float  $prepaidAmount  Montant d'acomptes imputés (BT-113)
  * @return string 'B1'|'S1'|'M1'|'B4'|'S4'|'M4'
  */
-function lemonfacturx_resolve_business_process($billableLines, $typeCode, $prepaidAmount = 0.0)
+function auvozugferd_resolve_business_process($billableLines, $typeCode, $prepaidAmount = 0.0)
 {
 	$hasGoods = false;
 	$hasServices = false;
@@ -746,7 +747,7 @@ function lemonfacturx_resolve_business_process($billableLines, $typeCode, $prepa
  * BG-14 : période de facturation déduite des dates de service des lignes
  * (min des date_start / max des date_end). Bloc omis si aucune ligne datée.
  */
-function lemonfacturx_build_billing_period_xml($billableLines)
+function auvozugferd_build_billing_period_xml($billableLines)
 {
 	$start = null;
 	$end = null;
@@ -779,41 +780,41 @@ function lemonfacturx_build_billing_period_xml($billableLines)
 }
 
 /**
- * Génère le XML d'une ligne préparée (cf. lemonfacturx_prepare_lines).
+ * Génère le XML d'une ligne préparée (cf. auvozugferd_prepare_lines).
  *
  * @param array  $pl       Ligne préparée (desc, qty, unitPrice, lineTotal, vatRate, taxCat, unitCode)
  * @param int    $lineNum  Numéro de ligne séquentiel
  * @return string XML
  */
-function lemonfacturx_build_line_xml($pl, $lineNum)
+function auvozugferd_build_line_xml($pl, $lineNum)
 {
 	$xml  = '  <ram:IncludedSupplyChainTradeLineItem>'."\n";
 	$xml .= '    <ram:AssociatedDocumentLineDocument>'."\n";
-	$xml .= '      <ram:LineID>'.lemonfacturx_xml_encode((string) $lineNum).'</ram:LineID>'."\n";
+	$xml .= '      <ram:LineID>'.auvozugferd_xml_encode((string) $lineNum).'</ram:LineID>'."\n";
 	$xml .= '    </ram:AssociatedDocumentLineDocument>'."\n";
 	$xml .= '    <ram:SpecifiedTradeProduct>'."\n";
-	$xml .= '      <ram:Name>'.lemonfacturx_xml_encode($pl['desc']).'</ram:Name>'."\n";
+	$xml .= '      <ram:Name>'.auvozugferd_xml_encode($pl['desc']).'</ram:Name>'."\n";
 	$xml .= '    </ram:SpecifiedTradeProduct>'."\n";
 	$xml .= '    <ram:SpecifiedLineTradeAgreement>'."\n";
 	$xml .= '      <ram:NetPriceProductTradePrice>'."\n";
 	// BT-146 : 4 décimales pour limiter l'écart qty x prix vs total de ligne
-	$xml .= '        <ram:ChargeAmount>'.lemonfacturx_format_unit_price($pl['unitPrice']).'</ram:ChargeAmount>'."\n";
+	$xml .= '        <ram:ChargeAmount>'.auvozugferd_format_unit_price($pl['unitPrice']).'</ram:ChargeAmount>'."\n";
 	$xml .= '      </ram:NetPriceProductTradePrice>'."\n";
 	$xml .= '    </ram:SpecifiedLineTradeAgreement>'."\n";
 	$xml .= '    <ram:SpecifiedLineTradeDelivery>'."\n";
-	$xml .= '      <ram:BilledQuantity unitCode="'.lemonfacturx_xml_encode($pl['unitCode']).'">'.lemonfacturx_format_qty($pl['qty']).'</ram:BilledQuantity>'."\n";
+	$xml .= '      <ram:BilledQuantity unitCode="'.auvozugferd_xml_encode($pl['unitCode']).'">'.auvozugferd_format_qty($pl['qty']).'</ram:BilledQuantity>'."\n";
 	$xml .= '    </ram:SpecifiedLineTradeDelivery>'."\n";
 	$xml .= '    <ram:SpecifiedLineTradeSettlement>'."\n";
 	$xml .= '      <ram:ApplicableTradeTax>'."\n";
 	$xml .= '        <ram:TypeCode>VAT</ram:TypeCode>'."\n";
-	$xml .= '        <ram:CategoryCode>'.lemonfacturx_xml_encode($pl['taxCat']['code']).'</ram:CategoryCode>'."\n";
+	$xml .= '        <ram:CategoryCode>'.auvozugferd_xml_encode($pl['taxCat']['code']).'</ram:CategoryCode>'."\n";
 	// BR-O-04 : pas de RateApplicablePercent pour CategoryCode='O' (services hors champ)
 	if ($pl['taxCat']['code'] !== 'O') {
-		$xml .= '        <ram:RateApplicablePercent>'.lemonfacturx_format_amount($pl['vatRate']).'</ram:RateApplicablePercent>'."\n";
+		$xml .= '        <ram:RateApplicablePercent>'.auvozugferd_format_amount($pl['vatRate']).'</ram:RateApplicablePercent>'."\n";
 	}
 	$xml .= '      </ram:ApplicableTradeTax>'."\n";
 	$xml .= '      <ram:SpecifiedTradeSettlementLineMonetarySummation>'."\n";
-	$xml .= '        <ram:LineTotalAmount>'.lemonfacturx_format_amount($pl['lineTotal']).'</ram:LineTotalAmount>'."\n";
+	$xml .= '        <ram:LineTotalAmount>'.auvozugferd_format_amount($pl['lineTotal']).'</ram:LineTotalAmount>'."\n";
 	$xml .= '      </ram:SpecifiedTradeSettlementLineMonetarySummation>'."\n";
 	$xml .= '    </ram:SpecifiedLineTradeSettlement>'."\n";
 	$xml .= '  </ram:IncludedSupplyChainTradeLineItem>'."\n";
@@ -825,7 +826,7 @@ function lemonfacturx_build_line_xml($pl, $lineNum)
  * Calcule la ventilation TVA par (catégorie, taux) — deux catégories distinctes
  * au même taux (ex. K et AE à 0 %) produisent deux blocs ApplicableTradeTax.
  *
- * Consomme les lignes/remises préparées par lemonfacturx_prepare_lines() (mêmes
+ * Consomme les lignes/remises préparées par auvozugferd_prepare_lines() (mêmes
  * catégories, mêmes arrondis) pour garantir la cohérence BR-S-08 : base par
  * (catégorie, taux) = somme des lignes - remises de la catégorie.
  *
@@ -841,7 +842,7 @@ function lemonfacturx_build_line_xml($pl, $lineNum)
  * @param array  $buildWarnings  (sortie) avertissements
  * @return array<string,array>   Indexé par "categorie|taux", avec base/tax/rate/categoryCode/exemption/vatex
  */
-function lemonfacturx_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$buildWarnings = [])
+function auvozugferd_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$buildWarnings = [])
 {
 	$breakdown = [];
 	$accumulate = function ($taxCat, $rate, $base, $tax) use (&$breakdown) {
@@ -889,10 +890,10 @@ function lemonfacturx_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$buil
 		if ($targetKey !== null) {
 			$breakdown[$targetKey]['tax'] = round($breakdown[$targetKey]['tax'] + $delta, 2);
 			if (abs($delta) > 0.01) {
-				$buildWarnings[] = lemonfacturx_trans('LemonFacturXWarnRoundingAdjusted', lemonfacturx_format_amount($delta));
+				$buildWarnings[] = auvozugferd_trans('AuvoZugferdWarnRoundingAdjusted', auvozugferd_format_amount($delta));
 			}
 		} else {
-			$buildWarnings[] = lemonfacturx_trans('LemonFacturXWarnTaxMismatch', lemonfacturx_format_amount($delta));
+			$buildWarnings[] = auvozugferd_trans('AuvoZugferdWarnTaxMismatch', auvozugferd_format_amount($delta));
 		}
 	}
 
@@ -907,7 +908,7 @@ function lemonfacturx_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$buil
 		}
 		$expected = round($b['base'] * $b['rate'] / 100, 2);
 		if (abs($b['tax'] - $expected) > 0.01) {
-			$buildWarnings[] = lemonfacturx_trans('LemonFacturXWarnTaxRecomputed', $b['categoryCode'].' '.$b['rate'].'%', lemonfacturx_format_amount($expected), lemonfacturx_format_amount($b['tax']));
+			$buildWarnings[] = auvozugferd_trans('AuvoZugferdWarnTaxRecomputed', $b['categoryCode'].' '.$b['rate'].'%', auvozugferd_format_amount($expected), auvozugferd_format_amount($b['tax']));
 			$breakdown[$key]['tax'] = $expected;
 		}
 	}
@@ -929,7 +930,7 @@ function lemonfacturx_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$buil
  * @param Societe|null $thirdparty  Tiers Dolibarr (fetch déjà fait)
  * @return bool
  */
-function lemonfacturx_is_non_assujetti($thirdparty)
+function auvozugferd_is_non_assujetti($thirdparty)
 {
 	if (empty($thirdparty)) {
 		return false;
@@ -948,20 +949,20 @@ function lemonfacturx_is_non_assujetti($thirdparty)
  * @param Societe $mysoc     Société émettrice
  * @return array             Liste de messages d'avertissement
  */
-function lemonfacturx_check_mandatory($invoice, $mysoc)
+function auvozugferd_check_mandatory($invoice, $mysoc)
 {
 	$warnings = [];
 
 	// SIREN/SIRET : identifiants français — mêmes règles de pays que le générateur
-	$sellerIsFR = lemonfacturx_seller_is_fr($mysoc);
+	$sellerIsFR = auvozugferd_seller_is_fr($mysoc);
 
 	$sellerChecks = [
-		'name'      => 'LemonFacturXWarnSellerName',
-		'address'   => 'LemonFacturXWarnSellerAddress',
-		'zip'       => 'LemonFacturXWarnSellerZip',
-		'town'      => 'LemonFacturXWarnSellerTown',
-		'tva_intra' => 'LemonFacturXWarnSellerVAT',
-		'idprof2'   => 'LemonFacturXWarnSellerSIRET',
+		'name'      => 'AuvoZugferdWarnSellerName',
+		'address'   => 'AuvoZugferdWarnSellerAddress',
+		'zip'       => 'AuvoZugferdWarnSellerZip',
+		'town'      => 'AuvoZugferdWarnSellerTown',
+		'tva_intra' => 'AuvoZugferdWarnSellerVAT',
+		'idprof2'   => 'AuvoZugferdWarnSellerSIRET',
 	];
 	$isFranchise = isset($mysoc->tva_assuj) && (int) $mysoc->tva_assuj === 0;
 	foreach ($sellerChecks as $field => $transKey) {
@@ -974,34 +975,34 @@ function lemonfacturx_check_mandatory($invoice, $mysoc)
 			continue;
 		}
 		if (empty($mysoc->$field)) {
-			$warnings[] = lemonfacturx_trans($transKey);
+			$warnings[] = auvozugferd_trans($transKey);
 		}
 	}
 
 	// BT-34 (adresse électronique vendeur) : satisfaite par le SIREN (endpoint 0225)
 	// OU l'email. On n'avertit que si aucune des deux n'est disponible.
-	$sellerSiren = $sellerIsFR ? lemonfacturx_party_siren($mysoc) : '';
+	$sellerSiren = $sellerIsFR ? auvozugferd_party_siren($mysoc) : '';
 	if ($sellerSiren === '' && empty($mysoc->email)) {
-		$warnings[] = lemonfacturx_trans('LemonFacturXWarnSellerEndpoint');
+		$warnings[] = auvozugferd_trans('AuvoZugferdWarnSellerEndpoint');
 	}
 
 	// BT-29 (ram:ID) : si un SIRET est renseigné (idprof2), il doit faire 14
 	// chiffres. Il identifie l'établissement ; le SIREN (BT-30) vient d'idprof1.
 	$sellerSiret = $sellerIsFR ? preg_replace('/[^0-9]/', '', $mysoc->idprof2 ?? '') : '';
 	if ($sellerSiret !== '' && strlen($sellerSiret) !== 14) {
-		$warnings[] = lemonfacturx_trans('LemonFacturXWarnSellerSIRETLen', strlen($sellerSiret));
+		$warnings[] = auvozugferd_trans('AuvoZugferdWarnSellerSIRETLen', strlen($sellerSiret));
 	}
 
 	$buyer = $invoice->thirdparty;
 	$buyerChecks = [
-		'name'    => 'LemonFacturXWarnBuyerName',
-		'address' => 'LemonFacturXWarnBuyerAddress',
-		'zip'     => 'LemonFacturXWarnBuyerZip',
-		'town'    => 'LemonFacturXWarnBuyerTown',
+		'name'    => 'AuvoZugferdWarnBuyerName',
+		'address' => 'AuvoZugferdWarnBuyerAddress',
+		'zip'     => 'AuvoZugferdWarnBuyerZip',
+		'town'    => 'AuvoZugferdWarnBuyerTown',
 	];
 	foreach ($buyerChecks as $field => $transKey) {
 		if (empty($buyer->$field)) {
-			$warnings[] = lemonfacturx_trans($transKey);
+			$warnings[] = auvozugferd_trans($transKey);
 		}
 	}
 
@@ -1009,21 +1010,21 @@ function lemonfacturx_check_mandatory($invoice, $mysoc)
 	// OU l'email. Pour un acheteur FR, l'absence de SIREN empêche le routage PA/PDP,
 	// même si un email est présent (un email n'est pas routable sur le réseau).
 	$buyerIsFR  = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : 'FR') === 'FR';
-	$buyerSiren = $buyerIsFR ? lemonfacturx_party_siren($buyer) : '';
-	$buyerEmail = lemonfacturx_get_buyer_email($buyer, $invoice->db);
+	$buyerSiren = $buyerIsFR ? auvozugferd_party_siren($buyer) : '';
+	$buyerEmail = auvozugferd_get_buyer_email($buyer, $invoice->db);
 	if ($buyerSiren === '' && $buyerEmail === '') {
-		$warnings[] = lemonfacturx_trans('LemonFacturXWarnBuyerEndpoint');
-	} elseif ($buyerSiren === '' && $buyerIsFR && !lemonfacturx_is_non_assujetti($buyer)) {
+		$warnings[] = auvozugferd_trans('AuvoZugferdWarnBuyerEndpoint');
+	} elseif ($buyerSiren === '' && $buyerIsFR && !auvozugferd_is_non_assujetti($buyer)) {
 		// Non assujetti (particulier OU « Assujetti à la TVA » à Non, ex. asso) :
 		// pas de SIREN, hors champ e-invoicing (relève du e-reporting)
 		// → pas d'avertissement de routage
-		$warnings[] = lemonfacturx_trans('LemonFacturXWarnBuyerSIRENRouting');
+		$warnings[] = auvozugferd_trans('AuvoZugferdWarnBuyerSIRENRouting');
 	}
 
 	// BT-46 acheteur (ram:ID) : si un SIRET est renseigné, il doit faire 14 chiffres.
 	$buyerSiret = $buyerIsFR ? preg_replace('/[^0-9]/', '', $buyer->idprof2 ?? '') : '';
 	if ($buyerSiret !== '' && strlen($buyerSiret) !== 14) {
-		$warnings[] = lemonfacturx_trans('LemonFacturXWarnBuyerSIRETLen', strlen($buyerSiret));
+		$warnings[] = auvozugferd_trans('AuvoZugferdWarnBuyerSIRETLen', strlen($buyerSiret));
 	}
 
 	// BR-FR-01/02 : identifiant de facture (BT-1) — 35 caractères maximum,
@@ -1033,10 +1034,10 @@ function lemonfacturx_check_mandatory($invoice, $mysoc)
 	if ($ref !== '') {
 		$refLen = function_exists('mb_strlen') ? mb_strlen($ref) : strlen($ref);
 		if ($refLen > 35) {
-			$warnings[] = lemonfacturx_trans('LemonFacturXWarnRefTooLong', $refLen);
+			$warnings[] = auvozugferd_trans('AuvoZugferdWarnRefTooLong', $refLen);
 		}
 		if (!preg_match('/^[A-Za-z0-9+_\/-]+$/', $ref)) {
-			$warnings[] = lemonfacturx_trans('LemonFacturXWarnRefCharset', $ref);
+			$warnings[] = auvozugferd_trans('AuvoZugferdWarnRefCharset', $ref);
 		}
 	}
 
@@ -1044,11 +1045,11 @@ function lemonfacturx_check_mandatory($invoice, $mysoc)
 	// les 9 premiers chiffres du SIRET doivent correspondre au SIREN.
 	$sellerSirenSaisi = $sellerIsFR ? preg_replace('/[^0-9]/', '', $mysoc->idprof1 ?? '') : '';
 	if (strlen($sellerSirenSaisi) === 9 && strlen($sellerSiret) === 14 && strncmp($sellerSiret, $sellerSirenSaisi, 9) !== 0) {
-		$warnings[] = lemonfacturx_trans('LemonFacturXWarnSellerSirenSiretMismatch', $sellerSirenSaisi, $sellerSiret);
+		$warnings[] = auvozugferd_trans('AuvoZugferdWarnSellerSirenSiretMismatch', $sellerSirenSaisi, $sellerSiret);
 	}
 	$buyerSirenSaisi = $buyerIsFR ? preg_replace('/[^0-9]/', '', $buyer->idprof1 ?? '') : '';
 	if (strlen($buyerSirenSaisi) === 9 && strlen($buyerSiret) === 14 && strncmp($buyerSiret, $buyerSirenSaisi, 9) !== 0) {
-		$warnings[] = lemonfacturx_trans('LemonFacturXWarnBuyerSirenSiretMismatch', $buyerSirenSaisi, $buyerSiret);
+		$warnings[] = auvozugferd_trans('AuvoZugferdWarnBuyerSirenSiretMismatch', $buyerSirenSaisi, $buyerSiret);
 	}
 
 	// BR-FR-16 : taux de TVA hors liste française fermée (métropole + DOM).
@@ -1070,35 +1071,35 @@ function lemonfacturx_check_mandatory($invoice, $mysoc)
 		}
 	}
 	foreach (array_keys($flaggedRates) as $rate) {
-		$warnings[] = lemonfacturx_trans('LemonFacturXWarnVatRateNotFR', $rate);
+		$warnings[] = auvozugferd_trans('AuvoZugferdWarnVatRateNotFR', $rate);
 	}
 
 	// BR-FR-23/25 : suffixe d'adresse électronique vendeur — charset fermé
-	// (sanitisé à l'émission par lemonfacturx_build_endpoint_uri) et longueur
+	// (sanitisé à l'émission par auvozugferd_build_endpoint_uri) et longueur
 	// totale de l'adresse limitée à 125 caractères.
-	$endpointSuffix = trim(getDolGlobalString('LEMONFACTURX_ENDPOINT_SUFFIX_SELLER', ''));
+	$endpointSuffix = trim(getDolGlobalString('AUVOZUGFERD_ENDPOINT_SUFFIX_SELLER', ''));
 	if ($endpointSuffix !== '') {
 		$suffixClean = preg_replace('/[^A-Za-z0-9._-]/', '', $endpointSuffix);
 		if ($suffixClean !== $endpointSuffix) {
-			$warnings[] = lemonfacturx_trans('LemonFacturXWarnEndpointSuffixCharset');
+			$warnings[] = auvozugferd_trans('AuvoZugferdWarnEndpointSuffixCharset');
 		}
 		$endpointLen = strlen($sellerSiren.$suffixClean);
 		if ($sellerSiren !== '' && $endpointLen > 125) {
-			$warnings[] = lemonfacturx_trans('LemonFacturXWarnEndpointTooLong', $endpointLen);
+			$warnings[] = auvozugferd_trans('AuvoZugferdWarnEndpointTooLong', $endpointLen);
 		}
 	}
 
 	// Compte bancaire : OK si la facture en porte un (fk_account) OU si le module
 	// en a un configuré. On n'avertit que si les deux manquent (issue #16 : le
 	// compte de la facture prime sur la config).
-	if (empty($invoice->fk_account) && getDolGlobalInt('LEMONFACTURX_BANK_ACCOUNT') <= 0) {
-		$warnings[] = lemonfacturx_trans('LemonFacturXWarnNoBank');
+	if (empty($invoice->fk_account) && getDolGlobalInt('AUVOZUGFERD_BANK_ACCOUNT') <= 0) {
+		$warnings[] = auvozugferd_trans('AuvoZugferdWarnNoBank');
 	}
 
 	// PDF/A-3 : sans police embarquée forcée, le PDF TCPDF utilise les polices
 	// base-14 non embarquées et échoue à la validation veraPDF.
 	if (function_exists('getDolGlobalString') && getDolGlobalString('MAIN_PDF_FORCE_FONT', '') === '') {
-		$warnings[] = lemonfacturx_trans('LemonFacturXWarnNoForceFont');
+		$warnings[] = auvozugferd_trans('AuvoZugferdWarnNoForceFont');
 	}
 
 	return $warnings;
@@ -1111,7 +1112,7 @@ function lemonfacturx_check_mandatory($invoice, $mysoc)
  * @param object $party  Société émettrice (mysoc) ou Societe acheteur
  * @param string $email  Email à publier dans le bloc URI (BT-49 / BT-34)
  */
-function lemonfacturx_build_trade_party_xml($role, $party, $email, $legalIdMode = 'siren')
+function auvozugferd_build_trade_party_xml($role, $party, $email, $legalIdMode = 'siren')
 {
 	$tag = ($role === 'Seller') ? 'SellerTradeParty' : 'BuyerTradeParty';
 	$country = !empty($party->country_code) ? $party->country_code : 'FR';
@@ -1126,7 +1127,7 @@ function lemonfacturx_build_trade_party_xml($role, $party, $email, $legalIdMode 
 	// L'ordre suit la séquence XSD du TradePartyType : ID, Name, SpecifiedLegalOrganization.
 	// Source SIREN = idprof1 (à défaut dérivé du SIRET) ; source SIRET = idprof2.
 	$isFR = (strtoupper($country) === 'FR');
-	$siren = $isFR ? lemonfacturx_party_siren($party) : '';
+	$siren = $isFR ? auvozugferd_party_siren($party) : '';
 	$siretDigits = $isFR ? preg_replace('/[^0-9]/', '', $party->idprof2 ?? '') : '';
 	$siret14 = (strlen($siretDigits) === 14) ? $siretDigits : '';
 
@@ -1143,32 +1144,32 @@ function lemonfacturx_build_trade_party_xml($role, $party, $email, $legalIdMode 
 		// l'identifiant qualifié va dans ram:GlobalID, PAS dans ram:ID. EN16931 ne
 		// lit le schemeID que sur GlobalID — sur ram:ID il est « not used in the
 		// given context » et fait échouer la validation Schematron (FNFE-MPE).
-		$xml .= '      <ram:GlobalID schemeID="0009">'.lemonfacturx_xml_encode($siret14).'</ram:GlobalID>'."\n";
+		$xml .= '      <ram:GlobalID schemeID="0009">'.auvozugferd_xml_encode($siret14).'</ram:GlobalID>'."\n";
 	}
-	$xml .= '      <ram:Name>'.lemonfacturx_xml_encode($party->name ?? '').'</ram:Name>'."\n";
+	$xml .= '      <ram:Name>'.auvozugferd_xml_encode($party->name ?? '').'</ram:Name>'."\n";
 	if ($chorus && !empty($siret14)) {
 		$xml .= '      <ram:SpecifiedLegalOrganization>'."\n";
-		$xml .= '        <ram:ID schemeID="0009">'.lemonfacturx_xml_encode($siret14).'</ram:ID>'."\n";
+		$xml .= '        <ram:ID schemeID="0009">'.auvozugferd_xml_encode($siret14).'</ram:ID>'."\n";
 		$xml .= '      </ram:SpecifiedLegalOrganization>'."\n";
 	} elseif (!empty($siren)) {
 		$xml .= '      <ram:SpecifiedLegalOrganization>'."\n";
-		$xml .= '        <ram:ID schemeID="0002">'.lemonfacturx_xml_encode($siren).'</ram:ID>'."\n";
+		$xml .= '        <ram:ID schemeID="0002">'.auvozugferd_xml_encode($siren).'</ram:ID>'."\n";
 		$xml .= '      </ram:SpecifiedLegalOrganization>'."\n";
 	}
 	$xml .= '      <ram:PostalTradeAddress>'."\n";
-	$xml .= '        <ram:PostcodeCode>'.lemonfacturx_xml_encode($party->zip ?? '').'</ram:PostcodeCode>'."\n";
-	$xml .= '        <ram:LineOne>'.lemonfacturx_xml_encode($party->address ?? '').'</ram:LineOne>'."\n";
-	$xml .= '        <ram:CityName>'.lemonfacturx_xml_encode($party->town ?? '').'</ram:CityName>'."\n";
-	$xml .= '        <ram:CountryID>'.lemonfacturx_xml_encode($country).'</ram:CountryID>'."\n";
+	$xml .= '        <ram:PostcodeCode>'.auvozugferd_xml_encode($party->zip ?? '').'</ram:PostcodeCode>'."\n";
+	$xml .= '        <ram:LineOne>'.auvozugferd_xml_encode($party->address ?? '').'</ram:LineOne>'."\n";
+	$xml .= '        <ram:CityName>'.auvozugferd_xml_encode($party->town ?? '').'</ram:CityName>'."\n";
+	$xml .= '        <ram:CountryID>'.auvozugferd_xml_encode($country).'</ram:CountryID>'."\n";
 	$xml .= '      </ram:PostalTradeAddress>'."\n";
 	// BT-34 (vendeur) / BT-49 (acheteur) : adresse électronique de routage.
 	// Le réseau des Plateformes Agréées (réforme FR) route par SIREN ; l'endpoint
 	// porte donc le SIREN avec schemeID="0225" (annuaire PPF), pas l'email. Le rôle
 	// est transmis : certaines PA exigent un suffixe sur l'adresse VENDEUR.
-	$xml .= lemonfacturx_build_endpoint_uri($siren, $email, $role);
+	$xml .= auvozugferd_build_endpoint_uri($siren, $email, $role);
 	if (!empty($vat)) {
 		$xml .= '      <ram:SpecifiedTaxRegistration>'."\n";
-		$xml .= '        <ram:ID schemeID="VA">'.lemonfacturx_xml_encode($vat).'</ram:ID>'."\n";
+		$xml .= '        <ram:ID schemeID="VA">'.auvozugferd_xml_encode($vat).'</ram:ID>'."\n";
 		$xml .= '      </ram:SpecifiedTaxRegistration>'."\n";
 	} elseif ($role === 'Seller' && !empty($siren)) {
 		// BR-CO-26 / BR-E-09 : le Seller doit publier un identifiant fiscal
@@ -1177,15 +1178,15 @@ function lemonfacturx_build_trade_party_xml($role, $party, $email, $legalIdMode 
 		// comme tax registration schemeID="FC" (Tax registration identifier
 		// France) pour satisfaire la règle.
 		$xml .= '      <ram:SpecifiedTaxRegistration>'."\n";
-		$xml .= '        <ram:ID schemeID="FC">'.lemonfacturx_xml_encode($siren).'</ram:ID>'."\n";
+		$xml .= '        <ram:ID schemeID="FC">'.auvozugferd_xml_encode($siren).'</ram:ID>'."\n";
 		$xml .= '      </ram:SpecifiedTaxRegistration>'."\n";
-	} elseif ($role === 'Seller' && strtoupper($country) === 'DE' && lemonfacturx_party_steuernummer($party) !== '') {
+	} elseif ($role === 'Seller' && strtoupper($country) === 'DE' && auvozugferd_party_steuernummer($party) !== '') {
 		// BR-CO-26 / BR-E-09, vendeur allemand : un Kleinunternehmer (§ 19 UStG)
 		// n'a pas d'USt-IdNr, donc pas de BT-31. On publie sa Steuernummer en
 		// BT-32 (schemeID="FC", Tax registration identifier) — pendant exact du
 		// SIREN côté français, que ZUGFeRD/XRechnung attendent dans ce cas.
 		$xml .= '      <ram:SpecifiedTaxRegistration>'."\n";
-		$xml .= '        <ram:ID schemeID="FC">'.lemonfacturx_xml_encode(lemonfacturx_party_steuernummer($party)).'</ram:ID>'."\n";
+		$xml .= '        <ram:ID schemeID="FC">'.auvozugferd_xml_encode(auvozugferd_party_steuernummer($party)).'</ram:ID>'."\n";
 		$xml .= '      </ram:SpecifiedTaxRegistration>'."\n";
 	}
 	$xml .= '    </ram:'.$tag.'>'."\n";
@@ -1207,7 +1208,7 @@ function lemonfacturx_build_trade_party_xml($role, $party, $email, $legalIdMode 
  * (BT-34) ne soit PAS le SIREN nu mais un endpoint suffixé — p.ex. Hubtimize/
  * Esalink attend "<SIREN>_Status" (adresse de retour des statuts de cycle de vie),
  * tel que paramétré à l'enregistrement de l'entité sur la PA. Configurable via
- * LEMONFACTURX_ENDPOINT_SUFFIX_SELLER (vide par défaut). Appliqué AU vendeur
+ * AUVOZUGFERD_ENDPOINT_SUFFIX_SELLER (vide par défaut). Appliqué AU vendeur
  * uniquement : l'adresse acheteur (BT-49) reste le SIREN nu, la PA destinataire
  * se chargeant du routage — on ne préjuge pas de son endpoint.
  *
@@ -1216,15 +1217,15 @@ function lemonfacturx_build_trade_party_xml($role, $party, $email, $legalIdMode 
  * @param string $role  'Seller' (BT-34, suffixe appliqué) ou 'Buyer' (BT-49, nu)
  * @return string Bloc <ram:URIUniversalCommunication> ou chaîne vide
  */
-function lemonfacturx_build_endpoint_uri($siren, $email, $role = 'Seller')
+function auvozugferd_build_endpoint_uri($siren, $email, $role = 'Seller')
 {
 	if (!empty($siren)) {
 		$scheme = '0225';
-		$suffix = ($role === 'Seller') ? trim(getDolGlobalString('LEMONFACTURX_ENDPOINT_SUFFIX_SELLER', '')) : '';
+		$suffix = ($role === 'Seller') ? trim(getDolGlobalString('AUVOZUGFERD_ENDPOINT_SUFFIX_SELLER', '')) : '';
 		// BR-FR-23 : une adresse électronique en 0225 n'admet que les
 		// alphanumériques, le tiret, le tiret bas et le point — tout autre
 		// caractère du suffixe configuré est retiré (sanitisation défensive ;
-		// un avertissement est émis par lemonfacturx_check_mandatory).
+		// un avertissement est émis par auvozugferd_check_mandatory).
 		if ($suffix !== '') {
 			$suffix = preg_replace('/[^A-Za-z0-9._-]/', '', $suffix);
 		}
@@ -1237,7 +1238,7 @@ function lemonfacturx_build_endpoint_uri($siren, $email, $role = 'Seller')
 	}
 
 	$xml  = '      <ram:URIUniversalCommunication>'."\n";
-	$xml .= '        <ram:URIID schemeID="'.lemonfacturx_xml_encode($scheme).'">'.lemonfacturx_xml_encode($value).'</ram:URIID>'."\n";
+	$xml .= '        <ram:URIID schemeID="'.auvozugferd_xml_encode($scheme).'">'.auvozugferd_xml_encode($value).'</ram:URIID>'."\n";
 	$xml .= '      </ram:URIUniversalCommunication>'."\n";
 
 	return $xml;
@@ -1250,7 +1251,7 @@ function lemonfacturx_build_endpoint_uri($siren, $email, $role = 'Seller')
  * @param object $line Ligne de facture Dolibarr
  * @return string Code UN/ECE (ex: HUR, DAY, MTR, KGM, C62...)
  */
-function lemonfacturx_map_unit_code($line)
+function auvozugferd_map_unit_code($line)
 {
 	static $unitCache = [];
 	static $shortLabelMap = [
@@ -1322,14 +1323,14 @@ function lemonfacturx_map_unit_code($line)
  * @param object $mysoc       Société émettrice
  * @return array ['code' => 'S|K|AE|G|O|E|Z', 'exemption' => string|null, 'vatex' => string|null]
  */
-function lemonfacturx_resolve_tax_category($line, $invoice, $thirdparty, $mysoc)
+function auvozugferd_resolve_tax_category($line, $invoice, $thirdparty, $mysoc)
 {
 	// Société émettrice non assujettie (franchise en base 293 B CGI, micro-entreprise) :
 	// catégorie E (Exempt from tax). Le code 'O' (Services hors champ) déclencherait
 	// BR-O-04/05 sur le taux 0 et n'est sémantiquement pas le bon (293 B = exonération
 	// française, pas une opération hors champ EU). BR-E-09 demande un identifiant
 	// fiscal vendeur : assuré par SpecifiedTaxRegistration schemeID="FC" (SIREN) dans
-	// lemonfacturx_build_trade_party_xml() quand tva_intra est vide.
+	// auvozugferd_build_trade_party_xml() quand tva_intra est vide.
 	// TVA > 0 : standard — prioritaire sur le statut franchise, car une ligne
 	// qui porte réellement de la TVA (ex. ancienne facture régénérée après un
 	// passage en franchise) en catégorie E violerait BR-E-05 (taux non nul).
@@ -1354,7 +1355,7 @@ function lemonfacturx_resolve_tax_category($line, $invoice, $thirdparty, $mysoc)
 	$buyerVat     = !empty($thirdparty->tva_intra) ? $thirdparty->tva_intra : '';
 
 	// Export hors UE : G
-	if (!in_array($buyerCountry, LEMONFACTURX_EU_COUNTRIES, true)) {
+	if (!in_array($buyerCountry, AUVOZUGFERD_EU_COUNTRIES, true)) {
 		return ['code' => 'G', 'exemption' => 'Export hors Union européenne (art. 262 I du CGI)', 'vatex' => 'VATEX-EU-G'];
 	}
 
@@ -1384,7 +1385,7 @@ function lemonfacturx_resolve_tax_category($line, $invoice, $thirdparty, $mysoc)
  * @param array  $buildWarnings  (sortie) avertissements
  * @return string '380' (standard), '381' (avoir), '384' (rectificative), '386' (acompte)
  */
-function lemonfacturx_resolve_document_type($invoice, &$buildWarnings = [])
+function auvozugferd_resolve_document_type($invoice, &$buildWarnings = [])
 {
 	$type = (int) $invoice->type;
 
@@ -1396,7 +1397,7 @@ function lemonfacturx_resolve_document_type($invoice, &$buildWarnings = [])
 		case 3: // Facture::TYPE_DEPOSIT
 			return '386'; // EN16931 : prepayment / advance invoice
 		case 5: // Facture::TYPE_SITUATION
-			$buildWarnings[] = lemonfacturx_trans('LemonFacturXWarnSituationInvoice');
+			$buildWarnings[] = auvozugferd_trans('AuvoZugferdWarnSituationInvoice');
 			return '380';
 		default:
 			return '380';
@@ -1409,7 +1410,7 @@ function lemonfacturx_resolve_document_type($invoice, &$buildWarnings = [])
  * @param object $invoice Facture Dolibarr
  * @return float Montant prépayé ≥ 0
  */
-function lemonfacturx_get_prepaid_amount($invoice)
+function auvozugferd_get_prepaid_amount($invoice)
 {
 	if (!method_exists($invoice, 'getSumDepositsUsed')) {
 		return 0.0;
@@ -1433,7 +1434,7 @@ function lemonfacturx_get_prepaid_amount($invoice)
  * @param string $typeCode TypeCode BT-3 émis ('380', '384', '381'...) ; '' = pas de restriction
  * @return array Liste de ['ref' => string, 'date' => 'YYYYMMDD'|'']
  */
-function lemonfacturx_get_preceding_invoices($invoice, $typeCode = '')
+function auvozugferd_get_preceding_invoices($invoice, $typeCode = '')
 {
 	$out = [];
 	$seen = [];
@@ -1491,7 +1492,7 @@ function lemonfacturx_get_preceding_invoices($invoice, $typeCode = '')
  * @param object $invoice Facture Dolibarr
  * @return string Réf de commande ou chaîne vide
  */
-function lemonfacturx_get_linked_order_ref($invoice)
+function auvozugferd_get_linked_order_ref($invoice)
 {
 	$db = $invoice->db ?? null;
 	if (!is_object($db) || empty($invoice->id)) {
@@ -1518,7 +1519,7 @@ function lemonfacturx_get_linked_order_ref($invoice)
  * règles de calcul BR-CO-10/11/13/14/15/16. Un écart avec le total_ttc Dolibarr
  * (taxes locales par ex.) est signalé en avertissement.
  */
-function lemonfacturx_build_monetary_summation_xml($invoice, $currency, $sign, $prepared, $breakdown, &$buildWarnings)
+function auvozugferd_build_monetary_summation_xml($invoice, $currency, $sign, $prepared, $breakdown, &$buildWarnings)
 {
 	$lineTotal = 0.0;
 	foreach ($prepared['lines'] as $pl) {
@@ -1541,28 +1542,28 @@ function lemonfacturx_build_monetary_summation_xml($invoice, $currency, $sign, $
 	$taxTotal = round($taxTotal, 2); // BR-CO-14
 
 	$grandTotal   = round($taxBasisTotal + $taxTotal, 2); // BR-CO-15
-	$totalPrepaid = lemonfacturx_get_prepaid_amount($invoice);
+	$totalPrepaid = auvozugferd_get_prepaid_amount($invoice);
 	$duePayable   = round($grandTotal - $totalPrepaid, 2); // BR-CO-16, sans écrêtage
 
 	// Cohérence avec les totaux Dolibarr (PDF visible) : un écart signale des
 	// données hors périmètre (taxes locales, incohérence de lignes).
 	$invoiceTtc = round($sign * (float) $invoice->total_ttc, 2);
 	if (abs($grandTotal - $invoiceTtc) > 0.005) {
-		$buildWarnings[] = lemonfacturx_trans('LemonFacturXWarnTotalsMismatch', lemonfacturx_format_amount($grandTotal), lemonfacturx_format_amount($invoiceTtc));
+		$buildWarnings[] = auvozugferd_trans('AuvoZugferdWarnTotalsMismatch', auvozugferd_format_amount($grandTotal), auvozugferd_format_amount($invoiceTtc));
 	}
 
 	$xml  = '    <ram:SpecifiedTradeSettlementHeaderMonetarySummation>'."\n";
-	$xml .= '      <ram:LineTotalAmount>'.lemonfacturx_format_amount($lineTotal).'</ram:LineTotalAmount>'."\n";
+	$xml .= '      <ram:LineTotalAmount>'.auvozugferd_format_amount($lineTotal).'</ram:LineTotalAmount>'."\n";
 	if ($allowanceTotal > 0) {
-		$xml .= '      <ram:AllowanceTotalAmount>'.lemonfacturx_format_amount($allowanceTotal).'</ram:AllowanceTotalAmount>'."\n";
+		$xml .= '      <ram:AllowanceTotalAmount>'.auvozugferd_format_amount($allowanceTotal).'</ram:AllowanceTotalAmount>'."\n";
 	}
-	$xml .= '      <ram:TaxBasisTotalAmount>'.lemonfacturx_format_amount($taxBasisTotal).'</ram:TaxBasisTotalAmount>'."\n";
-	$xml .= '      <ram:TaxTotalAmount currencyID="'.lemonfacturx_xml_encode($currency).'">'.lemonfacturx_format_amount($taxTotal).'</ram:TaxTotalAmount>'."\n";
-	$xml .= '      <ram:GrandTotalAmount>'.lemonfacturx_format_amount($grandTotal).'</ram:GrandTotalAmount>'."\n";
+	$xml .= '      <ram:TaxBasisTotalAmount>'.auvozugferd_format_amount($taxBasisTotal).'</ram:TaxBasisTotalAmount>'."\n";
+	$xml .= '      <ram:TaxTotalAmount currencyID="'.auvozugferd_xml_encode($currency).'">'.auvozugferd_format_amount($taxTotal).'</ram:TaxTotalAmount>'."\n";
+	$xml .= '      <ram:GrandTotalAmount>'.auvozugferd_format_amount($grandTotal).'</ram:GrandTotalAmount>'."\n";
 	if ($totalPrepaid > 0) {
-		$xml .= '      <ram:TotalPrepaidAmount>'.lemonfacturx_format_amount($totalPrepaid).'</ram:TotalPrepaidAmount>'."\n";
+		$xml .= '      <ram:TotalPrepaidAmount>'.auvozugferd_format_amount($totalPrepaid).'</ram:TotalPrepaidAmount>'."\n";
 	}
-	$xml .= '      <ram:DuePayableAmount>'.lemonfacturx_format_amount($duePayable).'</ram:DuePayableAmount>'."\n";
+	$xml .= '      <ram:DuePayableAmount>'.auvozugferd_format_amount($duePayable).'</ram:DuePayableAmount>'."\n";
 	$xml .= '    </ram:SpecifiedTradeSettlementHeaderMonetarySummation>'."\n";
 
 	return $xml;
@@ -1571,7 +1572,7 @@ function lemonfacturx_build_monetary_summation_xml($invoice, $currency, $sign, $
 /**
  * Extrait le SIREN (9 premiers chiffres) d'un SIRET
  */
-function lemonfacturx_extract_siren($siret)
+function auvozugferd_extract_siren($siret)
 {
 	if (empty($siret)) {
 		return '';
@@ -1590,7 +1591,7 @@ function lemonfacturx_extract_siren($siret)
  * @param Facture $invoice  Facture Dolibarr (thirdparty et array_options chargés)
  * @return bool
  */
-function lemonfacturx_is_chorus_invoice($invoice)
+function auvozugferd_is_chorus_invoice($invoice)
 {
 	$ao = (is_object($invoice) && !empty($invoice->array_options)) ? $invoice->array_options : [];
 
@@ -1603,7 +1604,7 @@ function lemonfacturx_is_chorus_invoice($invoice)
 		}
 	}
 	// Filet auto : acheteur = secteur public détecté par le SIRET.
-	return lemonfacturx_is_public_sector_siret($invoice);
+	return auvozugferd_is_public_sector_siret($invoice);
 }
 
 /**
@@ -1616,7 +1617,7 @@ function lemonfacturx_is_chorus_invoice($invoice)
  * @param Facture $invoice
  * @return bool
  */
-function lemonfacturx_is_public_sector_siret($invoice)
+function auvozugferd_is_public_sector_siret($invoice)
 {
 	$buyer = (is_object($invoice) && !empty($invoice->thirdparty)) ? $invoice->thirdparty : null;
 	if (is_object($buyer) && !empty($buyer->idprof2)) {
@@ -1634,9 +1635,9 @@ function lemonfacturx_is_public_sector_siret($invoice)
  * BT-10, n° engagement BT-13, n° marché BT-12).
  *
  * @param Facture $invoice
- * @return array  options pour lemonfacturx_build_xml()
+ * @return array  options pour auvozugferd_build_xml()
  */
-function lemonfacturx_chorus_options($invoice)
+function auvozugferd_chorus_options($invoice)
 {
 	$ao = (is_object($invoice) && !empty($invoice->array_options)) ? $invoice->array_options : [];
 	return [
@@ -1655,7 +1656,7 @@ function lemonfacturx_chorus_options($invoice)
  *
  * @return array  code => libellé
  */
-function lemonfacturx_chorus_frameworks()
+function auvozugferd_chorus_frameworks()
 {
 	return [
 		'A1'  => 'A1 — Dépôt d\'une facture par un fournisseur',
@@ -1707,7 +1708,7 @@ function lemonfacturx_chorus_frameworks()
  * @param DoliDB $db
  * @return int
  */
-function lemonfacturx_fix_chorus_extrafields_display($db)
+function auvozugferd_fix_chorus_extrafields_display($db)
 {
 	$names = "'lfxchorus','lfxcadre','lfxservicecode','lfxengagement','lfxmarche'";
 	$sql = "UPDATE ".MAIN_DB_PREFIX."extrafields SET printable = 0, list = '0'";
@@ -1717,21 +1718,21 @@ function lemonfacturx_fix_chorus_extrafields_display($db)
 	return $res ? $db->affected_rows($res) : 0;
 }
 
-function lemonfacturx_append_notes_to_footer($db, $overwrite = null)
+function auvozugferd_append_notes_to_footer($db, $overwrite = null)
 {
 	global $conf, $mysoc;
 	// Depuis Dolibarr 17, la « Mention complémentaire sur les factures » est
 	// stockée dans INVOICE_FREE_TEXT (ex-FACTURE_FREE_TEXT) — c'est CETTE
 	// constante que le PDF imprime. On vise donc INVOICE_FREE_TEXT.
-	$constName = lemonfacturx_invoice_freetext_const();
+	$constName = auvozugferd_invoice_freetext_const();
 	if ($overwrite === null) {
-		$overwrite = (getDolGlobalInt('LEMONFACTURX_NOTES_OVERWRITE', 0) === 1);
+		$overwrite = (getDolGlobalInt('AUVOZUGFERD_NOTES_OVERWRITE', 0) === 1);
 	}
 	$freeText = getDolGlobalString($constName, '');
 	// Mêmes mentions que dans le XML : pas de défaut français imposé au PDF
-	// d'un vendeur étranger (seules ses constantes LEMONFACTURX_NOTE_* comptent).
+	// d'un vendeur étranger (seules ses constantes AUVOZUGFERD_NOTE_* comptent).
 	$mentions = array();
-	foreach (lemonfacturx_resolve_legal_notes(lemonfacturx_seller_is_fr($mysoc ?? null)) as $m) {
+	foreach (auvozugferd_resolve_legal_notes(auvozugferd_seller_is_fr($mysoc ?? null)) as $m) {
 		$m = trim($m);
 		if ($m !== '') {
 			$mentions[] = $m;
@@ -1780,7 +1781,7 @@ function lemonfacturx_append_notes_to_footer($db, $overwrite = null)
  *
  * @return string
  */
-function lemonfacturx_invoice_freetext_const()
+function auvozugferd_invoice_freetext_const()
 {
 	return 'INVOICE_FREE_TEXT';
 }
@@ -1802,7 +1803,7 @@ function lemonfacturx_invoice_freetext_const()
  *
  * @return array
  */
-function lemonfacturx_list_pdf_fonts()
+function auvozugferd_list_pdf_fonts()
 {
 	$dir = DOL_DOCUMENT_ROOT.'/includes/tecnickcom/tcpdf/fonts/';
 	if (!is_dir($dir)) {
@@ -1858,7 +1859,7 @@ function lemonfacturx_list_pdf_fonts()
  *
  * @return string  '5', '72' ou '' (omis)
  */
-function lemonfacturx_resolve_vat_due_date_code()
+function auvozugferd_resolve_vat_due_date_code()
 {
 	$mode = getDolGlobalInt('TAX_MODE', 0);
 	if ($mode === 1) {
@@ -1879,31 +1880,31 @@ function lemonfacturx_resolve_vat_due_date_code()
 
 /**
  * Résout le binaire PHP CLI pour le subprocess d'injection.
- *  1. surcharge manuelle (LEMONFACTURX_PHP_CLI_PATH non vide) → utilisée telle quelle ;
- *  2. cache (LEMONFACTURX_PHP_CLI_CACHE) encore valide → réutilisé ;
+ *  1. surcharge manuelle (AUVOZUGFERD_PHP_CLI_PATH non vide) → utilisée telle quelle ;
+ *  2. cache (AUVOZUGFERD_PHP_CLI_CACHE) encore valide → réutilisé ;
  *  3. sinon auto-détection puis mise en cache.
  *
  * @param DoliDB $db
  * @return string  Chemin/commande du binaire PHP CLI ('php' en dernier recours)
  */
-function lemonfacturx_resolve_php_cli($db)
+function auvozugferd_resolve_php_cli($db)
 {
 	// 'php' nu (ancien défaut) = pas une vraie surcharge → on auto-détecte (qui
 	// fera mieux, et retombe sur 'php' au pire). Une surcharge = un chemin précis.
-	$manual = trim(getDolGlobalString('LEMONFACTURX_PHP_CLI_PATH', ''));
+	$manual = trim(getDolGlobalString('AUVOZUGFERD_PHP_CLI_PATH', ''));
 	if ($manual !== '' && $manual !== 'php') {
 		return $manual;
 	}
-	$cache = trim(getDolGlobalString('LEMONFACTURX_PHP_CLI_CACHE', ''));
-	if ($cache !== '' && lemonfacturx_php_cli_is_valid($cache)) {
+	$cache = trim(getDolGlobalString('AUVOZUGFERD_PHP_CLI_CACHE', ''));
+	if ($cache !== '' && auvozugferd_php_cli_is_valid($cache)) {
 		return $cache;
 	}
-	$detected = lemonfacturx_detect_php_cli();
+	$detected = auvozugferd_detect_php_cli();
 	// Mise en cache best-effort : dolibarr_set_const() vit dans admin.lib.php,
 	// chargée par main.inc.php en contexte web/hook mais pas dans un bootstrap CLI
 	// minimal — on ne casse pas la résolution si elle est absente.
 	if ($detected !== '' && is_object($db) && function_exists('dolibarr_set_const')) {
-		dolibarr_set_const($db, 'LEMONFACTURX_PHP_CLI_CACHE', $detected, 'chaine', 0, '', 0);
+		dolibarr_set_const($db, 'AUVOZUGFERD_PHP_CLI_CACHE', $detected, 'chaine', 0, '', 0);
 	}
 	return $detected !== '' ? $detected : 'php';
 }
@@ -1918,7 +1919,7 @@ function lemonfacturx_resolve_php_cli($db)
  *
  * @return string
  */
-function lemonfacturx_detect_php_cli()
+function auvozugferd_detect_php_cli()
 {
 	if (!function_exists('exec')) {
 		return '';
@@ -1944,7 +1945,7 @@ function lemonfacturx_detect_php_cli()
 			continue;
 		}
 		$seen[$cand] = true;
-		if (lemonfacturx_php_cli_is_valid($cand, $want)) {
+		if (auvozugferd_php_cli_is_valid($cand, $want)) {
 			return $cand;
 		}
 	}
@@ -1959,7 +1960,7 @@ function lemonfacturx_detect_php_cli()
  * @param string $wantVersion  major.minor attendu, ou '' pour ne pas vérifier
  * @return bool
  */
-function lemonfacturx_php_cli_is_valid($cand, $wantVersion = '')
+function auvozugferd_php_cli_is_valid($cand, $wantVersion = '')
 {
 	if (!function_exists('exec')) {
 		return false;
@@ -2002,11 +2003,11 @@ function lemonfacturx_php_cli_is_valid($cand, $wantVersion = '')
  * @param object $party  mysoc ou Societe (champs idprof1 / idprof2)
  * @return string        SIREN à 9 chiffres, ou ''
  */
-function lemonfacturx_party_siren($party)
+function auvozugferd_party_siren($party)
 {
-	$siren = lemonfacturx_extract_siren($party->idprof1 ?? '');
+	$siren = auvozugferd_extract_siren($party->idprof1 ?? '');
 	if ($siren === '') {
-		$siren = lemonfacturx_extract_siren($party->idprof2 ?? '');
+		$siren = auvozugferd_extract_siren($party->idprof2 ?? '');
 	}
 	return (strlen($siren) === 9) ? $siren : '';
 }
@@ -2026,7 +2027,7 @@ function lemonfacturx_party_siren($party)
  * @param object $party  mysoc ou Societe
  * @return string        Steuernummer telle que saisie, ou ''
  */
-function lemonfacturx_party_steuernummer($party)
+function auvozugferd_party_steuernummer($party)
 {
 	$steuernummer = trim((string) ($party->idprof2 ?? ''));
 	if ($steuernummer !== '') {
@@ -2045,7 +2046,7 @@ function lemonfacturx_party_steuernummer($party)
  * équivalent (contrairement à la Steuernummer qui réutilise idprof2, les
  * idprof* sont déjà occupés par les conventions allemandes existantes).
  */
-function lemonfacturx_party_leitwegid($party)
+function auvozugferd_party_leitwegid($party)
 {
 	$ao = (is_object($party) && !empty($party->array_options)) ? $party->array_options : [];
 	return trim((string) ($ao['options_lfxleitwegid'] ?? ''));
@@ -2054,7 +2055,7 @@ function lemonfacturx_party_leitwegid($party)
 /**
  * Cherche l'email d'un tiers : d'abord sur la fiche, sinon sur le 1er contact
  */
-function lemonfacturx_get_buyer_email($buyer, $db)
+function auvozugferd_get_buyer_email($buyer, $db)
 {
 	if (!empty($buyer->email)) {
 		return $buyer->email;
@@ -2088,7 +2089,7 @@ function lemonfacturx_get_buyer_email($buyer, $db)
  * @param string $lastMainDoc  Valeur de llx_facture.last_main_doc (optionnel)
  * @return string|null
  */
-function lemonfacturx_invoice_pdf_path($ref, $entity, $lastMainDoc = '')
+function auvozugferd_invoice_pdf_path($ref, $entity, $lastMainDoc = '')
 {
 	global $conf;
 
@@ -2135,7 +2136,7 @@ function lemonfacturx_invoice_pdf_path($ref, $entity, $lastMainDoc = '')
  * @param string $pdfPath Chemin du PDF
  * @return string|null    XML, ou null si absent/illisible
  */
-function lemonfacturx_extract_xml_from_pdf($pdfPath)
+function auvozugferd_extract_xml_from_pdf($pdfPath)
 {
 	require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 	try {
@@ -2149,7 +2150,7 @@ function lemonfacturx_extract_xml_from_pdf($pdfPath)
 /**
  * Tronque un IBAN pour affichage : "FR76...0185". Vide si IBAN absent.
  */
-function lemonfacturx_iban_short($iban)
+function auvozugferd_iban_short($iban)
 {
 	if (empty($iban)) {
 		return '';
@@ -2157,21 +2158,21 @@ function lemonfacturx_iban_short($iban)
 	return substr($iban, 0, 4).'...'.substr($iban, -4);
 }
 
-if (!function_exists('lemonfacturx_xml_encode')) {
+if (!function_exists('auvozugferd_xml_encode')) {
 	/**
 	 * Échappe une valeur pour insertion dans le XML (ENT_XML1).
 	 */
-	function lemonfacturx_xml_encode($str)
+	function auvozugferd_xml_encode($str)
 	{
 		return htmlspecialchars((string) $str, ENT_XML1 | ENT_QUOTES, 'UTF-8');
 	}
 }
 
-if (!function_exists('lemonfacturx_format_amount')) {
+if (!function_exists('auvozugferd_format_amount')) {
 	/**
 	 * Formate un montant à 2 décimales (AmountType EN16931).
 	 */
-	function lemonfacturx_format_amount($amount)
+	function auvozugferd_format_amount($amount)
 	{
 		return number_format((float) $amount, 2, '.', '');
 	}
@@ -2180,7 +2181,7 @@ if (!function_exists('lemonfacturx_format_amount')) {
 /**
  * Formate une quantité (BT-129) : jusqu'à 4 décimales, zéros traînants retirés.
  */
-function lemonfacturx_format_qty($qty)
+function auvozugferd_format_qty($qty)
 {
 	$s = number_format((float) $qty, 4, '.', '');
 	$s = rtrim($s, '0');
@@ -2191,7 +2192,7 @@ function lemonfacturx_format_qty($qty)
  * Formate un prix unitaire net (BT-146) : 2 décimales, étendu à 4 quand la
  * précision le justifie (ex. 100/3 = 33.3333) pour limiter l'écart qty x prix.
  */
-function lemonfacturx_format_unit_price($price)
+function auvozugferd_format_unit_price($price)
 {
 	$price = (float) $price;
 	if (abs(round($price, 2) - round($price, 4)) < 0.0000001) {
@@ -2210,10 +2211,10 @@ function lemonfacturx_format_unit_price($price)
  * @return array|null              ['version' => 'x.y.z', 'url' => 'https://...']
  *                                 si une version plus récente existe, null sinon
  */
-function lemonfacturx_check_latest_release($db, $currentVersion)
+function auvozugferd_check_latest_release($db, $currentVersion)
 {
 	$now = time();
-	$cacheRaw = getDolGlobalString('LEMONFACTURX_UPDATE_CHECK_CACHE', '');
+	$cacheRaw = getDolGlobalString('AUVOZUGFERD_UPDATE_CHECK_CACHE', '');
 	$cache = !empty($cacheRaw) ? json_decode($cacheRaw, true) : null;
 
 	$latest = null;
@@ -2225,10 +2226,10 @@ function lemonfacturx_check_latest_release($db, $currentVersion)
 		$latest = null;
 		$htmlUrl = '';
 		if (function_exists('curl_init')) {
-			$url = 'https://api.github.com/repos/hello-lemon/module-dolibarr-lemonfacturx/releases/latest';
+			$url = 'https://api.github.com/repos/Fips81/module-dolibarr-lemonfacturx/releases/latest';
 			$ch = curl_init($url);
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-			curl_setopt($ch, CURLOPT_USERAGENT, 'LemonFacturX-UpdateCheck');
+			curl_setopt($ch, CURLOPT_USERAGENT, 'AuvoZugferd-UpdateCheck');
 			curl_setopt($ch, CURLOPT_TIMEOUT, 5);
 			curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 			curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
@@ -2243,8 +2244,8 @@ function lemonfacturx_check_latest_release($db, $currentVersion)
 					$latest  = ltrim($data['tag_name'], 'v');
 					$htmlUrl = $data['html_url'] ?? '';
 					// Validation défensive : on n'accepte qu'une URL github.com officielle du repo
-					if (!preg_match('#^https://github\.com/hello-lemon/module-dolibarr-lemonfacturx/#', $htmlUrl)) {
-						$htmlUrl = 'https://github.com/hello-lemon/module-dolibarr-lemonfacturx/releases';
+					if (!preg_match('#^https://github\.com/Fips81/module-dolibarr-lemonfacturx/#', $htmlUrl)) {
+						$htmlUrl = 'https://github.com/Fips81/module-dolibarr-lemonfacturx/releases';
 					}
 				}
 			}
@@ -2252,7 +2253,7 @@ function lemonfacturx_check_latest_release($db, $currentVersion)
 
 		// Cacher aussi l'échec (version null) : GitHub injoignable ne doit pas
 		// ralentir la page admin de 5s à chaque ouverture pendant 24h.
-		dolibarr_set_const($db, 'LEMONFACTURX_UPDATE_CHECK_CACHE', json_encode([
+		dolibarr_set_const($db, 'AUVOZUGFERD_UPDATE_CHECK_CACHE', json_encode([
 			'ts'      => $now,
 			'version' => $latest,
 			'url'     => $htmlUrl,

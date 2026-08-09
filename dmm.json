@@ -1,14 +1,14 @@
 {
   "schema_version": "1",
-  "module_id": "lemonfacturx",
-  "name": "LemonFacturX",
+  "module_id": "auvozugferd",
+  "name": "AuvoZugferd",
   "description": "Génération automatique de factures Factur-X EN16931 : injecte un XML CrossIndustryInvoice EN16931 dans chaque PDF facture client générée.",
-  "author": "Lemon",
-  "url": "https://hellolemon.fr",
+  "author": "auvo-design",
+  "url": "https://auvo-design.de",
   "license": "GPL-3.0-or-later",
-  "repository": "hello-lemon/module-dolibarr-lemonfacturx",
+  "repository": "Fips81/module-dolibarr-lemonfacturx",
   "branch": "main",
-  "dolibarr_module_id": 210000,
+  "dolibarr_module_id": 486213,
   "compatibility": {
     "3.x": {
       "dolibarr_min": "19.0.0",

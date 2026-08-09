@@ -1,6 +1,7 @@
 <?php
 /*
  * Copyright (C) 2026 SASU LEMON <https://hellolemon.fr>
+ * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — renamed/modified for private use as AuvoZugferd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,7 +54,7 @@ if (!$loaded) {
 	exit(2);
 }
 
-require_once __DIR__.'/../core/lib/lemonfacturx.lib.php';
+require_once __DIR__.'/../core/lib/auvozugferd.lib.php';
 
 $sql = "SELECT rowid, ref, datef, entity, last_main_doc FROM ".MAIN_DB_PREFIX."facture"
 	." WHERE fk_statut >= 1 AND entity IN (".getEntity('invoice').")";
@@ -71,14 +72,14 @@ if (!$res) {
 
 $counts = ['OK' => 0, 'NO_PDF' => 0, 'NO_XML' => 0];
 
-echo "=== LemonFacturX - Export batch des XML Factur-X ===\n";
+echo "=== AuvoZugferd - Export batch des XML Factur-X ===\n";
 echo "Destination : $destDir".($year > 0 ? " | Année : $year" : '')."\n\n";
 
 while ($obj = $db->fetch_object($res)) {
 	$ref = $obj->ref;
 	// Entité de la facture (et non l'entité courante) : en multicompany avec
 	// partage, le PDF vit dans le répertoire documents de SON entité.
-	$pdfPath = lemonfacturx_invoice_pdf_path($ref, (int) $obj->entity, (string) ($obj->last_main_doc ?? ''));
+	$pdfPath = auvozugferd_invoice_pdf_path($ref, (int) $obj->entity, (string) ($obj->last_main_doc ?? ''));
 
 	if ($pdfPath === null) {
 		$counts['NO_PDF']++;
@@ -86,7 +87,7 @@ while ($obj = $db->fetch_object($res)) {
 		continue;
 	}
 
-	$xml = lemonfacturx_extract_xml_from_pdf($pdfPath);
+	$xml = auvozugferd_extract_xml_from_pdf($pdfPath);
 	if ($xml === null) {
 		$counts['NO_XML']++;
 		printf("%-20s NO_XML\n", $ref);

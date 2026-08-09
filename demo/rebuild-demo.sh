@@ -3,7 +3,7 @@
 # Reconstruit intégralement le Dolibarr de démo :
 #  1. Drop DB
 #  2. Réinstalle Dolibarr 22 vierge via install forced
-#  3. Active les modules core + LemonFacturX
+#  3. Active les modules core + AuvoZugferd
 #  4. Pose les constantes (PDF, SMTP vers mailpit)
 #  5. Exécute les fixtures (société émettrice, tiers, 10 factures)
 #  6. Dumpe le snapshot final dans /root/dolibarr-demo-snapshot.sql.gz
@@ -19,7 +19,7 @@ DB_USER="dolibarr_ard"
 DB_PASS=$(grep "^\$dolibarr_main_db_pass" /var/www/dolibarr/htdocs/conf/conf.php | sed -E "s/.*=[ ]*'([^']+)'.*/\1/")
 DOL_ROOT="/var/www/dolibarr/htdocs"
 DOL_DATA="/var/www/dolibarr/documents"
-MODULE_ROOT="$DOL_ROOT/custom/lemonfacturx"
+MODULE_ROOT="$DOL_ROOT/custom/auvozugferd"
 SNAPSHOT="/root/dolibarr-demo-snapshot.sql.gz"
 
 echo "[1/6] Drop + recreate DB $DB_NAME"
@@ -68,34 +68,34 @@ mysql -e "DELETE FROM $DB_NAME.llx_const WHERE name='MAIN_NOT_INSTALLED'"
 TABLE_COUNT=$(mysql -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB_NAME'")
 echo "  Tables créées : $TABLE_COUNT"
 
-echo "[3/6] Activation modules core + LemonFacturX"
+echo "[3/6] Activation modules core + AuvoZugferd"
 php <<'EOF'
 <?php
 require_once "/var/www/dolibarr/htdocs/master.inc.php";
 require_once DOL_DOCUMENT_ROOT."/core/lib/admin.lib.php";
-require_once DOL_DOCUMENT_ROOT."/custom/lemonfacturx/core/modules/modLemonFacturX.class.php";
+require_once DOL_DOCUMENT_ROOT."/custom/auvozugferd/core/modules/modAuvoZugferd.class.php";
 
 foreach (["modSociete", "modFacture", "modBanque", "modProduct", "modService", "modCommande", "modFournisseur", "modPropale"] as $m) {
 	activateModule($m);
 }
-$mod = new modLemonFacturX($db);
+$mod = new modAuvoZugferd($db);
 $mod->init();
 echo "  modules activés\n";
 EOF
 
-echo "[4/6] Constantes SMTP + PDF + LemonFacturX"
+echo "[4/6] Constantes SMTP + PDF + AuvoZugferd"
 php <<'EOF'
 <?php
 require_once "/var/www/dolibarr/htdocs/master.inc.php";
 require_once DOL_DOCUMENT_ROOT."/core/lib/admin.lib.php";
 $consts = [
-	["LEMONFACTURX_ENABLED", 1, "int"],
+	["AUVOZUGFERD_ENABLED", 1, "int"],
 	["MAIN_PDF_FORCE_FONT", "pdfahelvetica", "chaine"],
 	["MAIN_MAIL_SENDMODE", "smtp", "chaine"],
 	["MAIN_MAIL_SMTP_SERVER", "127.0.0.1", "chaine"],
 	["MAIN_MAIL_SMTP_PORT", "1025", "chaine"],
 	["MAIN_MAIL_EMAIL_FROM", "demo@dolibarr-demo.local", "chaine"],
-	["MAIN_APPLICATION_TITLE", "Dolibarr Demo LemonFacturX", "chaine"],
+	["MAIN_APPLICATION_TITLE", "Dolibarr Demo AuvoZugferd", "chaine"],
 ];
 foreach ($consts as $c) {
 	dolibarr_set_const($db, $c[0], $c[1], $c[2], 0, "", 1);

@@ -1,6 +1,6 @@
 # Limitations et cas non traités
 
-Ce document liste les cas que LemonFacturX **ne traite pas** (ou ne traite que
+Ce document liste les cas que AuvoZugferd **ne traite pas** (ou ne traite que
 partiellement), le comportement observé, et la raison du choix. Il fait foi en
 cas de doute sur le périmètre du module.
 
@@ -93,7 +93,7 @@ EN16931 strict.
 socle BT-23/BT-8/SIREN 0225). La **transmission** (API de dépôt, accusés,
 statuts rejetée/refusée/encaissée) est spécifique à chaque Plateforme Agréée
 et exige des credentials — c'est un module compagnon à part entière, pas une
-évolution de celui-ci. Contact : hello@hellolemon.fr (raccordement PA/PDP).
+évolution de celui-ci. Contact : r.vogel@auvo-design.de (raccordement PA/PDP).
 
 ### Annuaire (vérification du SIREN destinataire)
 **Non traité.** L'API de l'annuaire n'est accessible qu'aux plateformes
@@ -139,7 +139,7 @@ positifs connus » dans le README.
 `Alternative`, ICC sRGB, `/F 4`) et **vérifie** désormais `MAIN_PDF_FORCE_FONT`
 (diagnostic + warning). Mais un modèle PDF custom (images CMJN, polices non
 embarquées d'un module tiers) peut casser la conformité : la post-validation
-optionnelle veraPDF (`LEMONFACTURX_VERAPDF_PATH`) est là pour le détecter.
+optionnelle veraPDF (`AUVOZUGFERD_VERAPDF_PATH`) est là pour le détecter.
 
 ### Mode strict ≠ suppression du PDF
 Le hook `afterPDFCreation` intervient **après** la création du PDF classique

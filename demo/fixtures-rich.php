@@ -1,6 +1,6 @@
 <?php
 /*
- * LemonFacturX - Fixtures marketing (6 mois de données IMMORENO SARL)
+ * AuvoZugferd - Fixtures marketing (6 mois de données IMMORENO SARL)
  *
  * Société : IMMORENO SARL, artisan multiservices à Aurillac (15000),
  * créée en 2015, 3 salariés dont le patron.
@@ -8,7 +8,7 @@
  * Volumétrie : ~25 tiers (mix pro/particulier), ~15 produits catalogue,
  * ~130 factures, ~50 devis, ~110 paiements, ~35 factures fournisseurs.
  *
- * Usage : php /var/www/dolibarr/htdocs/custom/lemonfacturx/demo/fixtures-rich.php
+ * Usage : php /var/www/dolibarr/htdocs/custom/auvozugferd/demo/fixtures-rich.php
  *
  * Ce script écrase la société émettrice (MAIN_INFO_SOCIETE_*) et AJOUTE
  * des entités. Les 6 tiers et 10 factures créés par fixtures.php restent.
@@ -68,7 +68,7 @@ foreach ($consts as $k => $v) {
 }
 echo "  ".count($consts)." constantes société posées\n";
 
-$bankId = getDolGlobalInt('LEMONFACTURX_BANK_ACCOUNT');
+$bankId = getDolGlobalInt('AUVOZUGFERD_BANK_ACCOUNT');
 if ($bankId > 0) {
 	$sql = "UPDATE ".MAIN_DB_PREFIX."bank_account SET label='Compte pro Crédit Agricole Aurillac', bank='Crédit Agricole Centre France' WHERE rowid=$bankId";
 	$db->query($sql);

@@ -1,12 +1,12 @@
-# Spec : Support des acomptes dans LemonFacturX
+# Spec : Support des acomptes dans AuvoZugferd
 
 > **Document historique (v1.1.0)** — cette spécification a servi à implémenter
 > le support des acomptes. Les extraits de code (`xmlEncode()`,
 > `formatAmount()`, signatures à 2 arguments, écrêtage `max(0.0, ...)`) ne
 > reflètent **plus** l'implémentation actuelle : depuis la 3.0.0, les fonctions
-> sont préfixées `lemonfacturx_`, le `DuePayableAmount` n'est plus écrêté
+> sont préfixées `auvozugferd_`, le `DuePayableAmount` n'est plus écrêté
 > (BR-CO-16) et les acomptes imputés sont référencés en BG-3. Faire foi au code
-> de `core/lib/lemonfacturx.lib.php` et à `docs/LIMITATIONS.md`.
+> de `core/lib/auvozugferd.lib.php` et à `docs/LIMITATIONS.md`.
 
 Prompt prêt à l'emploi pour une autre IA qui reprendra le patch. Rédigé par Axel (brief initial), formaté pour exécution.
 
@@ -25,13 +25,13 @@ Il ne traite pas explicitement :
 
 ## Fichiers à modifier
 
-- `core/lib/lemonfacturx.lib.php` (principal)
-- `class/actions_lemonfacturx.class.php` (warnings métier)
+- `core/lib/auvozugferd.lib.php` (principal)
+- `class/actions_auvozugferd.class.php` (warnings métier)
 - `README.md` (documenter le support)
 
 ## Problème actuel
 
-Dans `core/lib/lemonfacturx.lib.php:25`, la résolution du type est un ternaire :
+Dans `core/lib/auvozugferd.lib.php:25`, la résolution du type est un ternaire :
 
 ```php
 $typeCode = ($invoice->type == Facture::TYPE_CREDIT_NOTE) ? '381' : '380';
@@ -54,13 +54,13 @@ Supporter deux cas distincts :
 
 ## Décision d'architecture
 
-Arrêter de mélanger logique métier Dolibarr, mapping Factur-X et rendu XML. Créer les fonctions dédiées suivantes dans `core/lib/lemonfacturx.lib.php` :
+Arrêter de mélanger logique métier Dolibarr, mapping Factur-X et rendu XML. Créer les fonctions dédiées suivantes dans `core/lib/auvozugferd.lib.php` :
 
-- `lemonfacturx_resolve_document_type($invoice)`
-- `lemonfacturx_is_deposit_invoice($invoice)`
-- `lemonfacturx_get_prepaid_amount($invoice)`
-- `lemonfacturx_build_monetary_summation_xml($invoice, $currency)`
-- éventuellement `lemonfacturx_add_business_warnings_for_invoice_type($invoice, &$warnings)`
+- `auvozugferd_resolve_document_type($invoice)`
+- `auvozugferd_is_deposit_invoice($invoice)`
+- `auvozugferd_get_prepaid_amount($invoice)`
+- `auvozugferd_build_monetary_summation_xml($invoice, $currency)`
+- éventuellement `auvozugferd_add_business_warnings_for_invoice_type($invoice, &$warnings)`
 
 ## Règles métier
 
@@ -69,7 +69,7 @@ Arrêter de mélanger logique métier Dolibarr, mapping Factur-X et rendu XML. C
 Règle minimale : `$invoice->type == Facture::TYPE_DEPOSIT`. Ne pas déduire depuis le libellé, le montant, la présence du mot "acompte" ou une ligne unique.
 
 ```php
-function lemonfacturx_is_deposit_invoice($invoice)
+function auvozugferd_is_deposit_invoice($invoice)
 {
 	return ((int) $invoice->type === (int) Facture::TYPE_DEPOSIT);
 }
@@ -78,7 +78,7 @@ function lemonfacturx_is_deposit_invoice($invoice)
 ### Résolution du type documentaire
 
 ```php
-function lemonfacturx_resolve_document_type($invoice)
+function auvozugferd_resolve_document_type($invoice)
 {
 	if ((int) $invoice->type === (int) Facture::TYPE_CREDIT_NOTE) {
 		return '381';
@@ -106,7 +106,7 @@ Critère d'acceptation : le mapping n'est plus dans un ternaire, `TYPE_DEPOSIT` 
 Utiliser l'API Dolibarr si disponible :
 
 ```php
-function lemonfacturx_get_prepaid_amount($invoice)
+function auvozugferd_get_prepaid_amount($invoice)
 {
 	if (!is_object($invoice)) {
 		return 0.0;
@@ -125,16 +125,16 @@ Contraintes : jamais négatif, toujours float, ne casse pas si la méthode n'exi
 
 ### Génération des totaux monétaires
 
-Extraire la logique actuelle (`core/lib/lemonfacturx.lib.php:163-169`) dans une fonction dédiée :
+Extraire la logique actuelle (`core/lib/auvozugferd.lib.php:163-169`) dans une fonction dédiée :
 
 ```php
-function lemonfacturx_build_monetary_summation_xml($invoice, $currency)
+function auvozugferd_build_monetary_summation_xml($invoice, $currency)
 {
 	$lineTotal     = (float) $invoice->total_ht;
 	$taxBasisTotal = (float) $invoice->total_ht;
 	$taxTotal      = (float) $invoice->total_tva;
 	$grandTotal    = (float) $invoice->total_ttc;
-	$totalPrepaid  = lemonfacturx_get_prepaid_amount($invoice);
+	$totalPrepaid  = auvozugferd_get_prepaid_amount($invoice);
 
 	$duePayable = $grandTotal - $totalPrepaid;
 	if ($duePayable < 0) {
@@ -169,30 +169,30 @@ Critères d'acceptation :
 Niveau minimal : détecter, ne pas faire semblant, logger un warning.
 
 ```php
-if (lemonfacturx_is_deposit_invoice($invoice)) {
+if (auvozugferd_is_deposit_invoice($invoice)) {
 	$warnings[] = 'Factur-X : facture d\'acompte détectée ; vérifier le mapping documentaire et la conformité sur validateur externe.';
 }
 ```
 
 Niveau cible : `TypeCode` correct, mentions spécifiques si nécessaires, validation externe.
 
-## Refactoring dans `lemonfacturx_build_xml()`
+## Refactoring dans `auvozugferd_build_xml()`
 
 Remplacer le ternaire et le bloc inline :
 
 ```php
-$typeCode      = lemonfacturx_resolve_document_type($invoice);
-$prepaidAmount = lemonfacturx_get_prepaid_amount($invoice);
+$typeCode      = auvozugferd_resolve_document_type($invoice);
+$prepaidAmount = auvozugferd_get_prepaid_amount($invoice);
 
 // ... plus loin ...
-$xml .= lemonfacturx_build_monetary_summation_xml($invoice, $currency);
+$xml .= auvozugferd_build_monetary_summation_xml($invoice, $currency);
 ```
 
 Aucun calcul de totaux ne doit rester inline.
 
 ## Warnings métier à ajouter
 
-Dans `class/actions_lemonfacturx.class.php` :
+Dans `class/actions_auvozugferd.class.php` :
 
 - facture d'acompte détectée mais mapping non validé
 - acompte(s) imputé(s) détecté(s), `TotalPrepaidAmount` ajouté

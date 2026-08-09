@@ -1,26 +1,27 @@
 <?php
 /*
  * Copyright (C) 2026 SASU LEMON <https://hellolemon.fr>
+ * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — renamed/modified for private use as AuvoZugferd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Module descriptor for LemonFacturX
+ * Module descriptor for AuvoZugferd
  */
 
 include_once DOL_DOCUMENT_ROOT.'/core/modules/DolibarrModules.class.php';
 
-class modLemonFacturX extends DolibarrModules
+class modAuvoZugferd extends DolibarrModules
 {
 	public function __construct($db)
 	{
 		global $conf, $langs;
 
 		$this->db = $db;
-		$this->numero = 210000;
-		$this->rights_class = 'lemonfacturx';
+		$this->numero = 486213;
+		$this->rights_class = 'auvozugferd';
 		$this->family = "financial";
 		$this->module_position = 90;
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
@@ -35,8 +36,8 @@ class modLemonFacturX extends DolibarrModules
 		$this->version = '3.9.4';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'bill';
-		$this->editor_name = 'Lemon';
-		$this->editor_url = 'https://hellolemon.fr';
+		$this->editor_name = 'auvo-design';
+		$this->editor_url = 'https://auvo-design.de';
 
 		// Prérequis vérifiés à l'activation. Dolibarr 19 minimum : le module
 		// utilise GETPOSTINT() (introduit en 19.0) ; testé sur Dolibarr 22 / PHP 8.2.
@@ -72,37 +73,37 @@ class modLemonFacturX extends DolibarrModules
 		);
 
 		$this->dirs = array();
-		$this->config_page_url = array('setup.php@lemonfacturx');
+		$this->config_page_url = array('setup.php@auvozugferd');
 
 		$this->depends = array();
 		$this->requiredby = array();
 		$this->conflictwith = array();
-		$this->langfiles = array("lemonfacturx@lemonfacturx");
+		$this->langfiles = array("auvozugferd@auvozugferd");
 
 		// NB : la conversion est active dès que le module l'est (plus de constante
-		// LEMONFACTURX_ENABLED). L'identifiant légal (auto par profil), l'exigibilité
+		// AUVOZUGFERD_ENABLED). L'identifiant légal (auto par profil), l'exigibilité
 		// TVA BT-8 (lue depuis TAX_MODE Dolibarr), le cadre BT-23 (par facture) et le
 		// schéma d'endpoint (0225 figé) ne sont plus des réglages.
 		$this->const = array(
-			array('LEMONFACTURX_BANK_ACCOUNT', 'int', '0', 'ID du compte bancaire pour IBAN/BIC', 1, 'current', 0),
-			array('LEMONFACTURX_PAYMENT_MEANS', 'chaine', '30', 'Code moyen de paiement UNTDID 4461 (30=virement, 58=virement SEPA, 59=prélèvement SEPA, 49=prélèvement)', 1, 'current', 0),
-			array('LEMONFACTURX_STRICT_MODE', 'int', '0', 'Mode erreur : 0 = best-effort, 1 = strict bloquant', 1, 'current', 0),
-			array('LEMONFACTURX_BR_CHECK', 'int', '1', 'Contrôle interne des règles métier EN16931 (BR-*) avant injection', 1, 'current', 0),
-			array('LEMONFACTURX_INJECTION_MODE', 'chaine', 'auto', 'Mode d\'injection du XML : auto (sous-process si exec dispo, sinon in-process) | inprocess (sans exec, hébergements durcis) | subprocess (exec uniquement, historique)', 1, 'current', 0),
-			array('LEMONFACTURX_PHP_CLI_PATH', 'chaine', '', 'Surcharge manuelle du binaire PHP CLI (utilisé seulement par le mode sous-process ; vide = auto-détection)', 1, 'current', 0),
-			array('LEMONFACTURX_VERAPDF_PATH', 'chaine', '', 'Chemin du binaire veraPDF pour post-validation PDF/A-3 (optionnel)', 1, 'current', 0),
-			array('LEMONFACTURX_ENDPOINT_SUFFIX_SELLER', 'chaine', '', 'Suffixe ajouté au SIREN vendeur dans l\'adresse électronique BT-34 (ex _Status) — exigé par certaines PA ; vide = SIREN nu', 1, 'current', 0),
-			array('LEMONFACTURX_NOTE_PMD', 'chaine', '', 'Mention légale pénalités de retard (BR-FR-05, default appliqué si vide)', 1, 'current', 0),
-			array('LEMONFACTURX_NOTE_PMT', 'chaine', '', 'Mention légale indemnité de recouvrement (default appliqué si vide)', 1, 'current', 0),
-			array('LEMONFACTURX_NOTE_AAB', 'chaine', '', 'Mention légale escompte anticipé (default appliqué si vide)', 1, 'current', 0),
-			array('LEMONFACTURX_NOTES_IN_FOOTER', 'int', '0', 'Recopier les mentions BR-FR-05 dans le pied de facture (INVOICE_FREE_TEXT)', 1, 'current', 0),
-			array('LEMONFACTURX_NOTES_OVERWRITE', 'int', '0', 'Recopie : écraser la mention Dolibarr existante (1) au lieu d\'ajouter nos mentions à la suite (0)', 1, 'current', 0),
-			array('LEMONFACTURX_CHORUS_ENABLED', 'int', '0', 'Activer les fonctionnalités Chorus Pro (onglet, menu, 2e PDF) — opt-in', 1, 'current', 0),
+			array('AUVOZUGFERD_BANK_ACCOUNT', 'int', '0', 'ID du compte bancaire pour IBAN/BIC', 1, 'current', 0),
+			array('AUVOZUGFERD_PAYMENT_MEANS', 'chaine', '30', 'Code moyen de paiement UNTDID 4461 (30=virement, 58=virement SEPA, 59=prélèvement SEPA, 49=prélèvement)', 1, 'current', 0),
+			array('AUVOZUGFERD_STRICT_MODE', 'int', '0', 'Mode erreur : 0 = best-effort, 1 = strict bloquant', 1, 'current', 0),
+			array('AUVOZUGFERD_BR_CHECK', 'int', '1', 'Contrôle interne des règles métier EN16931 (BR-*) avant injection', 1, 'current', 0),
+			array('AUVOZUGFERD_INJECTION_MODE', 'chaine', 'auto', 'Mode d\'injection du XML : auto (sous-process si exec dispo, sinon in-process) | inprocess (sans exec, hébergements durcis) | subprocess (exec uniquement, historique)', 1, 'current', 0),
+			array('AUVOZUGFERD_PHP_CLI_PATH', 'chaine', '', 'Surcharge manuelle du binaire PHP CLI (utilisé seulement par le mode sous-process ; vide = auto-détection)', 1, 'current', 0),
+			array('AUVOZUGFERD_VERAPDF_PATH', 'chaine', '', 'Chemin du binaire veraPDF pour post-validation PDF/A-3 (optionnel)', 1, 'current', 0),
+			array('AUVOZUGFERD_ENDPOINT_SUFFIX_SELLER', 'chaine', '', 'Suffixe ajouté au SIREN vendeur dans l\'adresse électronique BT-34 (ex _Status) — exigé par certaines PA ; vide = SIREN nu', 1, 'current', 0),
+			array('AUVOZUGFERD_NOTE_PMD', 'chaine', '', 'Mention légale pénalités de retard (BR-FR-05, default appliqué si vide)', 1, 'current', 0),
+			array('AUVOZUGFERD_NOTE_PMT', 'chaine', '', 'Mention légale indemnité de recouvrement (default appliqué si vide)', 1, 'current', 0),
+			array('AUVOZUGFERD_NOTE_AAB', 'chaine', '', 'Mention légale escompte anticipé (default appliqué si vide)', 1, 'current', 0),
+			array('AUVOZUGFERD_NOTES_IN_FOOTER', 'int', '0', 'Recopier les mentions BR-FR-05 dans le pied de facture (INVOICE_FREE_TEXT)', 1, 'current', 0),
+			array('AUVOZUGFERD_NOTES_OVERWRITE', 'int', '0', 'Recopie : écraser la mention Dolibarr existante (1) au lieu d\'ajouter nos mentions à la suite (0)', 1, 'current', 0),
+			array('AUVOZUGFERD_CHORUS_ENABLED', 'int', '0', 'Activer les fonctionnalités Chorus Pro (onglet, menu, 2e PDF) — opt-in', 1, 'current', 0),
 		);
 
-		if (!isset($conf->lemonfacturx) || !isset($conf->lemonfacturx->enabled)) {
-			$conf->lemonfacturx = new stdClass();
-			$conf->lemonfacturx->enabled = 0;
+		if (!isset($conf->auvozugferd) || !isset($conf->auvozugferd->enabled)) {
+			$conf->auvozugferd = new stdClass();
+			$conf->auvozugferd->enabled = 0;
 		}
 
 		$this->rights = array();
@@ -119,7 +120,7 @@ class modLemonFacturX extends DolibarrModules
 		// durci de Dolibarr 23 n'évalue plus la syntaxe $conf->global->XXX (la
 		// condition tombe à faux et l'onglet disparaît). getDolGlobalInt() passe.
 		$this->tabs = array(
-			'invoice:+lemonfacturxchorus:LemonFacturXChorusTab:lemonfacturx@lemonfacturx:getDolGlobalInt("LEMONFACTURX_CHORUS_ENABLED"):/lemonfacturx/chorus_tab.php?id=__ID__',
+			'invoice:+auvozugferdchorus:AuvoZugferdChorusTab:auvozugferd@auvozugferd:getDolGlobalInt("AUVOZUGFERD_CHORUS_ENABLED"):/auvozugferd/chorus_tab.php?id=__ID__',
 		);
 	}
 
@@ -160,20 +161,20 @@ class modLemonFacturX extends DolibarrModules
 	private function createChorusExtraFields()
 	{
 		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
-		require_once dol_buildpath('/lemonfacturx/core/lib/lemonfacturx.lib.php');
+		require_once dol_buildpath('/auvozugferd/core/lib/auvozugferd.lib.php');
 
 		$extrafields = new ExtraFields($this->db);
 		$extrafields->fetch_name_optionals_label('facture');
 
-		$cadres = lemonfacturx_chorus_frameworks();
+		$cadres = auvozugferd_chorus_frameworks();
 
 		// attrname, label (clé de trad), type, taille (varchar) OU param (select), position
 		$defs = array(
-			array('lfxchorus',     'LemonFacturXEfChorus',      'boolean', '',                          1010),
-			array('lfxcadre',      'LemonFacturXEfCadre',       'select',  array('options' => $cadres), 1011),
-			array('lfxservicecode','LemonFacturXEfServiceCode', 'varchar', '255',                       1012),
-			array('lfxengagement', 'LemonFacturXEfEngagement',  'varchar', '255',                       1013),
-			array('lfxmarche',     'LemonFacturXEfMarche',      'varchar', '255',                       1014),
+			array('lfxchorus',     'AuvoZugferdEfChorus',      'boolean', '',                          1010),
+			array('lfxcadre',      'AuvoZugferdEfCadre',       'select',  array('options' => $cadres), 1011),
+			array('lfxservicecode','AuvoZugferdEfServiceCode', 'varchar', '255',                       1012),
+			array('lfxengagement', 'AuvoZugferdEfEngagement',  'varchar', '255',                       1013),
+			array('lfxmarche',     'AuvoZugferdEfMarche',      'varchar', '255',                       1014),
 		);
 		foreach ($defs as $d) {
 			if (!empty($extrafields->attributes['facture']['label'][$d[0]])) {
@@ -188,7 +189,7 @@ class modLemonFacturX extends DolibarrModules
 			$extrafields->addExtraField(
 				$d[0], $d[1], $d[2], $d[4], $size, 'facture',
 				0, 0, '', $param, 1, '', '0', '', '', '',
-				'lemonfacturx@lemonfacturx', '$conf->lemonfacturx->enabled'
+				'auvozugferd@auvozugferd', '$conf->auvozugferd->enabled'
 			);
 		}
 	}
@@ -209,8 +210,8 @@ class modLemonFacturX extends DolibarrModules
 	 */
 	private function fixChorusExtraFieldsDisplay()
 	{
-		require_once dol_buildpath('/lemonfacturx/core/lib/lemonfacturx.lib.php');
-		lemonfacturx_fix_chorus_extrafields_display($this->db);
+		require_once dol_buildpath('/auvozugferd/core/lib/auvozugferd.lib.php');
+		auvozugferd_fix_chorus_extrafields_display($this->db);
 	}
 
 	/**
@@ -232,9 +233,9 @@ class modLemonFacturX extends DolibarrModules
 		// type, pos, size, elementtype, unique, required, default, param,
 		// alwayseditable, perms, list, ...). Taille 46 = longueur max Leitweg-ID.
 		$extrafields->addExtraField(
-			'lfxleitwegid', 'LemonFacturXEfLeitwegId', 'varchar', 200, '46', 'societe',
+			'lfxleitwegid', 'AuvoZugferdEfLeitwegId', 'varchar', 200, '46', 'societe',
 			0, 0, '', '', 1, '', '1', '', '', '',
-			'lemonfacturx@lemonfacturx', '$conf->lemonfacturx->enabled'
+			'auvozugferd@auvozugferd', '$conf->auvozugferd->enabled'
 		);
 	}
 }
