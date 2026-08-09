@@ -124,7 +124,8 @@ class modLemonFacturX extends DolibarrModules
 	}
 
 	/**
-	 * Activation du module : crée les extrafields Chorus Pro sur les factures.
+	 * Activation du module : crée les extrafields Chorus Pro sur les factures
+	 * et l'extrafield Leitweg-ID sur les tiers.
 	 *
 	 * @param string $options Options d'activation
 	 * @return int 1 si OK, 0 si KO
@@ -134,6 +135,7 @@ class modLemonFacturX extends DolibarrModules
 		$result = $this->_init(array(), $options);
 		$this->createChorusExtraFields();
 		$this->fixChorusExtraFieldsDisplay();
+		$this->createLeitwegIdExtraField();
 		return $result;
 	}
 
@@ -209,5 +211,30 @@ class modLemonFacturX extends DolibarrModules
 	{
 		require_once dol_buildpath('/lemonfacturx/core/lib/lemonfacturx.lib.php');
 		lemonfacturx_fix_chorus_extrafields_display($this->db);
+	}
+
+	/**
+	 * Crée (si absent) l'extrafield tiers Leitweg-ID (BT-10, acheteurs secteur
+	 * public allemand). Attribut statique du client, visible sur la fiche
+	 * standard (list='1', contrairement aux champs Chorus masqués) : pas
+	 * besoin d'onglet dédié. Idempotent et non bloquant.
+	 */
+	private function createLeitwegIdExtraField()
+	{
+		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+
+		$extrafields = new ExtraFields($this->db);
+		$extrafields->fetch_name_optionals_label('societe');
+		if (!empty($extrafields->attributes['societe']['label']['lfxleitwegid'])) {
+			return; // déjà présent
+		}
+		// Signature identique à createChorusExtraFields() : (attrname, label,
+		// type, pos, size, elementtype, unique, required, default, param,
+		// alwayseditable, perms, list, ...). Taille 46 = longueur max Leitweg-ID.
+		$extrafields->addExtraField(
+			'lfxleitwegid', 'LemonFacturXEfLeitwegId', 'varchar', 200, '46', 'societe',
+			0, 0, '', '', 1, '', '1', '', '', '',
+			'lemonfacturx@lemonfacturx', '$conf->lemonfacturx->enabled'
+		);
 	}
 }

@@ -999,6 +999,63 @@ lfx_assert_eq('B2B', lfx_xp_str($xp, '//ram:IncludedNote[ram:SubjectCode="BAR"]/
 echo "U34 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U35 Leitweg-ID prioritaire en BT-10 pour un acheteur secteur public allemand';
+lfx_reset();
+$deBuyerLeitweg = lfx_make_party([
+	'name' => 'STADT MUSTERSTADT', 'country_code' => 'DE',
+	'array_options' => ['options_lfxleitwegid' => '04011000-1234512345-06'],
+]);
+$deBuyerNoLeitweg = lfx_make_party(['name' => 'KUNDE OHNE LEITWEG', 'country_code' => 'DE']);
+$frBuyerStrayLeitweg = lfx_make_party([
+	'array_options' => ['options_lfxleitwegid' => '04011000-1234512345-06'],
+]);
+
+// (a) Leitweg-ID gagne sur ref_client pour un acheteur allemand.
+$inv = new LfxFakeInvoice();
+$inv->ref = 'FA2026-0045';
+$inv->ref_client = 'PO-9999';
+$inv->thirdparty = $deBuyerLeitweg;
+$inv->lines = [lfx_make_line(1000.00, 20.0, 200.00)];
+$inv->total_ht = 1000.00;
+$inv->total_tva = 200.00;
+$inv->total_ttc = 1200.00;
+$w = [];
+$xp = lfx_xpath(lemonfacturx_build_xml($inv, $mysoc, $w));
+lfx_assert_eq('04011000-1234512345-06', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeAgreement/ram:BuyerReference'), 'BT-10 = Leitweg-ID, prioritaire sur ref_client');
+
+// (b) Leitweg-ID gagne aussi sur le code service Chorus.
+$w = [];
+$xp = lfx_xpath(lemonfacturx_build_xml($inv, $mysoc, $w, ['profile' => 'choruspro', 'service_code' => 'SVC1']));
+lfx_assert_eq('04011000-1234512345-06', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeAgreement/ram:BuyerReference'), 'BT-10 = Leitweg-ID, prioritaire sur le code service Chorus');
+
+// (c) Non-régression : acheteur allemand SANS Leitweg-ID -> ref_client toujours utilisé.
+$inv2 = new LfxFakeInvoice();
+$inv2->ref = 'FA2026-0046';
+$inv2->ref_client = 'PO-8888';
+$inv2->thirdparty = $deBuyerNoLeitweg;
+$inv2->lines = [lfx_make_line(1000.00, 20.0, 200.00)];
+$inv2->total_ht = 1000.00;
+$inv2->total_tva = 200.00;
+$inv2->total_ttc = 1200.00;
+$w = [];
+$xp = lfx_xpath(lemonfacturx_build_xml($inv2, $mysoc, $w));
+lfx_assert_eq('PO-8888', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeAgreement/ram:BuyerReference'), 'BT-10 = ref_client quand aucune Leitweg-ID (le filtre DE ne casse pas le repli existant)');
+
+// (d) Garde-fou pays : une Leitweg-ID posée par erreur sur un acheteur non-allemand est ignorée.
+$inv3 = new LfxFakeInvoice();
+$inv3->ref = 'FA2026-0047';
+$inv3->ref_client = 'PO-7777';
+$inv3->thirdparty = $frBuyerStrayLeitweg;
+$inv3->lines = [lfx_make_line(1000.00, 20.0, 200.00)];
+$inv3->total_ht = 1000.00;
+$inv3->total_tva = 200.00;
+$inv3->total_ttc = 1200.00;
+$w = [];
+$xp = lfx_xpath(lemonfacturx_build_xml($inv3, $mysoc, $w));
+lfx_assert_eq('PO-7777', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeAgreement/ram:BuyerReference'), 'BT-10 = ref_client, Leitweg-ID ignorée hors acheteur allemand');
+echo "U35 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

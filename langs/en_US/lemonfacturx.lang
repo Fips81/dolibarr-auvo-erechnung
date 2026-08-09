@@ -168,6 +168,7 @@ LemonFacturXEfChorus = Chorus Pro invoice (public sector)
 LemonFacturXEfServiceCode = Service code (Chorus, BT-10)
 LemonFacturXEfEngagement = Legal commitment number (Chorus, BT-13)
 LemonFacturXEfMarche = Contract/market number (Chorus, BT-12)
+LemonFacturXEfLeitwegId = Leitweg-ID (public sector, BT-10)
 LemonFacturXChorusGenerated = Chorus Pro PDF generated alongside: %s
 LemonFacturXChorusErr = The Chorus Pro PDF could not be generated (the standard Factur-X PDF remains valid)
 

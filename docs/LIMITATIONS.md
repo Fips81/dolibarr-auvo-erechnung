@@ -108,10 +108,17 @@ de facturation B2B (BT-23) deviendra obligatoire avec une sémantique figée.
 ### Code routage / service destinataire infra-SIREN
 **Partiel.** Le routage par service (Chorus Pro, grands comptes) passe par
 **BT-10 BuyerReference**, mappé depuis le champ standard « Référence client »
-(`ref_client`) de la facture — par facture, sans extrafield. L'adressage
+(`ref_client`) de la facture — par facture, sans extrafield côté France :
+choix assumé de ne pas créer d'extrafields pour ce cas. L'adressage
 électronique BT-34/BT-49 est en revanche figé sur le SIREN (`schemeID="0225"`,
 annuaire PPF) : pas de routage infra-SIREN par SIRET d'établissement.
-Pas de champ dédié par tiers : choix assumé de ne pas créer d'extrafields.
+
+Côté Allemagne, le routage administratif est traité différemment : la
+**Leitweg-ID** (acheteurs secteur public, portails ZRE/OZG-RE) dispose d'un
+extrafield tiers dédié (`lfxleitwegid`, sur la fiche société) et prime sur
+`ref_client` en BT-10 pour un acheteur allemand — un champ par tiers a du sens
+ici car la Leitweg-ID est une donnée de routage stable du client, contrairement
+au code service Chorus qui varie par facture.
 
 ## Technique
 

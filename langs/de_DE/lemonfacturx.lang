@@ -168,6 +168,7 @@ LemonFacturXEfChorus = Chorus-Pro-Rechnung (öffentlicher Sektor)
 LemonFacturXEfServiceCode = Service-Code (Chorus, BT-10)
 LemonFacturXEfEngagement = Nummer der rechtlichen Verpflichtung (Chorus, BT-13)
 LemonFacturXEfMarche = Vertrags-/Auftragsnummer (Chorus, BT-12)
+LemonFacturXEfLeitwegId = Leitweg-ID (öffentlicher Auftraggeber, BT-10)
 LemonFacturXChorusGenerated = Chorus-Pro-PDF zusätzlich erzeugt: %s
 LemonFacturXChorusErr = Die Chorus-Pro-PDF konnte nicht erzeugt werden (die Standard-ZUGFeRD-PDF bleibt gültig)
 

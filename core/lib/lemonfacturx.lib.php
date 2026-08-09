@@ -225,11 +225,19 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 	}
 
 	$xml .= '  <ram:ApplicableHeaderTradeAgreement>'."\n";
-	// BT-10 : référence acheteur / code service. En profil Chorus, le code service
-	// exécutant explicite (options['service_code']) prime sur ref_client.
-	$buyerRef = ($profile === 'choruspro' && !empty($options['service_code']))
-		? $options['service_code']
-		: (!empty($invoice->ref_client) ? $invoice->ref_client : '');
+	// BT-10 : référence acheteur. Pour un acheteur secteur public allemand, la
+	// Leitweg-ID (routage ZRE/OZG-RE) doit être la SEULE valeur en BT-10 — elle
+	// prime donc sur le code service Chorus et sur ref_client. Hors Allemagne,
+	// comportement inchangé : code service Chorus (profil choruspro) sinon ref_client.
+	$buyerCountry = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : 'FR');
+	$leitwegId = ($buyerCountry === 'DE') ? lemonfacturx_party_leitwegid($buyer) : '';
+	if ($leitwegId !== '') {
+		$buyerRef = $leitwegId;
+	} elseif ($profile === 'choruspro' && !empty($options['service_code'])) {
+		$buyerRef = $options['service_code'];
+	} else {
+		$buyerRef = !empty($invoice->ref_client) ? $invoice->ref_client : '';
+	}
 	if ($buyerRef !== '') {
 		$xml .= '    <ram:BuyerReference>'.lemonfacturx_xml_encode($buyerRef).'</ram:BuyerReference>'."\n";
 	}
@@ -2029,6 +2037,18 @@ function lemonfacturx_party_steuernummer($party)
 		return '';
 	}
 	return $fallback;
+}
+
+/**
+ * Leitweg-ID (identifiant de routage administration publique allemande),
+ * pour BT-10, lue sur l'extrafield tiers dédié — pas de champ Dolibarr natif
+ * équivalent (contrairement à la Steuernummer qui réutilise idprof2, les
+ * idprof* sont déjà occupés par les conventions allemandes existantes).
+ */
+function lemonfacturx_party_leitwegid($party)
+{
+	$ao = (is_object($party) && !empty($party->array_options)) ? $party->array_options : [];
+	return trim((string) ($ao['options_lfxleitwegid'] ?? ''));
 }
 
 /**
