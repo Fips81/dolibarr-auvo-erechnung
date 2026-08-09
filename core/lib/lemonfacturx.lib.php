@@ -394,18 +394,6 @@ function lemonfacturx_filter_billable_lines($lines)
 {
 	$out = [];
 	foreach ((array) $lines as $line) {
-		// product_type=9 est la convention cœur Dolibarr pour les lignes de
-		// présentation (titres, sous-totaux) ajoutées par le module natif
-		// "Subtotals" (special_code 81) ou par des modules tiers comme
-		// ATM Consulting "Sous-total" (special_code 104777). Ces lignes ne
-		// représentent aucun bien/service facturable ; certaines portent un
-		// montant non nul (sous-total affiché), ce qui les ferait compter en
-		// double dans le XML EN16931 si elles n'étaient pas exclues ici.
-		$productType = isset($line->product_type) ? (int) $line->product_type : null;
-		if ($productType === 9) {
-			continue;
-		}
-
 		if ((float) $line->qty == 0 && (float) $line->total_ht == 0) {
 			continue;
 		}
@@ -875,6 +863,9 @@ function lemonfacturx_check_mandatory($invoice, $mysoc)
 {
 	$warnings = [];
 
+	// SIREN/SIRET : identifiants français — mêmes règles de pays que le générateur
+	$sellerIsFR = strtoupper(!empty($mysoc->country_code) ? $mysoc->country_code : 'FR') === 'FR';
+
 	$sellerChecks = [
 		'name'      => 'LemonFacturXWarnSellerName',
 		'address'   => 'LemonFacturXWarnSellerAddress',
@@ -885,17 +876,18 @@ function lemonfacturx_check_mandatory($invoice, $mysoc)
 	];
 	$isFranchise = isset($mysoc->tva_assuj) && (int) $mysoc->tva_assuj === 0;
 	foreach ($sellerChecks as $field => $transKey) {
-		// Franchise en base (293 B CGI) : pas de TVA intra → ne pas warn
-		if ($field === 'tva_intra' && $isFranchise) {
-			continue;
-		}
-		if (empty($mysoc->$field)) {
-			$warnings[] = lemonfacturx_trans($transKey);
-		}
-	}
-
-	// SIREN/SIRET : identifiants français — mêmes règles de pays que le générateur
-	$sellerIsFR = strtoupper(!empty($mysoc->country_code) ? $mysoc->country_code : 'FR') === 'FR';
+        // Franchise en base (293 B CGI) : pas de TVA intra → ne pas warn
+        if ($field === 'tva_intra' && $isFranchise) {
+              continue;
+        }
+        // SIRET/SIREN : identifiant français uniquement, non pertinent hors FR
+        if ($field === 'idprof2' && !$sellerIsFR) {
+              continue;
+        }
+        if (empty($mysoc->$field)) {
+              $warnings[] = lemonfacturx_trans($transKey);
+        }
+    }
 
 	// BT-34 (adresse électronique vendeur) : satisfaite par le SIREN (endpoint 0225)
 	// OU l'email. On n'avertit que si aucune des deux n'est disponible.
@@ -1098,7 +1090,13 @@ function lemonfacturx_build_trade_party_xml($role, $party, $email, $legalIdMode 
 		$xml .= '      <ram:SpecifiedTaxRegistration>'."\n";
 		$xml .= '        <ram:ID schemeID="FC">'.lemonfacturx_xml_encode($siren).'</ram:ID>'."\n";
 		$xml .= '      </ram:SpecifiedTaxRegistration>'."\n";
-	}
+	} elseif ($role === 'Seller' && strtoupper($country) === 'DE' && !empty($party->idprof1)) {
+                // BR-CO-26 / BR-E-09 (DE) : Kleinunternehmer ohne USt-IdNr. — Steuernummer
+                // als Tax registration identifier (schemeID="FC") statt SIREN (FR-spezifisch).
+                $xml .= '      <ram:SpecifiedTaxRegistration>'."\n";
+                $xml .= '        <ram:ID schemeID="FC">'.lemonfacturx_xml_encode($party->idprof1).'</ram:ID>'."\n";
+                $xml .= '      </ram:SpecifiedTaxRegistration>'."\n";
+    }
 	$xml .= '    </ram:'.$tag.'>'."\n";
 
 	return $xml;
@@ -1249,7 +1247,11 @@ function lemonfacturx_resolve_tax_category($line, $invoice, $thirdparty, $mysoc)
 	}
 
 	if (isset($mysoc->tva_assuj) && (int) $mysoc->tva_assuj === 0) {
-		return ['code' => 'E', 'exemption' => 'TVA non applicable, art. 293 B du CGI', 'vatex' => 'VATEX-FR-FRANCHISE'];
+        $sellerCountry = strtoupper(!empty($mysoc->country_code) ? $mysoc->country_code : 'FR');
+        if ($sellerCountry === 'DE') {
+                return ['code' => 'E', 'exemption' => 'Kein Ausweis von Umsatzsteuer, da Kleinunternehmer gemäß § 19 UStG', 'vatex' => null];
+        }
+        return ['code' => 'E', 'exemption' => 'TVA non applicable, art. 293 B du CGI', 'vatex' => 'VATEX-FR-FRANCHISE'];
 	}
 
 	// TVA = 0 : qualifier selon le contexte

@@ -1,0 +1,216 @@
+Module210000Name = LemonFacturX
+Module210000Desc = Automatische Erzeugung von Factur-X-EN16931-E-Rechnungen
+
+LemonFacturXSetup = LemonFacturX-Einstellungen
+LemonFacturXBankAccount = Bankkonto (IBAN/BIC)
+LemonFacturXPaymentMeans = Standard-Zahlungsart
+LemonFacturXPaymentMeansHint = UNTDID-4461-Code. 30/58 (Überweisung) erfordern eine IBAN: Ohne konfiguriertes Bankkonto wird der Zahlungsblock im XML weggelassen (BR-61). 59 (SEPA-Lastschrift) gibt die Gläubiger-ID (Dolibarr-Konstante PRELEVEMENT_ICS), die Mandatsreferenz und die IBAN des Standard-Bankkontos des Geschäftspartners aus.
+PaymentMeans30 = Überweisung
+PaymentMeans58 = SEPA-Überweisung
+PaymentMeans59 = SEPA-Lastschrift
+PaymentMeans49 = Lastschrift (national)
+LemonFacturXBrCheck = Prüfung der EN16931-Geschäftsregeln
+LemonFacturXBrCheckHint = Prüft vor der Injektion eine Teilmenge der EN16931-Schematron-Regeln (BR-CO-10..17, BR-27, BR-61, BR-IC-11/12, Konsistenz der MwSt-Kategorien ...). Verstöße blockieren im Strikt-Modus, andernfalls werden sie den Warnungen hinzugefügt.
+LemonFacturXVeraPdfPath = PDF/A-3-Validierung mit veraPDF (optional, externes Tool)
+LemonFacturXVeraPdfPathHint = Standardmäßig leer = deaktiviert, und das ist in Ordnung: Die EN16931-XSD-Prüfung und die internen BR-Regeln laufen bereits. veraPDF wird NICHT mit dem Modul ausgeliefert — es ist ein Drittanbieter-Tool, das Sie selbst installieren (https://verapdf.org) und hier eintragen. Wenn gesetzt, wird jede PDF nach der Injektion erneut als PDF/A-3b validiert: nicht blockierend (ein Fehlschlag erzeugt nur eine Warnung), verlangsamt die Erzeugung um einige Sekunden.
+LemonFacturXVeraPdfPlaceholder = z. B. /usr/local/bin/verapdf — leer = deaktiviert
+LemonFacturXInfo = Erzeugte PDF-Rechnungen werden automatisch in Factur-X EN16931 umgewandelt (PDF/A-3 mit eingebettetem CrossIndustryInvoice-XML). IBAN und BIC werden aus dem ausgewählten Bankkonto gelesen.
+LemonFacturXDiagTitle = Diagnose der Pflichtangaben
+LemonFacturXDiagResults = Prüfung Factur-X EN16931 + BR-FR-Regeln
+LemonFacturXDiagSellerName = Firmenname des Verkäufers
+LemonFacturXDiagSellerAddress = Adresse des Verkäufers
+LemonFacturXDiagSellerVAT = Umsatzsteuer-Identifikationsnummer
+LemonFacturXDiagSellerVATFranchise = nicht erforderlich (französische MwSt-Befreiung, Art. 293 B CGI) — die SIREN wird als Steuerkennung ausgegeben
+LemonFacturXDiagSellerSIRET = SIRET / SIREN
+LemonFacturXDiagSellerEmail = E-Mail des Verkäufers
+LemonFacturXDiagIBAN = IBAN des Bankkontos
+LemonFacturXDiagBIC = BIC des Bankkontos
+LemonFacturXDiagBankNotFound = Bankkonto nicht gefunden
+LemonFacturXDiagBankNotSet = Kein Bankkonto ausgewählt
+LemonFacturXDiagModuleBankEnabled = Bank-Modul aktiviert
+LemonFacturXDiagModuleBankDisabled = Bank-Modul deaktiviert (erforderlich zur Verwaltung des Bankkontos)
+LemonFacturXDiagModuleInvoiceEnabled = Rechnungs-Modul aktiviert
+LemonFacturXDiagModuleInvoiceDisabled = Rechnungs-Modul deaktiviert (erforderlich zur Erzeugung von Rechnungen)
+LemonFacturXDiagForceFontOk = Eingebettete PDF-Schriftart erzwungen (MAIN_PDF_FORCE_FONT)
+LemonFacturXDiagForceFontMissing = MAIN_PDF_FORCE_FONT nicht gesetzt — ohne eingebettete Schriftarten ist die PDF nicht PDF/A-3-konform
+LemonFacturXDiagInjInProcess = In-Process-Injektion (ohne exec) erzwungen — funktioniert auf Servern, auf denen exec() deaktiviert ist
+LemonFacturXDiagInjAuto = Automatischer Modus: Injektion per Subprozess (exec verfügbar) — isolierter PHP-Prozess, der sicherste Weg
+LemonFacturXDiagInjAutoNoExec = Automatischer Modus: In-Process-Injektion (exec auf diesem Server deaktiviert — keine Alternative verfügbar)
+LemonFacturXDiagInjSubprocess = Injektion per Subprozess (exec) — Legacy-Modus erzwungen
+LemonFacturXDiagExecRequiredSub = Modus „Subprozess" gewählt, aber exec() ist auf diesem Server deaktiviert — wechseln Sie in der Konfiguration zu „Automatisch" oder „In-Process"
+LemonFacturXDiagTcpdiConflict = Die In-Process-Injektion wird fehlschlagen: Dolibarr lädt bei jeder Erzeugung seine PDF-Engine „tcpdi" (ein TCPDF-basiertes FPDF, inkompatibel mit der Factur-X-Injektionsbibliothek). Zwei Lösungen: Aktivieren Sie die exec()-Funktion auf dem Server (das Modul nutzt dann einen isolierten Subprozess, empfohlen), ODER setzen Sie die Konstante MAIN_DISABLE_TCPDI = 1 (gibt In-Process frei, deaktiviert aber die PDF-Zusammenführungsfunktionen von Dolibarr — Seitenhintergründe, Verkettung).
+LemonFacturXErrTcpdiConflict = FPDF/TCPDF-Konflikt: Dolibarr hat seine tcpdi-Engine geladen (%s), inkompatibel mit der In-Process-Injektion. Aktivieren Sie exec() (Subprozess-Modus) oder setzen Sie die Konstante MAIN_DISABLE_TCPDI=1 (deaktiviert die PDF-Zusammenführung von Dolibarr).
+LemonFacturXDiagPhpCliOk = PHP-CLI-Binärdatei
+LemonFacturXDiagPhpCliNotFound = Die konfigurierte PHP-CLI-Binärdatei wurde nicht gefunden oder ist nicht ausführbar: %s
+LemonFacturXDiagMulticurrencyNote = Multiwährungs-Modul aktiviert: Rechnungen in Fremdwährung werden NICHT in Factur-X umgewandelt (dokumentierte Einschränkung, die klassische PDF bleibt erhalten)
+LemonFacturXDiagFixLink = Beheben
+LemonFacturXDiagFixForceFont = Automatisch beheben (setzt „pdfahelvetica")
+LemonFacturXForceFontSet = MAIN_PDF_FORCE_FONT auf „pdfahelvetica" gesetzt: Erzeugte PDFs betten Schriftarten jetzt ein (PDF/A-3). Globale Einstellung, wirkt auf alle PDF-Dokumente in Dolibarr.
+LemonFacturXDiagAllOk = Alle Pflichtangaben sind ausgefüllt!
+LemonFacturXDiagNoBlocker = Kein Blocker: Die Factur-X-Konformität ist sichergestellt. Es verbleiben einige empfohlene Punkte (in Orange), die Sie für ein optimales Ergebnis noch angehen können.
+
+LemonFacturXStrictMode = Fehlerbehandlungsmodus
+LemonFacturXStrictModeHint = Best-Effort: Schlägt die Factur-X-Erzeugung fehl, wird die klassische PDF mit einer Warnung ausgeliefert. Strikt: Blockiert die Erzeugung mit sichtbarem Fehler, wenn das XML ungültig ist oder die PDF-Injektion fehlschlägt. Hinweis: Auch im Strikt-Modus bleibt die bereits von Dolibarr erzeugte klassische PDF auf der Festplatte erhalten.
+LemonFacturXStrictModeBestEffort = Best-Effort (Standard, nicht blockierend)
+LemonFacturXStrictModeStrict = Strikt (blockiert, wenn Factur-X fehlschlägt)
+LemonFacturXInjectionMode = XML-Injektionsmodus
+LemonFacturXInjectionModeHint = „Automatisch" (empfohlen): Subprozess, wenn exec() verfügbar ist (der sicherste, isolierte Weg), und In-Process nur, wenn exec() deaktiviert ist (gehärtetes Shared Hosting). „Nur In-Process" erzwingt die Injektion ohne exec() — nur für Server ohne exec() verwenden, da ein PDF-Bibliothekskonflikt mit einem anderen Modul die Injektion dann verhindern kann. „Subprozess" erzwingt das Legacy-Verhalten (erfordert exec()).
+LemonFacturXInjectionModeAuto = Automatisch (Subprozess wenn exec, sonst In-Process)
+LemonFacturXInjectionModeInProcess = Nur In-Process (ohne exec)
+LemonFacturXInjectionModeSubprocess = Subprozess (exec, Legacy)
+LemonFacturXPhpCliPath = Pfad zur PHP-CLI-Binärdatei
+LemonFacturXPhpCliPathHint = Wird nur vom Modus „Subprozess" verwendet. Leer lassen: Das Modul erkennt die richtige PHP-CLI-Binärdatei automatisch. Nur einen Pfad setzen, um eine bestimmte Binärdatei zu erzwingen (exotisches Setup).
+LemonFacturXLegalNotes = Französische Pflichtangaben (BR-FR-05)
+LemonFacturXNotePMD = Verzugszinsen (PMD)
+LemonFacturXNotePMT = Pauschale Beitreibungsentschädigung (PMT)
+LemonFacturXNoteAAB = Skonto bei vorzeitiger Zahlung (AAB)
+
+LemonFacturXUpdateAvailable = Neue Version verfügbar
+LemonFacturXUpdateAvailableMsg = Eine neuere Version des Moduls ist auf GitHub veröffentlicht (%s, aktuell: %s).
+LemonFacturXUpdateSeeRelease = Release und Upgrade-Anleitung ansehen
+
+LemonFacturXBtnVerify = Factur-X prüfen
+LemonFacturXBtnRegenerate = Factur-X neu erzeugen
+LemonFacturXMsgNoPdf = Keine PDF für diese Rechnung gefunden — erzeugen Sie zuerst das Dokument.
+LemonFacturXMsgNoFacturX = Kein Factur-X-XML in %s eingebettet — verwenden Sie „Factur-X neu erzeugen".
+LemonFacturXMsgVerifyOk = %s: eingebettetes Factur-X-XML gefunden, EN16931-XSD gültig und Geschäftsregeln geprüft.
+LemonFacturXMsgVerifyKo = %s: eingebettetes Factur-X-XML gefunden, aber nicht konform:
+LemonFacturXMsgRegenerateFailed = PDF-Neuerzeugung fehlgeschlagen
+LemonFacturXMsgSuccess = Factur-X-EN16931-E-Rechnung in PDF %s eingebettet.
+LemonFacturXMsgSuccessWithWarnings = Factur-X-EN16931-E-Rechnung in PDF %s eingebettet. %s nicht blockierende Warnung(en), die für volle Konformität zu beheben sind:
+
+# ODT template support (experimental, v3.8.0) — afterODTCreation hook
+LemonFacturXOdtErrNoPdfConv = ODT-Template ohne PDF-Konvertierung: Factur-X erfordert eine PDF, es wurde aber nur die .odt-Datei erzeugt
+LemonFacturXOdtHintEnable = Setzen Sie MAIN_ODT_AS_PDF = libreoffice (und installieren Sie LibreOffice auf dem Server), um die ODT vor der Injektion in eine PDF zu konvertieren
+LemonFacturXOdtErrNoPdfa = Die aus dem ODT-Template erzeugte PDF ist kein PDF/A: LibreOffice erzeugt dann eine PDF >= 1.5 (komprimierte Xref-Tabelle), die die Factur-X-Injektionsbibliothek nicht lesen kann
+LemonFacturXOdtHintEnablePdfa = Setzen Sie MAIN_ODT_AS_PDF = libreoffice + MAIN_ODT_AS_PDFA = 1, um eine lesbare, injizierbare PDF/A-1 zu erzeugen
+LemonFacturXOdtErrPdfMissing = Erwartete PDF neben dem ODT-Template nicht gefunden (%s): Die LibreOffice-Konvertierung ist vermutlich fehlgeschlagen (soffice-Binärdatei fehlt oder ist nicht im PATH)
+
+LemonFacturXErrMulticurrency = Rechnung in Fremdwährung (%s ≠ Firmenwährung %s) — nicht unterstützt: Das XML würde von der sichtbaren PDF abweichen (dokumentierte Einschränkung)
+LemonFacturXErrLocalTax = Rechnung mit lokalen Steuern (localtax1/2) — nicht unterstützt: EN16931 bildet nur die MwSt ab, die XML-Gesamtsumme würde von der sichtbaren PDF-Gesamtsumme abweichen (dokumentierte Einschränkung)
+LemonFacturXErrNoDate = Rechnung hat kein Ausstellungsdatum
+LemonFacturXErrNoThirdparty = Käufer-Geschäftspartner nicht gefunden (fetch_thirdparty fehlgeschlagen)
+LemonFacturXErrNoMysoc = Ausstellende Firma ($mysoc) nicht initialisiert
+LemonFacturXErrInvalidXml = Ungültiges XML
+LemonFacturXErrBrViolations = EN16931-Geschäftsregeln verletzt
+LemonFacturXErrTempDir = Temporäre Datei in %s kann nicht erstellt werden
+LemonFacturXErrTempWrite = Temporäres XML in %s kann nicht geschrieben werden
+LemonFacturXErrNoExec = Die exec()-Funktion ist auf diesem Server deaktiviert
+LemonFacturXErrPhpCliChars = LEMONFACTURX_PHP_CLI_PATH enthält unzulässige Zeichen (erwartet: alphanumerischer Pfad, „/ . _ - : ( ) \" und Leerzeichen)
+LemonFacturXErrPhpCliNotFound = Die konfigurierte PHP-Binärdatei wurde nicht gefunden oder ist nicht ausführbar: %s
+LemonFacturXErrInjectFailed = PDF-Injektion fehlgeschlagen
+LemonFacturXHintPdfKept = klassische PDF ohne Factur-X beibehalten
+LemonFacturXHintPdfKeptShort = klassische PDF beibehalten
+LemonFacturXHintBestEffort = Best-Effort-Modus
+
+LemonFacturXWarnSellerName = Firmenname des Verkäufers fehlt
+LemonFacturXWarnSellerAddress = Firmenadresse des Verkäufers fehlt
+LemonFacturXWarnSellerZip = Postleitzahl des Verkäufers fehlt
+LemonFacturXWarnSellerTown = Ort des Verkäufers fehlt
+LemonFacturXWarnSellerVAT = Umsatzsteuer-Identifikationsnummer fehlt (Firma)
+LemonFacturXWarnSellerSIRET = SIRET/SIREN fehlt (Firma) — Pflicht nach BR-FR-10
+LemonFacturXWarnSellerEndpoint = Elektronische Adresse des Verkäufers fehlt (keine SIREN/SIRET, keine E-Mail) — Pflicht nach BR-FR-13 (BT-34)
+LemonFacturXWarnSellerSIRETLen = Die SIRET des Verkäufers muss genau 14 Ziffern enthalten (BT-30), %s eingegeben — eine 9-stellige SIREN wird von Chorus Pro abgelehnt
+LemonFacturXWarnBuyerName = Name des Käufers fehlt
+LemonFacturXWarnBuyerAddress = Adresse des Käufers fehlt
+LemonFacturXWarnBuyerZip = Postleitzahl des Käufers fehlt
+LemonFacturXWarnBuyerTown = Ort des Käufers fehlt
+LemonFacturXWarnBuyerEndpoint = Elektronische Adresse des Käufers fehlt (keine SIREN/SIRET, keine E-Mail) — Pflicht nach BR-FR-12 (BT-49)
+LemonFacturXWarnBuyerSIRENRouting = SIREN/SIRET des Käufers fehlt — erforderlich für das Routing im Netzwerk der zugelassenen Plattformen (Endpoint BT-49, schemeID 0225); eine E-Mail allein ist nicht routbar
+LemonFacturXWarnBuyerSIRETLen = Die SIRET des Käufers muss genau 14 Ziffern enthalten (BT-47), %s eingegeben
+LemonFacturXWarnNoBank = Kein Bankkonto im Modul konfiguriert
+LemonFacturXWarnNoForceFont = MAIN_PDF_FORCE_FONT nicht gesetzt — die erzeugte PDF ist nicht garantiert PDF/A-3 (Schriftarten nicht eingebettet); mit einem Klick in den LemonFacturX-Einstellungen behebbar (Diagnose)
+LemonFacturXWarnPaymentMeansOmitted = Zahlungsart %s (Überweisung) im XML weggelassen: keine IBAN konfiguriert (BR-61 — konfigurieren Sie ein Bankkonto im Modul)
+LemonFacturXWarnDirectDebitNoICS = SEPA-Lastschrift: Gläubiger-Identifikationsnummer fehlt (BT-90) — setzen Sie die Dolibarr-Konstante PRELEVEMENT_ICS
+LemonFacturXWarnDirectDebitNoRUM = SEPA-Lastschrift: Mandatsreferenz fehlt (BT-89) — hinterlegen Sie die Mandatsreferenz im Standard-Bankkonto des Geschäftspartners
+LemonFacturXWarnCreditNoteNoSource = Gutschrift ohne verknüpfte Ursprungsrechnung: Die Referenz auf die Originalrechnung (BG-3, französische Pflichtangabe) kann nicht ausgegeben werden — erstellen Sie die Gutschrift aus der Originalrechnung
+LemonFacturXWarnAllNegativeLines = Vollständig negative Rechnung, die keine Gutschrift ist: Positionen werden unverändert ausgegeben, das XML verletzt BR-27 (verwenden Sie eine Dolibarr-Gutschrift)
+LemonFacturXWarnSituationInvoice = Abschlagsrechnung (Baufortschritt): wird als TypeCode 380 ausgegeben, aber die Abbildung kumulierter Beträge/Einbehalte ist nicht garantiert konform (dokumentierte Einschränkung)
+LemonFacturXWarnRoundingAdjusted = MwSt-Rundungsdifferenz von %s auf die Hauptkategorie verteilt, um BR-CO-14 zu gewährleisten (Summen prüfen)
+LemonFacturXWarnTaxMismatch = Differenz von %s zwischen Positions-MwSt und der MwSt-Gesamtsumme der Rechnung, nicht zuordenbar (keine besteuerte Kategorie)
+LemonFacturXWarnTaxRecomputed = MwSt der Kategorie %s aus ihrer Bemessungsgrundlage neu berechnet (%s statt %s), um BR-CO-17 zu erfüllen — die Differenz zur Dolibarr-Summe stammt aus positionsweiser Rundung (Rundungsmodus prüfen)
+LemonFacturXWarnTotalsMismatch = XML-Gesamtsumme (%s) weicht von der Dolibarr-Summe (%s) ab — lokale Steuern oder inkonsistente Positionen; das XML priorisiert die interne EN16931-Konsistenz (BR-CO-15)
+LemonFacturXWarnVeraPdfNotFound = veraPDF nicht gefunden oder nicht ausführbar: %s (LEMONFACTURX_VERAPDF_PATH)
+LemonFacturXWarnVeraPdfFailed = veraPDF: Die erzeugte PDF ist nicht PDF/A-3b-konform (Details im Syslog) — prüfen Sie MAIN_PDF_FORCE_FONT und die Bilder des PDF-Templates
+LemonFacturXWarnBrPrefix = EN16931-Geschäftsregel:
+LemonFacturXWarnCorrectiveNoSource = Korrekturrechnung ohne verknüpfte Ursprungsrechnung: Die Referenz auf die ersetzte Rechnung (BT-25, gefordert durch Regel BR-FR-CO-04) kann nicht ausgegeben werden — erstellen Sie die Ersatzrechnung aus der Originalrechnung
+LemonFacturXWarnRefTooLong = Rechnungsnummer (BT-1) zu lang: %s Zeichen, maximal 35 (Regel BR-FR-01)
+LemonFacturXWarnRefCharset = Rechnungsnummer (BT-1) „%s" enthält unzulässige Zeichen — erlaubt: Buchstaben, Ziffern und - + _ / , kein Leerzeichen (Regel BR-FR-02)
+LemonFacturXWarnSellerSirenSiretMismatch = SIREN (%s) und SIRET (%s) des Verkäufers sind inkonsistent: Die ersten 9 Ziffern der SIRET müssen der SIREN entsprechen (Regel BR-FR-09) — korrigieren Sie die Firmendaten
+LemonFacturXWarnBuyerSirenSiretMismatch = SIREN (%s) und SIRET (%s) des Käufers sind inkonsistent: Die ersten 9 Ziffern der SIRET müssen der SIREN entsprechen (Regel BR-FR-09) — korrigieren Sie die Geschäftspartnerdaten
+LemonFacturXWarnVatRateNotFR = MwSt-Satz %s %% ist nicht in der Liste der zulässigen französischen Sätze (Festland und Überseedepartements) enthalten (Regel BR-FR-16) — prüfen Sie die Eingabe, falls dieser Satz nicht beabsichtigt ist
+LemonFacturXWarnEndpointSuffixCharset = Das Suffix der elektronischen Verkäuferadresse (LEMONFACTURX_ENDPOINT_SUFFIX_SELLER) enthält unzulässige Zeichen — bei der Ausgabe werden nur Buchstaben, Ziffern und - _ . übernommen (Regel BR-FR-23)
+LemonFacturXWarnEndpointTooLong = Elektronische Verkäuferadresse ist %s Zeichen lang: maximal 125 (Regel BR-FR-25) — kürzen Sie das konfigurierte Suffix
+
+LemonFacturXAboutTitle = Entwickelt und gepflegt von Lemon
+LemonFacturXAboutIntro = LemonFacturX ist ein kostenloses Open-Source-Modul, entwickelt von <a href="https://hellolemon.fr" target="_blank" rel="noopener"><strong>Lemon</strong></a>, einer Webagentur aus Clermont-Ferrand (Frankreich), gegründet 2012. Wir unterstützen kleine Unternehmen bei Dolibarr, E-Rechnung und Business-KI.
+LemonFacturXAboutSvc1Title = Websites und Anwendungen
+LemonFacturXAboutSvc1Desc = Unternehmensseiten, E-Commerce, individuelle Business-Anwendungen
+LemonFacturXAboutSvc2Title = Individuelle Dolibarr-Module
+LemonFacturXAboutSvc2Desc = CRM, E-Rechnung, NFC-Zeiterfassung, API-Integrationen, Automatisierungen
+LemonFacturXAboutSvc3Title = E-Rechnung
+LemonFacturXAboutSvc3Desc = Factur-X-EN16931-Konformität, Anbindung an zertifizierte französische Plattformen, Begleitung der Reform 2026–2027
+LemonFacturXAboutSvc4Title = KI für Unternehmen
+LemonFacturXAboutSvc4Desc = Extraktion von Lieferantenrechnungen, Bankabgleich, Content-Erstellung, Business-Assistenten
+LemonFacturXAboutSvc5Title = Dolibarr-Einführung und -Hosting
+LemonFacturXAboutSvc5Desc = Installation, Migration, Konfiguration, Team-Schulungen
+LemonFacturXAboutCTA = Sprechen wir über Ihr Projekt
+LemonFacturXAboutLocation = Clermont-Ferrand (Frankreich) — hello@hellolemon.fr
+
+# v3.1 — BR-FR-05 mentions bridge to the invoice footer (FACTURE_FREE_TEXT)
+LemonFacturXCopyNotesDone = %s Angabe(n) zur Dolibarr-Rechnungsfußzeile hinzugefügt („Ergänzender Hinweis auf Rechnungen")
+LemonFacturXDiagFreeTextMissing = Dolibarr-Rechnungsfußzeile leer („Ergänzender Hinweis auf Rechnungen") — die BR-FR-05-Angaben stehen im XML, erscheinen aber nicht im Klartext auf der gedruckten PDF. Empfohlen, nicht blockierend: Aktivieren Sie „Angaben in die Rechnungsfußzeile kopieren" unter Pflichtangaben.
+LemonFacturXDiagFreeTextOk = Dolibarr-Rechnungsfußzeile ausgefüllt (Angaben auf der PDF sichtbar)
+
+# v3.4.0 — Chorus Pro profile (B2G): 2nd PDF + extrafields
+LemonFacturXEfChorus = Chorus-Pro-Rechnung (öffentlicher Sektor)
+LemonFacturXEfServiceCode = Service-Code (Chorus, BT-10)
+LemonFacturXEfEngagement = Nummer der rechtlichen Verpflichtung (Chorus, BT-13)
+LemonFacturXEfMarche = Vertrags-/Auftragsnummer (Chorus, BT-12)
+LemonFacturXChorusGenerated = Chorus-Pro-PDF zusätzlich erzeugt: %s
+LemonFacturXChorusErr = Die Chorus-Pro-PDF konnte nicht erzeugt werden (die Standard-Factur-X-PDF bleibt gültig)
+
+# Factur-X dropdown menu (v3.4.1)
+LemonFacturXMenuLabel = Factur-X
+LemonFacturXBtnGenerateChorus = Chorus-PDF erzeugen
+
+# Chorus Pro tab (v3.4.0)
+LemonFacturXChorusTab = Chorus Pro
+LemonFacturXChorusTabHelp = Einstellungen für das Profil „öffentlicher Sektor". Fällt diese Rechnung unter Chorus Pro, wird zusätzlich zur Standard-Factur-X eine zweite Datei „{ref}-CHORUS.pdf" in dem von Chorus erwarteten Format erzeugt (SIRET in der rechtlichen Kennung + Referenzen unten).
+LemonFacturXChorusDetected = Chorus-Pro-Profil für diese Rechnung erkannt
+LemonFacturXEfCadre = Rechnungsstellungsrahmen (Chorus, BT-23)
+LemonFacturXEfChorusHint = Chorus-PDF-Erzeugung auch ohne automatische Erkennung erzwingen
+LemonFacturXChorusTabGenerateHint = Die -CHORUS.pdf wird (neu) erzeugt, wenn die Rechnungs-PDF neu erzeugt wird, oder über das Menü „Factur-X › Chorus-PDF erzeugen".
+
+# Chorus Pro opt-in toggle
+LemonFacturXChorusEnabled = Chorus-Pro-Funktionen (öffentlicher Sektor)
+LemonFacturXChorusEnabledHint = Zeigt den Chorus-Pro-Reiter auf Rechnungen und die Chorus-PDF-Erzeugung an. Nur aktivieren, wenn Sie an den öffentlichen Sektor fakturieren.
+LemonFacturXChorusSuggested = Diese Rechnung scheint an den öffentlichen Sektor gerichtet zu sein (staatliche SIRET). Aktivieren Sie die Chorus-Pro-Funktionen in den Moduleinstellungen, falls Sie sie bei Chorus Pro einreichen müssen.
+
+# Setup reorganised into blocks (v3.4.0)
+LemonFacturXSecBilling = Rechnungsstellung
+LemonFacturXSecPublic = Öffentlicher Sektor (Chorus Pro)
+LemonFacturXSecValidation = Validierung und Konformität
+LemonFacturXSecTech = Technik (erweitert)
+LemonFacturXNotesInFooter = Angaben in die Rechnungsfußzeile kopieren
+LemonFacturXNotesInFooterHint = Bei Ja werden die obigen Angaben an „Zusätzlicher Text auf Rechnungen" (Fußzeile jeder PDF) angehängt, ohne bestehenden Text zu verändern. Wird beim Speichern angewendet.
+LemonFacturXPhpCliAutoPlaceholder = auto (erkannt)
+LemonFacturXDiagPhpCliAuto = automatisch erkannt
+LemonFacturXSecPA = Adressierung über zugelassene Plattform (PA)
+LemonFacturXEndpointSuffixSeller = Endpoint-Suffix des Verkäufers (BT-34)
+LemonFacturXEndpointSuffixSellerHint = Suffix, das an die SIREN des Ausstellers in der elektronischen Verkäuferadresse angehängt wird. Manche zugelassenen Plattformen (z. B. Hubtimize/Esalink) verlangen, dass diese Adresse NICHT die bloße SIREN ist, sondern ein Peppol-Endpoint mit Suffix — „SIREN_Status" (Rückgabeadresse für Lifecycle-Status), wie bei der Registrierung der Einheit konfiguriert. Muss Byte für Byte mit der auf der PA registrierten Adresse übereinstimmen. Leer = bloße SIREN (Legacy-PPF-Verzeichnis). Beeinflusst NICHT die Käuferadresse (BT-49), die immer als bloße SIREN ausgegeben wird.
+LemonFacturXEndpointSuffixSellerPlaceholder = z. B. _Status — leer = bloße SIREN
+LemonFacturXNotesOverwrite = Bestehende Dolibarr-Angabe überschreiben
+LemonFacturXNotesOverwriteHint = Bei Nein werden unsere Angaben nach dem bestehenden „Zusätzlicher Text auf Rechnungen" angehängt. Bei Ja ersetzen sie ihn vollständig. Ein leeres Feld wird in beiden Fällen mit unseren Angaben gefüllt.
+LemonFacturXNotesAppend = anhängen
+LemonFacturXNotesReplace = ersetzen
+LemonFacturXChorusToNote = Chorus-Referenzen in die öffentliche Notiz kopieren
+LemonFacturXChorusToNoteHint = Fügt die ausgefüllten Chorus-Felder (Rahmen, Service-Code, Verpflichtungs-Nr., Vertrags-Nr.) der öffentlichen Notiz der Rechnung hinzu, die auf der PDF gedruckt wird. Leere Felder werden ignoriert, keine Duplikate.
+LemonFacturXChorusToNoteDone = %s Chorus-Referenz(en) zur öffentlichen Notiz hinzugefügt
+LemonFacturXChorusToNoteAlready = Die Chorus-Referenzen stehen bereits in der öffentlichen Notiz
+LemonFacturXChorusToNoteEmpty = Kein ausgefülltes Chorus-Feld zum Kopieren vorhanden
+LemonFacturXPdfFont = Schriftart der erzeugten PDF
+LemonFacturXPdfFontHint = Schriftart, die für alle Dolibarr-PDFs erzwungen wird. Für Factur-X-Konformität (PDF/A-3) muss die Schriftart eingebettet sein (✓). Nicht konforme Schriftarten (⚠, Base-14) machen die PDF/A-3-Gültigkeit zunichte, auch wenn die Darstellung gut aussieht. „Standardschriftart" hebt die Erzwingung auf.
+LemonFacturXPdfFontDefault = — Dolibarr-Standardschriftart (keine Erzwingung) —
+LemonFacturXPdfFontOk = ✓ Factur-X-konform (eingebettet)
+LemonFacturXPdfFontKo = ⚠ nicht PDF/A-3-konform (nicht eingebettet)
