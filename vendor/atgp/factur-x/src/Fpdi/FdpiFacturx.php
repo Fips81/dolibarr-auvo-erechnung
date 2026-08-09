@@ -263,7 +263,7 @@ class FdpiFacturx extends \setasign\Fpdi\Fpdi
         $this->_put('<<');
         $this->_put('/Type /OutputIntent');
         $this->_put('/S /GTS_PDFA1');
-        $this->_put('/OuputCondition (sRGB)');
+        $this->_put('/OutputCondition (sRGB)');
         $this->_put('/OutputConditionIdentifier (Custom)');
         $this->_put('/DestOutputProfile '.($this->n + 1).' 0 R');
         $this->_put('/Info (sRGB V4 ICC)');

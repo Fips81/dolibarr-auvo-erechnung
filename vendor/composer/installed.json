@@ -2,17 +2,17 @@
     "packages": [
         {
             "name": "atgp/factur-x",
-            "version": "v3.3.0",
-            "version_normalized": "3.3.0.0",
+            "version": "v3.4.1",
+            "version_normalized": "3.4.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/atgp/factur-x.git",
-                "reference": "547b59073ff2497885232d1c0c6e93b5ec9d0c8d"
+                "reference": "59990c9284501fc121d4aa4089e31cd40cbcfe4b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/atgp/factur-x/zipball/547b59073ff2497885232d1c0c6e93b5ec9d0c8d",
-                "reference": "547b59073ff2497885232d1c0c6e93b5ec9d0c8d",
+                "url": "https://api.github.com/repos/atgp/factur-x/zipball/59990c9284501fc121d4aa4089e31cd40cbcfe4b",
+                "reference": "59990c9284501fc121d4aa4089e31cd40cbcfe4b",
                 "shasum": ""
             },
             "require": {
@@ -31,7 +31,7 @@
                 "phpstan/phpstan": "^2.0",
                 "phpunit/phpunit": "^9.6"
             },
-            "time": "2026-04-17T08:36:50+00:00",
+            "time": "2026-07-15T11:46:59+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -60,7 +60,7 @@
             ],
             "support": {
                 "issues": "https://github.com/atgp/factur-x/issues",
-                "source": "https://github.com/atgp/factur-x/tree/v3.3.0"
+                "source": "https://github.com/atgp/factur-x/tree/v3.4.1"
             },
             "install-path": "../atgp/factur-x"
         },

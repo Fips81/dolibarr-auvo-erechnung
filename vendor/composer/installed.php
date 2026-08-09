@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'atgp/factur-x' => array(
-            'pretty_version' => 'v3.3.0',
-            'version' => '3.3.0.0',
-            'reference' => '547b59073ff2497885232d1c0c6e93b5ec9d0c8d',
+            'pretty_version' => 'v3.4.1',
+            'version' => '3.4.1.0',
+            'reference' => '59990c9284501fc121d4aa4089e31cd40cbcfe4b',
             'type' => 'library',
             'install_path' => __DIR__ . '/../atgp/factur-x',
             'aliases' => array(),
