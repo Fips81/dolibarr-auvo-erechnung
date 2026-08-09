@@ -64,6 +64,7 @@ LemonFacturXLegalNotes = Mandatory French legal mentions (BR-FR-05)
 LemonFacturXNotePMD = Late payment penalties (PMD)
 LemonFacturXNotePMT = Recovery indemnity (PMT)
 LemonFacturXNoteAAB = Early payment discount (AAB)
+LemonFacturXLegalNotesForeignHint = Seller established outside France: no default mention is applied (the default texts come from the French Commercial Code). Fields left empty produce no note in the XML — enter your own mentions here if your national law requires them.
 
 LemonFacturXUpdateAvailable = New version available
 LemonFacturXUpdateAvailableMsg = A newer version of the module is published on GitHub (%s, current: %s).

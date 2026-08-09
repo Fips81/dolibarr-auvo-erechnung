@@ -20,7 +20,7 @@ LemonFacturXDiagResults = Prüfung Factur-X EN16931 + BR-FR-Regeln
 LemonFacturXDiagSellerName = Firmenname des Verkäufers
 LemonFacturXDiagSellerAddress = Adresse des Verkäufers
 LemonFacturXDiagSellerVAT = Umsatzsteuer-Identifikationsnummer
-LemonFacturXDiagSellerVATFranchise = nicht erforderlich (französische MwSt-Befreiung, Art. 293 B CGI) — die SIREN wird als Steuerkennung ausgegeben
+LemonFacturXDiagSellerVATFranchise = nicht erforderlich (Kleinunternehmerregelung) — als Steuerkennung (BT-32) wird die Steuernummer ausgegeben, bei französischen Verkäufern die SIREN
 LemonFacturXDiagSellerSIRET = SIRET / SIREN
 LemonFacturXDiagSellerEmail = E-Mail des Verkäufers
 LemonFacturXDiagIBAN = IBAN des Bankkontos
@@ -64,6 +64,7 @@ LemonFacturXLegalNotes = Französische Pflichtangaben (BR-FR-05)
 LemonFacturXNotePMD = Verzugszinsen (PMD)
 LemonFacturXNotePMT = Pauschale Beitreibungsentschädigung (PMT)
 LemonFacturXNoteAAB = Skonto bei vorzeitiger Zahlung (AAB)
+LemonFacturXLegalNotesForeignHint = Verkäufer außerhalb Frankreichs: Es werden keine Standardangaben gesetzt (die Vorgabetexte stammen aus dem französischen Code de commerce). Leere Felder erzeugen keine Note im XML — tragen Sie hier Ihre eigenen Angaben ein, etwa Verzugszinsen nach § 288 BGB oder Ihre Skontoregelung.
 
 LemonFacturXUpdateAvailable = Neue Version verfügbar
 LemonFacturXUpdateAvailableMsg = Eine neuere Version des Moduls ist auf GitHub veröffentlicht (%s, aktuell: %s).

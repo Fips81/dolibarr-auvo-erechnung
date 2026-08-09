@@ -175,13 +175,20 @@ print '</select></td></tr>';
 
 // ---- Bloc 2 : Mentions légales ----
 print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("LemonFacturXLegalNotes").'</td></tr>';
+// Les défauts PMD/PMT/AAB sont des mentions du droit français : pour un vendeur
+// établi hors de France les champs restent vides tant qu'il n'a pas saisi les
+// siennes (cf. lemonfacturx_resolve_legal_notes).
+$legalNotes = lemonfacturx_resolve_legal_notes(lemonfacturx_seller_is_fr($mysoc));
+if (!lemonfacturx_seller_is_fr($mysoc)) {
+	print '<tr class="oddeven"><td colspan="2"><span class="opacitymedium small">'.$langs->trans("LemonFacturXLegalNotesForeignHint").'</span></td></tr>';
+}
 foreach ([
-	['LEMONFACTURX_NOTE_PMD', 'LemonFacturXNotePMD', LEMONFACTURX_DEFAULT_NOTE_PMD],
-	['LEMONFACTURX_NOTE_PMT', 'LemonFacturXNotePMT', LEMONFACTURX_DEFAULT_NOTE_PMT],
-	['LEMONFACTURX_NOTE_AAB', 'LemonFacturXNoteAAB', LEMONFACTURX_DEFAULT_NOTE_AAB],
-] as $note) {
-	$val = lemonfacturx_conf_or_default($note[0], $note[2]);
-	print '<tr class="oddeven"><td>'.$langs->trans($note[1]).'</td><td><textarea name="'.$note[0].'" class="flat minwidth500" rows="3">'.dol_escape_htmltag($val).'</textarea></td></tr>';
+	'PMD' => 'LemonFacturXNotePMD',
+	'PMT' => 'LemonFacturXNotePMT',
+	'AAB' => 'LemonFacturXNoteAAB',
+] as $code => $transKey) {
+	$val = $legalNotes[$code];
+	print '<tr class="oddeven"><td>'.$langs->trans($transKey).'</td><td><textarea name="LEMONFACTURX_NOTE_'.$code.'" class="flat minwidth500" rows="3">'.dol_escape_htmltag($val).'</textarea></td></tr>';
 }
 print '<tr class="oddeven"><td>'.$langs->trans("LemonFacturXNotesInFooter").'<br><span class="opacitymedium small">'.$langs->trans("LemonFacturXNotesInFooterHint").'</span></td><td>';
 $notesFooter = getDolGlobalInt('LEMONFACTURX_NOTES_IN_FOOTER', 0);

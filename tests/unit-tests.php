@@ -921,6 +921,84 @@ lfx_assert(empty($w), 'aucun warning de mismatch de totaux ('.implode(' ; ', $w)
 echo "U31 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U32 vendeur allemand Kleinunternehmer (§ 19 UStG) — profil ZUGFeRD/EN16931';
+lfx_reset([], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+// Conventions Dolibarr DE : idprof1 = USt-IdNr, idprof2 = USt-Nr (Steuernummer).
+// Un Kleinunternehmer n'a pas d'USt-IdNr : tva_intra et idprof1 sont vides.
+$deSoc = lfx_make_party([
+	'name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '10115', 'town' => 'Berlin',
+	'address' => 'Chausseestr. 1', 'email' => 'rechnung@muster.example',
+	'tva_intra' => '', 'idprof1' => '', 'idprof2' => '151/815/08154', 'tva_assuj' => 0,
+]);
+$deBuyer = lfx_make_party([
+	'name' => 'KUNDE AG', 'country_code' => 'DE', 'zip' => '80331', 'town' => 'München',
+	'tva_intra' => 'DE123456789', 'idprof1' => '', 'idprof2' => '', 'tva_assuj' => 1,
+]);
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-0042';
+$inv->thirdparty = $deBuyer;
+$inv->lines = [lfx_make_line(1000.00, 0.0, 0.00, 1.0, 'Beratungsleistung', 1)];
+$inv->total_ht = 1000.00;
+$inv->total_tva = 0.00;
+$inv->total_ttc = 1000.00;
+$w = [];
+$xml = lemonfacturx_build_xml($inv, $deSoc, $w);
+lfx_std_validate($xml, $xsdPath);
+$xp = lfx_xpath($xml);
+// BT-32 : la Steuernummer vient de idprof2, pas de idprof1 (= USt-IdNr côté Dolibarr).
+lfx_assert_eq('151/815/08154', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="FC"]'), 'BT-32 = Steuernummer (idprof2) sous schemeID FC');
+lfx_assert_eq(0, $xp->query('//ram:SellerTradeParty/ram:SpecifiedLegalOrganization')->length, 'pas de SIREN/BT-30 pour un vendeur allemand');
+// Motif d'exonération § 19 UStG, sans code VATEX (aucun code CEF ne correspond).
+lfx_assert_eq('E', lfx_xp_str($xp, '//ram:ApplicableTradeTax/ram:CategoryCode'), 'catégorie TVA E (exonéré)');
+lfx_assert(strpos((string) lfx_xp_str($xp, '//ram:ApplicableTradeTax/ram:ExemptionReason'), '§ 19 UStG') !== false, 'motif d\'exonération allemand (§ 19 UStG)');
+lfx_assert_eq(0, $xp->query('//ram:ApplicableTradeTax/ram:ExemptionReasonCode')->length, 'pas de code VATEX français sur une facture allemande');
+// Aucun élément du socle réforme FR ne doit fuiter dans une facture allemande.
+lfx_assert_eq(0, $xp->query('//ram:BusinessProcessSpecifiedDocumentContextParameter')->length, 'BT-23 (cadre XP Z12-012) non émis hors vendeur FR');
+lfx_assert_eq(0, $xp->query('//ram:IncludedNote')->length, 'aucune mention légale française (PMD/PMT/AAB/BAR) hors vendeur FR');
+lfx_assert(!lfx_contains(lemonfacturx_check_mandatory($inv, $deSoc), 'LemonFacturXWarnSellerSIRET'), 'pas de warning SIRET pour un vendeur allemand');
+echo "U32 OK\n";
+
+// ---------------------------------------------------------------------------
+$currentTest = 'U33 mentions légales configurées explicitement par un vendeur allemand';
+lfx_reset([
+	'LEMONFACTURX_NOTE_PMD' => 'Bei Zahlungsverzug werden Verzugszinsen gemäß § 288 BGB berechnet.',
+], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-0043';
+$inv->thirdparty = $deBuyer;
+$inv->lines = [lfx_make_line(1000.00, 0.0, 0.00, 1.0, 'Beratungsleistung', 1)];
+$inv->total_ht = 1000.00;
+$inv->total_tva = 0.00;
+$inv->total_ttc = 1000.00;
+$w = [];
+$xml = lemonfacturx_build_xml($inv, $deSoc, $w);
+lfx_std_validate($xml, $xsdPath);
+$xp = lfx_xpath($xml);
+lfx_assert_eq(1, $xp->query('//ram:IncludedNote')->length, 'seule la mention explicitement configurée est émise');
+lfx_assert_eq('PMD', lfx_xp_str($xp, '//ram:IncludedNote/ram:SubjectCode'), 'code sujet PMD conservé');
+lfx_assert(strpos((string) lfx_xp_str($xp, '//ram:IncludedNote/ram:Content'), '§ 288 BGB') !== false, 'contenu allemand saisi par l\'utilisateur');
+echo "U33 OK\n";
+
+// ---------------------------------------------------------------------------
+$currentTest = 'U34 vendeur français : socle réforme FR inchangé (non-régression)';
+lfx_reset();
+$inv = new LfxFakeInvoice();
+$inv->ref = 'FA2026-0044';
+$inv->thirdparty = lfx_make_party();
+$inv->lines = [lfx_make_line(1000.00, 20.0, 200.00)];
+$inv->total_ht = 1000.00;
+$inv->total_tva = 200.00;
+$inv->total_ttc = 1200.00;
+$w = [];
+$xml = lemonfacturx_build_xml($inv, $mysoc, $w);
+lfx_std_validate($xml, $xsdPath);
+$xp = lfx_xpath($xml);
+lfx_assert_eq('B1', lfx_xp_str($xp, '//ram:BusinessProcessSpecifiedDocumentContextParameter/ram:ID'), 'BT-23 toujours émis pour un vendeur FR');
+lfx_assert_eq(4, $xp->query('//ram:IncludedNote')->length, 'les 4 notes FR (PMD/PMT/AAB/BAR) restent émises');
+lfx_assert_eq('B2B', lfx_xp_str($xp, '//ram:IncludedNote[ram:SubjectCode="BAR"]/ram:Content'), 'note BAR toujours émise pour un vendeur FR');
+echo "U34 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

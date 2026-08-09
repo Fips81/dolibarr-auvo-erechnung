@@ -50,6 +50,28 @@ function lemonfacturx_trans($key, ...$args)
 }
 
 /**
+ * Le vendeur est-il établi en France au sens du socle réforme ?
+ *
+ * Sert de garde unique à tout ce qui relève du droit français : mentions
+ * légales PMD/PMT/AAB (BR-FR-05), note BAR (BR-FR-07/20/31), cadre de
+ * facturation BT-23 (BR-FR-08) et contrôle des identifiants SIREN/SIRET.
+ * Ces éléments ne sont pas opposables à un vendeur étranger — Factur-X est
+ * la même spécification que ZUGFeRD et sert aussi hors de France ; les
+ * émettre pour un vendeur allemand y injecterait du droit français.
+ * Les DOM sont assimilés à la France (BR-FR-MAP-14).
+ *
+ * @param Societe|object $mysoc  Société émettrice
+ * @return bool
+ */
+function lemonfacturx_seller_is_fr($mysoc)
+{
+	// Pays inconnu (objet absent, fiche société incomplète) : on retombe sur FR,
+	// comportement historique du module.
+	$country = (is_object($mysoc) && !empty($mysoc->country_code)) ? strtoupper($mysoc->country_code) : 'FR';
+	return ($country === 'FR' || in_array($country, LEMONFACTURX_FR_OVERSEAS_COUNTRIES, true));
+}
+
+/**
  * Vérifie si la facture est dans le périmètre supporté par le générateur.
  * Renvoie un message d'erreur bloquant, ou null si la facture est traitable.
  *
@@ -107,6 +129,11 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 	$profile = (isset($options['profile']) && $options['profile'] === 'choruspro') ? 'choruspro' : 'pdp';
 	$legalIdMode = ($profile === 'choruspro') ? 'siret' : 'siren';
 
+	// Tout le bloc « socle réforme française » (BT-23, note BAR, mentions
+	// légales) est conditionné à un vendeur établi en France : hors de France
+	// le document reste un Factur-X/ZUGFeRD EN16931 pur.
+	$sellerIsFR = lemonfacturx_seller_is_fr($mysoc);
+
 	$typeCode = lemonfacturx_resolve_document_type($invoice, $buildWarnings);
 	$isCreditNote = ($typeCode === '381');
 	$sign = $isCreditNote ? -1.0 : 1.0;
@@ -156,9 +183,13 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 	//    (24 valeurs A1..A25, A1 par défaut) — chemin historique inchangé ;
 	//  - profil PDP/B2B : valeur du socle XP Z12-012 dérivée des lignes et des
 	//    acomptes imputés (cas nominal : dépôt de la facture par le fournisseur).
+	// Vendeur hors France : BT-23 est optionnel en EN16931 (0..1) et les codes
+	// B1/S1/M1 sont propres à XP Z12-012 → on n'émet rien.
 	$bt23 = ($profile === 'choruspro')
 		? (!empty($options['cadre']) ? $options['cadre'] : 'A1')
-		: lemonfacturx_resolve_business_process($billableLines, $typeCode, lemonfacturx_get_prepaid_amount($invoice));
+		: ($sellerIsFR
+			? lemonfacturx_resolve_business_process($billableLines, $typeCode, lemonfacturx_get_prepaid_amount($invoice))
+			: '');
 	if ($bt23 !== '') {
 		$xml .= '  <ram:BusinessProcessSpecifiedDocumentContextParameter>'."\n";
 		$xml .= '    <ram:ID>'.lemonfacturx_xml_encode($bt23).'</ram:ID>'."\n";
@@ -177,9 +208,11 @@ function lemonfacturx_build_xml($invoice, $mysoc, &$buildWarnings = [], $options
 	$xml .= '    <udt:DateTimeString format="102">'.lemonfacturx_xml_encode($issueDate).'</udt:DateTimeString>'."\n";
 	$xml .= '  </ram:IssueDateTime>'."\n";
 	// Note BAR (BR-FR-07/20) : qualification du traitement attendu, émise sur le
-	// profil PDP uniquement (le B2G Chorus a son propre marquage, hors périmètre).
-	$barCode = ($profile === 'choruspro') ? '' : lemonfacturx_resolve_bar_code($buyer);
-	$xml .= lemonfacturx_build_legal_notes_xml($barCode);
+	// profil PDP uniquement (le B2G Chorus a son propre marquage, hors périmètre)
+	// et pour un vendeur français uniquement — le code qualifie le flux de la
+	// réforme FR (e-invoicing / e-reporting), sans objet pour un vendeur étranger.
+	$barCode = ($profile === 'choruspro' || !$sellerIsFR) ? '' : lemonfacturx_resolve_bar_code($buyer);
+	$xml .= lemonfacturx_build_legal_notes_xml($barCode, $sellerIsFR);
 	$xml .= '</rsm:ExchangedDocument>'."\n";
 
 	// === SupplyChainTradeTransaction ===
@@ -394,6 +427,18 @@ function lemonfacturx_filter_billable_lines($lines)
 {
 	$out = [];
 	foreach ((array) $lines as $line) {
+		// product_type=9 est la convention cœur Dolibarr pour les lignes de
+		// présentation (titres, sous-totaux) ajoutées par le module natif
+		// "Subtotals" (special_code 81) ou par des modules tiers comme
+		// ATM Consulting "Sous-total" (special_code 104777). Ces lignes ne
+		// représentent aucun bien/service facturable ; certaines portent un
+		// montant non nul (sous-total affiché), ce qui les ferait compter en
+		// double dans le XML EN16931 si elles n'étaient pas exclues ici.
+		$productType = isset($line->product_type) ? (int) $line->product_type : null;
+		if ($productType === 9) {
+			continue;
+		}
+
 		if ((float) $line->qty == 0 && (float) $line->total_ht == 0) {
 			continue;
 		}
@@ -553,27 +598,63 @@ function lemonfacturx_conf_or_default($key, $default)
 }
 
 /**
+ * Mentions légales PMD/PMT/AAB effectivement applicables, dans l'ordre
+ * d'émission, après surcharge par les constantes Dolibarr.
+ *
+ * Les trois textes par défaut sont des obligations du droit français
+ * (art. L.441-9 et L.441-10 du Code de commerce, règle BR-FR-05). Pour un
+ * vendeur établi hors de France, aucun défaut n'est appliqué : Factur-X est
+ * la même spécification que ZUGFeRD, et imprimer d'office des mentions
+ * françaises — ou leur transposition devinée — dans la facture d'un vendeur
+ * étranger serait faux. Les constantes LEMONFACTURX_NOTE_* restent
+ * pleinement utilisables : un vendeur allemand y saisit ses propres mentions
+ * (§ 288 BGB, escompte…), et elles sont alors émises normalement.
+ *
+ * @param bool $sellerIsFR  cf. lemonfacturx_seller_is_fr()
+ * @return array<string,string>  ['PMD' => texte, 'PMT' => texte, 'AAB' => texte]
+ */
+function lemonfacturx_resolve_legal_notes($sellerIsFR = true)
+{
+	$defaults = $sellerIsFR
+		? [
+			'PMD' => LEMONFACTURX_DEFAULT_NOTE_PMD,
+			'PMT' => LEMONFACTURX_DEFAULT_NOTE_PMT,
+			'AAB' => LEMONFACTURX_DEFAULT_NOTE_AAB,
+		]
+		: ['PMD' => '', 'PMT' => '', 'AAB' => ''];
+
+	$notes = [];
+	foreach ($defaults as $code => $default) {
+		$notes[$code] = lemonfacturx_conf_or_default('LEMONFACTURX_NOTE_'.$code, $default);
+	}
+	return $notes;
+}
+
+/**
  * Génère les 3 IncludedNote BR-FR-05 (PMD, PMT, AAB) avec les valeurs
  * surchargeables via constantes Dolibarr (défaut appliqué si la constante est vide),
  * plus la note BAR (qualification du traitement attendu, BR-FR-07/20) quand un
  * code est fourni. Chaque code sujet n'est émis qu'une fois (BR-FR-06, BR-FR-31).
  *
- * @param string $barCode  'B2B', 'B2BINT' ou 'B2C' (cf. lemonfacturx_resolve_bar_code),
- *                         ou '' pour ne pas émettre de note BAR
+ * @param string $barCode     'B2B', 'B2BINT' ou 'B2C' (cf. lemonfacturx_resolve_bar_code),
+ *                            ou '' pour ne pas émettre de note BAR
+ * @param bool   $sellerIsFR  cf. lemonfacturx_seller_is_fr()
  */
-function lemonfacturx_build_legal_notes_xml($barCode = '')
+function lemonfacturx_build_legal_notes_xml($barCode = '', $sellerIsFR = true)
 {
-	$notes = [
-		'PMD' => lemonfacturx_conf_or_default('LEMONFACTURX_NOTE_PMD', LEMONFACTURX_DEFAULT_NOTE_PMD),
-		'PMT' => lemonfacturx_conf_or_default('LEMONFACTURX_NOTE_PMT', LEMONFACTURX_DEFAULT_NOTE_PMT),
-		'AAB' => lemonfacturx_conf_or_default('LEMONFACTURX_NOTE_AAB', LEMONFACTURX_DEFAULT_NOTE_AAB),
-	];
+	$notes = lemonfacturx_resolve_legal_notes($sellerIsFR);
 	if ($barCode !== '') {
 		// BR-FR-20 : le contenu (BT-22) est le code brut, sans texte libre autour
 		$notes['BAR'] = $barCode;
 	}
 	$xml = '';
 	foreach ($notes as $code => $content) {
+		// Une note sans contenu violerait PEPPOL-EN16931-R008 (« Document MUST
+		// not contain empty elements ») : cas d'un vendeur étranger sans
+		// mention configurée.
+		if (trim((string) $content) === '') {
+			continue;
+		}
 		$xml .= '  <ram:IncludedNote>'."\n";
 		$xml .= '    <ram:Content>'.lemonfacturx_xml_encode($content).'</ram:Content>'."\n";
 		$xml .= '    <ram:SubjectCode>'.$code.'</ram:SubjectCode>'."\n";
@@ -864,7 +945,7 @@ function lemonfacturx_check_mandatory($invoice, $mysoc)
 	$warnings = [];
 
 	// SIREN/SIRET : identifiants français — mêmes règles de pays que le générateur
-	$sellerIsFR = strtoupper(!empty($mysoc->country_code) ? $mysoc->country_code : 'FR') === 'FR';
+	$sellerIsFR = lemonfacturx_seller_is_fr($mysoc);
 
 	$sellerChecks = [
 		'name'      => 'LemonFacturXWarnSellerName',
@@ -876,18 +957,18 @@ function lemonfacturx_check_mandatory($invoice, $mysoc)
 	];
 	$isFranchise = isset($mysoc->tva_assuj) && (int) $mysoc->tva_assuj === 0;
 	foreach ($sellerChecks as $field => $transKey) {
-        // Franchise en base (293 B CGI) : pas de TVA intra → ne pas warn
-        if ($field === 'tva_intra' && $isFranchise) {
-              continue;
-        }
-        // SIRET/SIREN : identifiant français uniquement, non pertinent hors FR
-        if ($field === 'idprof2' && !$sellerIsFR) {
-              continue;
-        }
-        if (empty($mysoc->$field)) {
-              $warnings[] = lemonfacturx_trans($transKey);
-        }
-    }
+		// Franchise en base (293 B CGI) : pas de TVA intra → ne pas warn
+		if ($field === 'tva_intra' && $isFranchise) {
+			continue;
+		}
+		// SIRET/SIREN : identifiant français uniquement, non pertinent hors FR
+		if ($field === 'idprof2' && !$sellerIsFR) {
+			continue;
+		}
+		if (empty($mysoc->$field)) {
+			$warnings[] = lemonfacturx_trans($transKey);
+		}
+	}
 
 	// BT-34 (adresse électronique vendeur) : satisfaite par le SIREN (endpoint 0225)
 	// OU l'email. On n'avertit que si aucune des deux n'est disponible.
@@ -1090,13 +1171,15 @@ function lemonfacturx_build_trade_party_xml($role, $party, $email, $legalIdMode 
 		$xml .= '      <ram:SpecifiedTaxRegistration>'."\n";
 		$xml .= '        <ram:ID schemeID="FC">'.lemonfacturx_xml_encode($siren).'</ram:ID>'."\n";
 		$xml .= '      </ram:SpecifiedTaxRegistration>'."\n";
-	} elseif ($role === 'Seller' && strtoupper($country) === 'DE' && !empty($party->idprof1)) {
-                // BR-CO-26 / BR-E-09 (DE) : Kleinunternehmer ohne USt-IdNr. — Steuernummer
-                // als Tax registration identifier (schemeID="FC") statt SIREN (FR-spezifisch).
-                $xml .= '      <ram:SpecifiedTaxRegistration>'."\n";
-                $xml .= '        <ram:ID schemeID="FC">'.lemonfacturx_xml_encode($party->idprof1).'</ram:ID>'."\n";
-                $xml .= '      </ram:SpecifiedTaxRegistration>'."\n";
-    }
+	} elseif ($role === 'Seller' && strtoupper($country) === 'DE' && lemonfacturx_party_steuernummer($party) !== '') {
+		// BR-CO-26 / BR-E-09, vendeur allemand : un Kleinunternehmer (§ 19 UStG)
+		// n'a pas d'USt-IdNr, donc pas de BT-31. On publie sa Steuernummer en
+		// BT-32 (schemeID="FC", Tax registration identifier) — pendant exact du
+		// SIREN côté français, que ZUGFeRD/XRechnung attendent dans ce cas.
+		$xml .= '      <ram:SpecifiedTaxRegistration>'."\n";
+		$xml .= '        <ram:ID schemeID="FC">'.lemonfacturx_xml_encode(lemonfacturx_party_steuernummer($party)).'</ram:ID>'."\n";
+		$xml .= '      </ram:SpecifiedTaxRegistration>'."\n";
+	}
 	$xml .= '    </ram:'.$tag.'>'."\n";
 
 	return $xml;
@@ -1247,11 +1330,15 @@ function lemonfacturx_resolve_tax_category($line, $invoice, $thirdparty, $mysoc)
 	}
 
 	if (isset($mysoc->tva_assuj) && (int) $mysoc->tva_assuj === 0) {
-        $sellerCountry = strtoupper(!empty($mysoc->country_code) ? $mysoc->country_code : 'FR');
-        if ($sellerCountry === 'DE') {
-                return ['code' => 'E', 'exemption' => 'Kein Ausweis von Umsatzsteuer, da Kleinunternehmer gemäß § 19 UStG', 'vatex' => null];
-        }
-        return ['code' => 'E', 'exemption' => 'TVA non applicable, art. 293 B du CGI', 'vatex' => 'VATEX-FR-FRANCHISE'];
+		// Régime de franchise : le motif d'exonération dépend du pays du vendeur.
+		// Le code VATEX-FR-FRANCHISE est propre au droit français ; côté allemand
+		// (§ 19 UStG) aucun code de la liste CEF ne correspond, le texte libre
+		// suffit à satisfaire BR-E-10.
+		$sellerCountry = strtoupper(!empty($mysoc->country_code) ? $mysoc->country_code : 'FR');
+		if ($sellerCountry === 'DE') {
+			return ['code' => 'E', 'exemption' => 'Kein Ausweis von Umsatzsteuer, da Kleinunternehmer gemäß § 19 UStG', 'vatex' => null];
+		}
+		return ['code' => 'E', 'exemption' => 'TVA non applicable, art. 293 B du CGI', 'vatex' => 'VATEX-FR-FRANCHISE'];
 	}
 
 	// TVA = 0 : qualifier selon le contexte
@@ -1624,7 +1711,7 @@ function lemonfacturx_fix_chorus_extrafields_display($db)
 
 function lemonfacturx_append_notes_to_footer($db, $overwrite = null)
 {
-	global $conf;
+	global $conf, $mysoc;
 	// Depuis Dolibarr 17, la « Mention complémentaire sur les factures » est
 	// stockée dans INVOICE_FREE_TEXT (ex-FACTURE_FREE_TEXT) — c'est CETTE
 	// constante que le PDF imprime. On vise donc INVOICE_FREE_TEXT.
@@ -1633,12 +1720,10 @@ function lemonfacturx_append_notes_to_footer($db, $overwrite = null)
 		$overwrite = (getDolGlobalInt('LEMONFACTURX_NOTES_OVERWRITE', 0) === 1);
 	}
 	$freeText = getDolGlobalString($constName, '');
+	// Mêmes mentions que dans le XML : pas de défaut français imposé au PDF
+	// d'un vendeur étranger (seules ses constantes LEMONFACTURX_NOTE_* comptent).
 	$mentions = array();
-	foreach (array(
-		lemonfacturx_conf_or_default('LEMONFACTURX_NOTE_PMD', LEMONFACTURX_DEFAULT_NOTE_PMD),
-		lemonfacturx_conf_or_default('LEMONFACTURX_NOTE_PMT', LEMONFACTURX_DEFAULT_NOTE_PMT),
-		lemonfacturx_conf_or_default('LEMONFACTURX_NOTE_AAB', LEMONFACTURX_DEFAULT_NOTE_AAB),
-	) as $m) {
+	foreach (lemonfacturx_resolve_legal_notes(lemonfacturx_seller_is_fr($mysoc ?? null)) as $m) {
 		$m = trim($m);
 		if ($m !== '') {
 			$mentions[] = $m;
@@ -1916,6 +2001,34 @@ function lemonfacturx_party_siren($party)
 		$siren = lemonfacturx_extract_siren($party->idprof2 ?? '');
 	}
 	return (strlen($siren) === 9) ? $siren : '';
+}
+
+/**
+ * Steuernummer (numéro fiscal allemand) d'un tiers, pour BT-32.
+ *
+ * Conventions Dolibarr pour l'Allemagne (cf. ProfId*DE) :
+ *   idprof1 = USt-IdNr (n° de TVA intracommunautaire, déjà porté par BT-31)
+ *   idprof2 = USt-Nr   → la Steuernummer, c'est CE champ
+ *   idprof3 = Handelsregister-Nr.
+ * On lit donc idprof2 en priorité. Le repli sur idprof1 ne sert qu'aux fiches
+ * où la Steuernummer a été saisie dans le premier champ : il n'est tenté que
+ * si la valeur n'est pas une USt-IdNr (préfixe pays + chiffres), pour ne
+ * jamais publier un n° de TVA sous le schéma « FC » au lieu de « VA ».
+ *
+ * @param object $party  mysoc ou Societe
+ * @return string        Steuernummer telle que saisie, ou ''
+ */
+function lemonfacturx_party_steuernummer($party)
+{
+	$steuernummer = trim((string) ($party->idprof2 ?? ''));
+	if ($steuernummer !== '') {
+		return $steuernummer;
+	}
+	$fallback = trim((string) ($party->idprof1 ?? ''));
+	if ($fallback === '' || preg_match('/^[A-Za-z]{2}[0-9]/', $fallback)) {
+		return '';
+	}
+	return $fallback;
 }
 
 /**

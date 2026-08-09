@@ -2,7 +2,7 @@
 
 [![Dernière version](https://img.shields.io/github/v/release/hello-lemon/module-dolibarr-lemonfacturx?label=version&sort=semver)](https://github.com/hello-lemon/module-dolibarr-lemonfacturx/releases/latest)
 
-Module Dolibarr pour la génération automatique de factures **Factur-X EN16931** (PDF/A-3 avec XML CrossIndustryInvoice embarqué).
+Module Dolibarr pour la génération automatique de factures **Factur-X EN16931** (PDF/A-3 avec XML CrossIndustryInvoice embarqué) — soit, sous son autre nom, **ZUGFeRD 2.x profil EN16931 (COMFORT)**.
 
 Chaque facture client générée dans Dolibarr est automatiquement convertie au format Factur-X, conforme aux règles **BR-FR** (norme XP Z12-012, édition juin 2026) pour la facturation électronique française.
 
@@ -303,7 +303,7 @@ Le Schematron officiel complet (XSLT 2.0) n'est pas exécutable en PHP : pour un
 
 ### Conformité XP Z12-012 (règles France)
 
-Règles du socle réforme française contrôlées ou émises par le module. Le bloc de règles BR-FR du validateur interne ne s'applique que si le **vendeur est établi en France** (métropole + DOM assimilés, cf. BR-FR-MAP-14) : Factur-X est aussi utilisé hors de France (ZUGFeRD) et le socle réforme n'est pas opposable à un vendeur étranger — les règles EN16931, elles, restent universelles.
+Règles du socle réforme française contrôlées ou émises par le module. Tout ce bloc — contrôles du validateur interne **et** éléments émis dans le XML — est conditionné à un **vendeur établi en France** (métropole + DOM assimilés, cf. BR-FR-MAP-14) : Factur-X est aussi utilisé hors de France (ZUGFeRD) et le socle réforme n'est pas opposable à un vendeur étranger — les règles EN16931, elles, restent universelles. Voir [Vendeur hors de France (ZUGFeRD)](#vendeur-hors-de-france-zugferd).
 
 | Règle | Objet | Traitement |
 |---|---|---|
@@ -324,6 +324,26 @@ Rappel du fonctionnement : les « violations bloquantes » n'interrompent la gé
 - le profil **EXTENDED-CTC-FR n'est pas émis** (le module produit du EN16931) — cible envisagée pour 2027 ; la variante « référence en ligne » d'un avoir (EXT-FR-FE-136, BR-FR-CO-05) est donc sans objet ;
 - la **construction des flux 1 / 10.1** vers le PPF (troncatures BR-FR-MAP-\*, transcodage des codes pays DOM…) est **déléguée à la Plateforme Agréée** : le module fournit le Factur-X source ;
 - BR-FR-10/11 (SIREN présent et actif dans l'annuaire PPF) nécessitent l'accès à l'annuaire : pré-check couvert par LemonSuperPDP, pas par ce module.
+
+### Vendeur hors de France (ZUGFeRD)
+
+Factur-X et ZUGFeRD 2.x sont la **même spécification** franco-allemande : le XML CII produit par le module (profil EN16931, embarqué sous le nom `factur-x.xml` que ZUGFeRD impose depuis la 2.1) est directement exploitable comme facture ZUGFeRD. Les schémas embarqués sont ceux de Factur-X 1.08.
+
+Quand la fiche société (`$mysoc`) porte un pays **autre que la France** (DOM assimilés à la France, BR-FR-MAP-14), le générateur n'injecte plus les éléments propres au droit français :
+
+| Élément | Vendeur FR | Vendeur hors FR |
+|---|---|---|
+| Notes **PMD / PMT / AAB** (BR-FR-05) | textes par défaut du Code de commerce, surchargeables | **aucun défaut** — seules les constantes `LEMONFACTURX_NOTE_*` explicitement renseignées sont émises |
+| Note **BAR** (BR-FR-07/20/31) | émise (`B2B` / `B2BINT` / `B2C`) | **non émise** (qualifie un flux de la réforme FR) |
+| Cadre de facturation **BT-23** (BR-FR-08) | émis (`B1`/`S1`/`M1`…) | **non émis** (optionnel en EN16931, codes propres à XP Z12-012) |
+| Contrôle **SIREN/SIRET** amont | actif | désactivé (identifiants français) |
+| Bloc de règles **BR-FR** du validateur | actif | désactivé |
+
+**Cas allemand — Kleinunternehmer (§ 19 UStG).** Avec « Assujetti à la TVA » à *Non* sur la fiche société, la catégorie de TVA passe à `E` avec le motif `Kein Ausweis von Umsatzsteuer, da Kleinunternehmer gemäß § 19 UStG` et **sans** code VATEX (aucun code de la liste CEF ne correspond ; le texte libre satisfait BR-E-10). Comme il n'y a pas d'USt-IdNr, BT-31 est absent : le module publie alors la **Steuernummer** en BT-32 (`SpecifiedTaxRegistration/ID schemeID="FC"`) pour satisfaire BR-CO-26.
+
+> ⚠️ **Où saisir la Steuernummer** — conventions Dolibarr pour l'Allemagne : `idprof1` = **USt-IdNr**, `idprof2` = **USt-Nr**, c'est-à-dire la Steuernummer. C'est donc le champ **« Prof Id 2 »** de la fiche société qu'il faut renseigner. Le champ `idprof1` n'est lu qu'en repli, et seulement si sa valeur ne ressemble pas à un n° de TVA — un n° de TVA ne doit jamais être publié sous le schéma `FC` au lieu de `VA`.
+
+Les mentions de retard de paiement allemandes (§ 288 BGB) ne sont **pas** émises d'office : à saisir dans les trois champs « Mentions légales » de la configuration du module si vous les voulez dans le XML et le pied de page PDF.
 
 ## API REST
 
