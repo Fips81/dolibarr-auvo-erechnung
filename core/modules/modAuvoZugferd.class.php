@@ -33,7 +33,7 @@ class modAuvoZugferd extends DolibarrModules
 			$this->description = "Automatische Erzeugung von ZUGFeRD-EN16931-E-Rechnungen";
 			$this->descriptionlong = "Injiziert ein CrossIndustryInvoice-XML (EN16931) in jede erzeugte Kunden-Rechnungs-PDF, für ZUGFeRD-Konformität.";
 		}
-		$this->version = '3.9.4';
+		$this->version = '3.9.5';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'bill';
 		$this->editor_name = 'auvo-design';
