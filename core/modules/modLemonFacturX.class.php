@@ -16,7 +16,7 @@ class modLemonFacturX extends DolibarrModules
 {
 	public function __construct($db)
 	{
-		global $conf;
+		global $conf, $langs;
 
 		$this->db = $db;
 		$this->numero = 210000;
@@ -26,6 +26,12 @@ class modLemonFacturX extends DolibarrModules
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = "Génération automatique de factures Factur-X EN16931";
 		$this->descriptionlong = "Injecte un XML CrossIndustryInvoice EN16931 dans chaque PDF facture client généré, pour conformité Factur-X.";
+		// Libellé localisé pour la liste des modules : l'Allemagne connaît le format sous le nom ZUGFeRD
+		// (ZUGFeRD 2.x profil EN16931 COMFORT = Factur-X EN16931, même standard).
+		if (!empty($langs) && method_exists($langs, 'getDefaultLang') && $langs->getDefaultLang() == 'de_DE') {
+			$this->description = "Automatische Erzeugung von ZUGFeRD-EN16931-E-Rechnungen";
+			$this->descriptionlong = "Injiziert ein CrossIndustryInvoice-XML (EN16931) in jede erzeugte Kunden-Rechnungs-PDF, für ZUGFeRD-Konformität.";
+		}
 		$this->version = '3.9.4';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'bill';

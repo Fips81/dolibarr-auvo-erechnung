@@ -1,5 +1,5 @@
 Module210000Name = LemonFacturX
-Module210000Desc = Automatische Erzeugung von Factur-X-EN16931-E-Rechnungen
+Module210000Desc = Automatische Erzeugung von ZUGFeRD-EN16931-E-Rechnungen
 
 LemonFacturXSetup = LemonFacturX-Einstellungen
 LemonFacturXBankAccount = Bankkonto (IBAN/BIC)
@@ -14,9 +14,9 @@ LemonFacturXBrCheckHint = Prüft vor der Injektion eine Teilmenge der EN16931-Sc
 LemonFacturXVeraPdfPath = PDF/A-3-Validierung mit veraPDF (optional, externes Tool)
 LemonFacturXVeraPdfPathHint = Standardmäßig leer = deaktiviert, und das ist in Ordnung: Die EN16931-XSD-Prüfung und die internen BR-Regeln laufen bereits. veraPDF wird NICHT mit dem Modul ausgeliefert — es ist ein Drittanbieter-Tool, das Sie selbst installieren (https://verapdf.org) und hier eintragen. Wenn gesetzt, wird jede PDF nach der Injektion erneut als PDF/A-3b validiert: nicht blockierend (ein Fehlschlag erzeugt nur eine Warnung), verlangsamt die Erzeugung um einige Sekunden.
 LemonFacturXVeraPdfPlaceholder = z. B. /usr/local/bin/verapdf — leer = deaktiviert
-LemonFacturXInfo = Erzeugte PDF-Rechnungen werden automatisch in Factur-X EN16931 umgewandelt (PDF/A-3 mit eingebettetem CrossIndustryInvoice-XML). IBAN und BIC werden aus dem ausgewählten Bankkonto gelesen.
+LemonFacturXInfo = Erzeugte PDF-Rechnungen werden automatisch in ZUGFeRD EN16931 umgewandelt (PDF/A-3 mit eingebettetem CrossIndustryInvoice-XML). IBAN und BIC werden aus dem ausgewählten Bankkonto gelesen.
 LemonFacturXDiagTitle = Diagnose der Pflichtangaben
-LemonFacturXDiagResults = Prüfung Factur-X EN16931 + BR-FR-Regeln
+LemonFacturXDiagResults = Prüfung ZUGFeRD EN16931 + BR-FR-Regeln
 LemonFacturXDiagSellerName = Firmenname des Verkäufers
 LemonFacturXDiagSellerAddress = Adresse des Verkäufers
 LemonFacturXDiagSellerVAT = Umsatzsteuer-Identifikationsnummer
@@ -42,17 +42,17 @@ LemonFacturXDiagTcpdiConflict = Die In-Process-Injektion wird fehlschlagen: Doli
 LemonFacturXErrTcpdiConflict = FPDF/TCPDF-Konflikt: Dolibarr hat seine tcpdi-Engine geladen (%s), inkompatibel mit der In-Process-Injektion. Aktivieren Sie exec() (Subprozess-Modus) oder setzen Sie die Konstante MAIN_DISABLE_TCPDI=1 (deaktiviert die PDF-Zusammenführung von Dolibarr).
 LemonFacturXDiagPhpCliOk = PHP-CLI-Binärdatei
 LemonFacturXDiagPhpCliNotFound = Die konfigurierte PHP-CLI-Binärdatei wurde nicht gefunden oder ist nicht ausführbar: %s
-LemonFacturXDiagMulticurrencyNote = Multiwährungs-Modul aktiviert: Rechnungen in Fremdwährung werden NICHT in Factur-X umgewandelt (dokumentierte Einschränkung, die klassische PDF bleibt erhalten)
+LemonFacturXDiagMulticurrencyNote = Multiwährungs-Modul aktiviert: Rechnungen in Fremdwährung werden NICHT in ZUGFeRD umgewandelt (dokumentierte Einschränkung, die klassische PDF bleibt erhalten)
 LemonFacturXDiagFixLink = Beheben
 LemonFacturXDiagFixForceFont = Automatisch beheben (setzt „pdfahelvetica")
 LemonFacturXForceFontSet = MAIN_PDF_FORCE_FONT auf „pdfahelvetica" gesetzt: Erzeugte PDFs betten Schriftarten jetzt ein (PDF/A-3). Globale Einstellung, wirkt auf alle PDF-Dokumente in Dolibarr.
 LemonFacturXDiagAllOk = Alle Pflichtangaben sind ausgefüllt!
-LemonFacturXDiagNoBlocker = Kein Blocker: Die Factur-X-Konformität ist sichergestellt. Es verbleiben einige empfohlene Punkte (in Orange), die Sie für ein optimales Ergebnis noch angehen können.
+LemonFacturXDiagNoBlocker = Kein Blocker: Die ZUGFeRD-Konformität ist sichergestellt. Es verbleiben einige empfohlene Punkte (in Orange), die Sie für ein optimales Ergebnis noch angehen können.
 
 LemonFacturXStrictMode = Fehlerbehandlungsmodus
-LemonFacturXStrictModeHint = Best-Effort: Schlägt die Factur-X-Erzeugung fehl, wird die klassische PDF mit einer Warnung ausgeliefert. Strikt: Blockiert die Erzeugung mit sichtbarem Fehler, wenn das XML ungültig ist oder die PDF-Injektion fehlschlägt. Hinweis: Auch im Strikt-Modus bleibt die bereits von Dolibarr erzeugte klassische PDF auf der Festplatte erhalten.
+LemonFacturXStrictModeHint = Best-Effort: Schlägt die ZUGFeRD-Erzeugung fehl, wird die klassische PDF mit einer Warnung ausgeliefert. Strikt: Blockiert die Erzeugung mit sichtbarem Fehler, wenn das XML ungültig ist oder die PDF-Injektion fehlschlägt. Hinweis: Auch im Strikt-Modus bleibt die bereits von Dolibarr erzeugte klassische PDF auf der Festplatte erhalten.
 LemonFacturXStrictModeBestEffort = Best-Effort (Standard, nicht blockierend)
-LemonFacturXStrictModeStrict = Strikt (blockiert, wenn Factur-X fehlschlägt)
+LemonFacturXStrictModeStrict = Strikt (blockiert, wenn ZUGFeRD fehlschlägt)
 LemonFacturXInjectionMode = XML-Injektionsmodus
 LemonFacturXInjectionModeHint = „Automatisch" (empfohlen): Subprozess, wenn exec() verfügbar ist (der sicherste, isolierte Weg), und In-Process nur, wenn exec() deaktiviert ist (gehärtetes Shared Hosting). „Nur In-Process" erzwingt die Injektion ohne exec() — nur für Server ohne exec() verwenden, da ein PDF-Bibliothekskonflikt mit einem anderen Modul die Injektion dann verhindern kann. „Subprozess" erzwingt das Legacy-Verhalten (erfordert exec()).
 LemonFacturXInjectionModeAuto = Automatisch (Subprozess wenn exec, sonst In-Process)
@@ -70,15 +70,15 @@ LemonFacturXUpdateAvailable = Neue Version verfügbar
 LemonFacturXUpdateAvailableMsg = Eine neuere Version des Moduls ist auf GitHub veröffentlicht (%s, aktuell: %s).
 LemonFacturXUpdateSeeRelease = Release und Upgrade-Anleitung ansehen
 
-LemonFacturXBtnVerify = Factur-X prüfen
-LemonFacturXBtnRegenerate = Factur-X neu erzeugen
+LemonFacturXBtnVerify = ZUGFeRD prüfen
+LemonFacturXBtnRegenerate = ZUGFeRD neu erzeugen
 LemonFacturXMsgNoPdf = Keine PDF für diese Rechnung gefunden — erzeugen Sie zuerst das Dokument.
-LemonFacturXMsgNoFacturX = Kein Factur-X-XML in %s eingebettet — verwenden Sie „Factur-X neu erzeugen".
-LemonFacturXMsgVerifyOk = %s: eingebettetes Factur-X-XML gefunden, EN16931-XSD gültig und Geschäftsregeln geprüft.
-LemonFacturXMsgVerifyKo = %s: eingebettetes Factur-X-XML gefunden, aber nicht konform:
+LemonFacturXMsgNoFacturX = Kein ZUGFeRD-XML in %s eingebettet — verwenden Sie „ZUGFeRD neu erzeugen".
+LemonFacturXMsgVerifyOk = %s: eingebettetes ZUGFeRD-XML gefunden, EN16931-XSD gültig und Geschäftsregeln geprüft.
+LemonFacturXMsgVerifyKo = %s: eingebettetes ZUGFeRD-XML gefunden, aber nicht konform:
 LemonFacturXMsgRegenerateFailed = PDF-Neuerzeugung fehlgeschlagen
-LemonFacturXMsgSuccess = Factur-X-EN16931-E-Rechnung in PDF %s eingebettet.
-LemonFacturXMsgSuccessWithWarnings = Factur-X-EN16931-E-Rechnung in PDF %s eingebettet. %s nicht blockierende Warnung(en), die für volle Konformität zu beheben sind:
+LemonFacturXMsgSuccess = ZUGFeRD-EN16931-E-Rechnung in PDF %s eingebettet.
+LemonFacturXMsgSuccessWithWarnings = ZUGFeRD-EN16931-E-Rechnung in PDF %s eingebettet. %s nicht blockierende Warnung(en), die für volle Konformität zu beheben sind:
 
 # ODT template support (experimental, v3.8.0) — afterODTCreation hook
 LemonFacturXOdtErrNoPdfConv = ODT-Template ohne PDF-Konvertierung: Factur-X erfordert eine PDF, es wurde aber nur die .odt-Datei erzeugt
@@ -100,7 +100,7 @@ LemonFacturXErrNoExec = Die exec()-Funktion ist auf diesem Server deaktiviert
 LemonFacturXErrPhpCliChars = LEMONFACTURX_PHP_CLI_PATH enthält unzulässige Zeichen (erwartet: alphanumerischer Pfad, „/ . _ - : ( ) \" und Leerzeichen)
 LemonFacturXErrPhpCliNotFound = Die konfigurierte PHP-Binärdatei wurde nicht gefunden oder ist nicht ausführbar: %s
 LemonFacturXErrInjectFailed = PDF-Injektion fehlgeschlagen
-LemonFacturXHintPdfKept = klassische PDF ohne Factur-X beibehalten
+LemonFacturXHintPdfKept = klassische PDF ohne ZUGFeRD beibehalten
 LemonFacturXHintPdfKeptShort = klassische PDF beibehalten
 LemonFacturXHintBestEffort = Best-Effort-Modus
 
@@ -169,19 +169,19 @@ LemonFacturXEfServiceCode = Service-Code (Chorus, BT-10)
 LemonFacturXEfEngagement = Nummer der rechtlichen Verpflichtung (Chorus, BT-13)
 LemonFacturXEfMarche = Vertrags-/Auftragsnummer (Chorus, BT-12)
 LemonFacturXChorusGenerated = Chorus-Pro-PDF zusätzlich erzeugt: %s
-LemonFacturXChorusErr = Die Chorus-Pro-PDF konnte nicht erzeugt werden (die Standard-Factur-X-PDF bleibt gültig)
+LemonFacturXChorusErr = Die Chorus-Pro-PDF konnte nicht erzeugt werden (die Standard-ZUGFeRD-PDF bleibt gültig)
 
 # Factur-X dropdown menu (v3.4.1)
-LemonFacturXMenuLabel = Factur-X
+LemonFacturXMenuLabel = ZUGFeRD
 LemonFacturXBtnGenerateChorus = Chorus-PDF erzeugen
 
 # Chorus Pro tab (v3.4.0)
 LemonFacturXChorusTab = Chorus Pro
-LemonFacturXChorusTabHelp = Einstellungen für das Profil „öffentlicher Sektor". Fällt diese Rechnung unter Chorus Pro, wird zusätzlich zur Standard-Factur-X eine zweite Datei „{ref}-CHORUS.pdf" in dem von Chorus erwarteten Format erzeugt (SIRET in der rechtlichen Kennung + Referenzen unten).
+LemonFacturXChorusTabHelp = Einstellungen für das Profil „öffentlicher Sektor". Fällt diese Rechnung unter Chorus Pro, wird zusätzlich zur Standard-ZUGFeRD eine zweite Datei „{ref}-CHORUS.pdf" in dem von Chorus erwarteten Format erzeugt (SIRET in der rechtlichen Kennung + Referenzen unten).
 LemonFacturXChorusDetected = Chorus-Pro-Profil für diese Rechnung erkannt
 LemonFacturXEfCadre = Rechnungsstellungsrahmen (Chorus, BT-23)
 LemonFacturXEfChorusHint = Chorus-PDF-Erzeugung auch ohne automatische Erkennung erzwingen
-LemonFacturXChorusTabGenerateHint = Die -CHORUS.pdf wird (neu) erzeugt, wenn die Rechnungs-PDF neu erzeugt wird, oder über das Menü „Factur-X › Chorus-PDF erzeugen".
+LemonFacturXChorusTabGenerateHint = Die -CHORUS.pdf wird (neu) erzeugt, wenn die Rechnungs-PDF neu erzeugt wird, oder über das Menü „ZUGFeRD › Chorus-PDF erzeugen".
 
 # Chorus Pro opt-in toggle
 LemonFacturXChorusEnabled = Chorus-Pro-Funktionen (öffentlicher Sektor)
@@ -211,7 +211,7 @@ LemonFacturXChorusToNoteDone = %s Chorus-Referenz(en) zur öffentlichen Notiz hi
 LemonFacturXChorusToNoteAlready = Die Chorus-Referenzen stehen bereits in der öffentlichen Notiz
 LemonFacturXChorusToNoteEmpty = Kein ausgefülltes Chorus-Feld zum Kopieren vorhanden
 LemonFacturXPdfFont = Schriftart der erzeugten PDF
-LemonFacturXPdfFontHint = Schriftart, die für alle Dolibarr-PDFs erzwungen wird. Für Factur-X-Konformität (PDF/A-3) muss die Schriftart eingebettet sein (✓). Nicht konforme Schriftarten (⚠, Base-14) machen die PDF/A-3-Gültigkeit zunichte, auch wenn die Darstellung gut aussieht. „Standardschriftart" hebt die Erzwingung auf.
+LemonFacturXPdfFontHint = Schriftart, die für alle Dolibarr-PDFs erzwungen wird. Für ZUGFeRD-Konformität (PDF/A-3) muss die Schriftart eingebettet sein (✓). Nicht konforme Schriftarten (⚠, Base-14) machen die PDF/A-3-Gültigkeit zunichte, auch wenn die Darstellung gut aussieht. „Standardschriftart" hebt die Erzwingung auf.
 LemonFacturXPdfFontDefault = — Dolibarr-Standardschriftart (keine Erzwingung) —
-LemonFacturXPdfFontOk = ✓ Factur-X-konform (eingebettet)
+LemonFacturXPdfFontOk = ✓ ZUGFeRD-konform (eingebettet)
 LemonFacturXPdfFontKo = ⚠ nicht PDF/A-3-konform (nicht eingebettet)
