@@ -17,7 +17,7 @@ require_once __DIR__.'/stubs.php';
 require_once __DIR__.'/../core/lib/auvozugferd.lib.php';
 require_once __DIR__.'/../core/lib/auvozugferd_rules.php';
 
-$xsdPath = __DIR__.'/../vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.08_EN16931.xsd';
+$xsdPath = __DIR__.'/../vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.09.2_EN16931.xsd';
 
 $passed = 0;
 $failed = 0;
