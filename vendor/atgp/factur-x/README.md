@@ -74,6 +74,12 @@ This project is licensed under MIT License
 Changelog
 ---------
 
+- v3.5.0 : 2026-08-18
+   - Upgrade XSD Schemas to 1.09
+- v3.4.1 : 2026-07-15
+   - Fix typo in Fdpi `OuputCondition`
+- v3.4.0 : 2026-07-06
+   - Register CII namespaces on XPath to support custom aliases
 - v3.3.0 : 2026-04-17
     - Fix automatic tests for PHP 7.4
     - Add .gitattributes to exclude files from composer

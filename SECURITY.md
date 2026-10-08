@@ -83,7 +83,7 @@ Par défaut (mode `auto` avec `exec()` disponible), l'injection du XML dans le P
 Depuis la v1.1.0, avant d'écrire le XML sur disque et d'invoquer le subprocess d'injection, le module valide systématiquement :
 
 1. **XML well-formed** via `DOMDocument::loadXML()`. Un XML cassé (cas peu probable puisque la génération est programmatique, mais défense en profondeur) est rejeté avant qu'il atteigne la lib tierce.
-2. **Conformité XSD EN16931** via `DOMDocument::schemaValidate()` contre le schéma embarqué dans `vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.08_EN16931.xsd`. Les erreurs sont loggées dans `dol_syslog` pour diagnostic.
+2. **Conformité XSD EN16931** via `DOMDocument::schemaValidate()` contre le schéma embarqué dans `vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.09.2_EN16931.xsd`. Les erreurs sont loggées dans `dol_syslog` pour diagnostic.
 
 En mode `AUVOZUGFERD_STRICT_MODE=1`, ces validations échouées bloquent la génération avec une erreur visible. En mode best-effort (défaut), un warning est affiché et le PDF classique reste disponible (fail-open). Cette option permet de choisir explicitement la politique fail-open vs fail-closed selon le besoin de conformité.
 

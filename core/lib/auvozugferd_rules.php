@@ -52,7 +52,7 @@ function auvozugferd_validate_xsd($xml, $modulePath)
 		return 'XML mal formé : '.$firstError('XML mal formé');
 	}
 
-	$xsdPath = $modulePath.'/vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.08_EN16931.xsd';
+	$xsdPath = $modulePath.'/vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.09.2_EN16931.xsd';
 	if (!file_exists($xsdPath)) {
 		// Absence du XSD embarqué : on ne bloque pas, le well-formed est vérifié
 		libxml_clear_errors();

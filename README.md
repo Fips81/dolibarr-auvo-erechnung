@@ -327,7 +327,7 @@ Zur Erinnerung: „blockierende Verstöße" unterbrechen die Erzeugung nur im St
 
 ### Verkäufer außerhalb Frankreichs (ZUGFeRD)
 
-Factur-X und ZUGFeRD 2.x sind **dieselbe** deutsch-französische Spezifikation: das vom Modul erzeugte CII-XML (Profil EN16931, eingebettet unter dem Namen `factur-x.xml`, den ZUGFeRD seit 2.1 vorschreibt) ist direkt als ZUGFeRD-Rechnung nutzbar. Die eingebetteten Schemata sind die von Factur-X 1.08.
+Factur-X und ZUGFeRD 2.x sind **dieselbe** deutsch-französische Spezifikation: das vom Modul erzeugte CII-XML (Profil EN16931, eingebettet unter dem Namen `factur-x.xml`, den ZUGFeRD seit 2.1 vorschreibt) ist direkt als ZUGFeRD-Rechnung nutzbar. Die eingebetteten Schemata sind die von Factur-X 1.09.2 (ZUGFeRD 2.5.2).
 
 Trägt die Firmenfiche (`$mysoc`) ein anderes Land als Frankreich (gleichgestellte Überseegebiete ausgenommen, BR-FR-MAP-14), injiziert der Generator keine Elemente des französischen Rechts mehr:
 
@@ -397,10 +397,10 @@ Nicht alle Online-Validatoren bündeln dieselbe Version der Schemata und Codelis
 
 | Angezeigte Ablehnung | Ursache seitens Validator | Realität |
 |---|---|---|
-| XSD: „`InvoiceReferencedDocument`… not expected. Expected is (`ReceivableSpecifiedTradeAccountingAccount`)" | XSD aus der ZUGFeRD-2.1.1-Ära: `InvoiceReferencedDocument` ohne `maxOccurs` → nur 1 erlaubt. Das 2. Vorkommen (Schlussrechnung mit mehreren verrechneten Anzahlungen/Gutschriften) lässt es fehlschlagen | BG-3 ist **0..n** in EN16931; die XSD Factur-X 1.08 (hier eingebettet) deklariert es als `maxOccurs="unbounded"` |
+| XSD: „`InvoiceReferencedDocument`… not expected. Expected is (`ReceivableSpecifiedTradeAccountingAccount`)" | XSD aus der ZUGFeRD-2.1.1-Ära: `InvoiceReferencedDocument` ohne `maxOccurs` → nur 1 erlaubt. Das 2. Vorkommen (Schlussrechnung mit mehreren verrechneten Anzahlungen/Gutschriften) lässt es fehlschlagen | BG-3 ist **0..n** in EN16931; die XSD Factur-X 1.09.2 (hier eingebettet) deklariert es als `maxOccurs="unbounded"` |
 | „[BR-CL-25] Die Schema-Kennung… MUSS zur CEF-EAS-Codeliste gehören" beim Endpoint `0225` | EAS-Liste der [Validierungsartefakte](https://github.com/ConnectingEurope/eInvoicing-EN16931) ≤ 1.3.9 (Okt. 2021), die bei `0220` endet | `0225` (elektronische SIREN-Adresse, Verzeichnis der FR-Reform) ist in der aktuellen EAS-Liste enthalten |
 
-Im Zweifelsfall gilt: XSD-Validierung gegen die eingebetteten Factur-X-1.08-Schemata (`xmllint --schema`), **aktuelle** Schematron-Artefakte der Europäischen Kommission, und veraPDF für PDF/A-3. Das XML nicht degradieren (das mehrfache BG-3 entfernen, `0225` ändern), um einen veralteten Validator zufriedenzustellen.
+Im Zweifelsfall gilt: XSD-Validierung gegen die eingebetteten Factur-X-1.09.2-Schemata (`xmllint --schema`), **aktuelle** Schematron-Artefakte der Europäischen Kommission, und veraPDF für PDF/A-3. Das XML nicht degradieren (das mehrfache BG-3 entfernen, `0225` ändern), um einen veralteten Validator zufriedenzustellen.
 
 ### Standalone-Unit-Tests (CI)
 

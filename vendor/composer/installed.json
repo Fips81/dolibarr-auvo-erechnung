@@ -2,17 +2,17 @@
     "packages": [
         {
             "name": "atgp/factur-x",
-            "version": "v3.4.1",
-            "version_normalized": "3.4.1.0",
+            "version": "v3.5.0",
+            "version_normalized": "3.5.0.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/atgp/factur-x.git",
-                "reference": "59990c9284501fc121d4aa4089e31cd40cbcfe4b"
+                "url": "https://github.com/atgp/factur-x",
+                "reference": "b448a57074973ab57048aac8f2d208a516d685d9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/atgp/factur-x/zipball/59990c9284501fc121d4aa4089e31cd40cbcfe4b",
-                "reference": "59990c9284501fc121d4aa4089e31cd40cbcfe4b",
+                "url": "https://api.github.com/repos/atgp/factur-x/zipball/b448a57074973ab57048aac8f2d208a516d685d9",
+                "reference": "b448a57074973ab57048aac8f2d208a516d685d9",
                 "shasum": ""
             },
             "require": {
@@ -31,7 +31,7 @@
                 "phpstan/phpstan": "^2.0",
                 "phpunit/phpunit": "^9.6"
             },
-            "time": "2026-07-15T11:46:59+00:00",
+            "time": "2026-08-18T07:25:07+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -58,10 +58,6 @@
                 "php",
                 "xml"
             ],
-            "support": {
-                "issues": "https://github.com/atgp/factur-x/issues",
-                "source": "https://github.com/atgp/factur-x/tree/v3.4.1"
-            },
             "install-path": "../atgp/factur-x"
         },
         {
@@ -331,6 +327,6 @@
             "install-path": "../symfony/polyfill-mbstring"
         }
     ],
-    "dev": false,
+    "dev": true,
     "dev-package-names": []
 }

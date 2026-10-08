@@ -1,0 +1,20 @@
+{
+    "name": "auvo-design/auvozugferd",
+    "description": "Vendor dependency lock for the AuvoZugferd Dolibarr module",
+    "type": "project",
+    "license": "GPL-3.0-or-later",
+    "require": {
+        "php": ">=8.1",
+        "atgp/factur-x": "3.5.0",
+        "setasign/fpdf": "1.8.6",
+        "setasign/fpdi": "2.6.6",
+        "smalot/pdfparser": "2.12.5",
+        "symfony/polyfill-mbstring": "1.36.0"
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "8.1"
+        }
+    }
+}
