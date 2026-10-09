@@ -1,6 +1,6 @@
 # AuvoZugferd
 
-[![Neueste Version](https://img.shields.io/github/v/release/Fips81/auvozugferd?label=version&sort=semver)](https://github.com/Fips81/auvozugferd/releases/latest)
+[![Neueste Version](https://img.shields.io/github/v/release/Fips81/dolibarr_zugferd?label=version&sort=semver)](https://github.com/Fips81/dolibarr_zugferd/releases/latest)
 
 Dolibarr-Modul zur automatischen Erzeugung von **Factur-X EN16931**-Rechnungen (PDF/A-3 mit eingebettetem CrossIndustryInvoice-XML) — unter ihrem anderen Namen auch bekannt als **ZUGFeRD 2.x Profil EN16931 (COMFORT)**.
 
@@ -18,7 +18,7 @@ Privater Fork, gepflegt von auvo-design (ursprüngliche Basis von [Lemon](https:
 ## Installation
 
 1. **Das Archiv der letzten Release herunterladen** von
-   [github.com/Fips81/auvozugferd/releases/latest](https://github.com/Fips81/auvozugferd/releases/latest).
+   [github.com/Fips81/dolibarr_zugferd/releases/latest](https://github.com/Fips81/dolibarr_zugferd/releases/latest).
 
    Das an die Release angehängte Asset `module_auvozugferd-X.Y.Z.zip` herunterladen (und **nicht** den
    "Download ZIP"-Button des Quellcodes — siehe Warnung weiter unten).
@@ -43,11 +43,12 @@ Privater Fork, gepflegt von auvo-design (ursprüngliche Basis von [Lemon](https:
 6. Die **Diagnose** unten auf der Konfigurationsseite des Moduls prüfen (grüne Häkchen = OK)
 
 > **Achtung** — Verwenden Sie nicht den "Download ZIP"-Button der Startseite des Repos
-> (der rohe Quellcode). Dieses Archiv entpackt sich zu `auvozugferd-main/`
+> (der rohe Quellcode). Dieses Archiv entpackt sich zu `dolibarr_zugferd-main/`
 > statt zu `auvozugferd/`, was die Dolibarr-Installation kaputt macht (Fehler *"You requested
 > a website or a page that does not exists"* beim Öffnen der Modul-Konfigurationsseite).
 > Laden Sie das ZIP-Asset der Release herunter, oder klonen Sie direkt mit `git clone`
-> (siehe Abschnitt [Update](#update)).
+> in einen Ordner namens `auvozugferd` (siehe Abschnitt [Update](#update)) – das Repo
+> heißt `dolibarr_zugferd`, der Modulordner muss aber `auvozugferd` heißen.
 
 ## Update
 
@@ -56,7 +57,7 @@ Privater Fork, gepflegt von auvo-design (ursprüngliche Basis von [Lemon](https:
 cp -r /var/www/html/custom/auvozugferd /var/www/html/custom/auvozugferd.bak
 
 # Neue Version holen
-git clone https://github.com/Fips81/auvozugferd.git /tmp/auvozugferd-new
+git clone https://github.com/Fips81/dolibarr_zugferd.git /tmp/auvozugferd-new
 rm -rf /var/www/html/custom/auvozugferd
 mv /tmp/auvozugferd-new /var/www/html/custom/auvozugferd
 chown -R www-data:www-data /var/www/html/custom/auvozugferd
@@ -431,7 +432,7 @@ Privater Fork, umbenannt von LemonFacturX zu AuvoZugferd (siehe [Lizenz](#lizenz
 
 ### 3.9.2 (Juli 2026)
 
-**Das Bankkonto des XML folgt dem der Rechnung** ([issue #16](https://github.com/Fips81/auvozugferd/issues/16)). Das Modul veröffentlichte stets den in der Konfiguration fest eingestellten IBAN/BIC, auch wenn auf Tiers- oder Rechnungsebene ein anderes Konto gewählt war (die PDF zeigte dagegen das richtige) — daher ein inkonsistenter IBAN zwischen PDF und XML. Die Auflösungsreihenfolge ist nun: **auf der Rechnung gewähltes Konto (`fk_account`) → in der Modulkonfiguration eingestelltes Konto (Rückfall)**. Abwärtskompatibel: ohne Konto auf der Rechnung bleibt das bisherige Verhalten erhalten.
+**Das Bankkonto des XML folgt dem der Rechnung** ([issue #16](https://github.com/Fips81/dolibarr_zugferd/issues/16)). Das Modul veröffentlichte stets den in der Konfiguration fest eingestellten IBAN/BIC, auch wenn auf Tiers- oder Rechnungsebene ein anderes Konto gewählt war (die PDF zeigte dagegen das richtige) — daher ein inkonsistenter IBAN zwischen PDF und XML. Die Auflösungsreihenfolge ist nun: **auf der Rechnung gewähltes Konto (`fk_account`) → in der Modulkonfiguration eingestelltes Konto (Rückfall)**. Abwärtskompatibel: ohne Konto auf der Rechnung bleibt das bisherige Verhalten erhalten.
 
 ### 3.9.1 (Juli 2026)
 
@@ -578,8 +579,8 @@ Chorus-Pro-Korrektur — gesetzliche Kennung **SIRET** (statt SIREN) in `Specifi
 
 ### 2.0.2 (Mai 2026)
 
-- **Windows-Kompatibilität** ([#4](https://github.com/Fips81/auvozugferd/issues/4), [PR #5](https://github.com/Fips81/auvozugferd/pull/5) von [@Charlymd](https://github.com/Charlymd)): temporäres XML in `DOL_DATA_ROOT/facturx/temp/`, Regex `AUVOZUGFERD_PHP_CLI_PATH` erweitert.
-- **Kleinunternehmerregelung** ([#6](https://github.com/Fips81/auvozugferd/issues/6)): Kategorie `E` (statt `O`), SIREN als `SpecifiedTaxRegistration schemeID="FC"` veröffentlicht (BR-CO-26/BR-E-09).
+- **Windows-Kompatibilität** ([#4](https://github.com/Fips81/dolibarr_zugferd/issues/4), [PR #5](https://github.com/Fips81/dolibarr_zugferd/pull/5) von [@Charlymd](https://github.com/Charlymd)): temporäres XML in `DOL_DATA_ROOT/facturx/temp/`, Regex `AUVOZUGFERD_PHP_CLI_PATH` erweitert.
+- **Kleinunternehmerregelung** ([#6](https://github.com/Fips81/dolibarr_zugferd/issues/6)): Kategorie `E` (statt `O`), SIREN als `SpecifiedTaxRegistration schemeID="FC"` veröffentlicht (BR-CO-26/BR-E-09).
 
 ### 2.0.1 (Mai 2026)
 
