@@ -432,6 +432,13 @@ Jeder nicht behandelte Fall (Multiwährung, lokale Steuern, Baufortschritt, Selb
 
 ## Validierung und Tests
 
+**Offizieller KoSIT-Validator:** `tests/kosit-validate.sh` prüft jedes XML, das die Unit-Tests als gültig einstufen, mit dem Validator der KoSIT, für ZUGFeRD/Factur-X gegen die EN16931-Regeln und für XRechnung gegen die XRechnung-Regeln. Abgelehnte Dateien oder Fehler lassen den Lauf scheitern, Warnungen werden angezeigt. Das läuft bei jedem Push in der GitHub-CI und vor jedem Release-Build. Lokal (Java 11+ nötig, das Bundle wird einmalig geladen und per SHA-256 geprüft):
+
+```bash
+bash tests/kosit-validate.sh                 # java aus dem PATH
+JAVA=/pfad/zu/java bash tests/kosit-validate.sh
+```
+
 Externe Validierung über den [B2Brouter Factur-X Validator](https://www.b2brouter.net/fr/factur-x-validator/) oder den FNFE-MPE-Validator.
 
 ### Online-Validatoren: bekannte Fehlalarme
@@ -471,6 +478,7 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 - **Korrektur BR-CO-26 (betrifft auch ZUGFeRD):** Verkäufer ohne USt-IdNr. (z. B. Kleinunternehmer) wurden vom offiziellen Validator abgelehnt, weil die Steuernummer (BT-32) die Regel nicht erfüllt. Jetzt wird bei deutschen Verkäufern die Handelsregisternummer (Prof-ID 3) als BT-30 ausgegeben, sonst die Steuernummer zusätzlich als Verkäuferkennung BT-29. Die interne Prüfung von BR-CO-26 entspricht jetzt dem offiziellen Schematron.
 - Geprüft mit dem offiziellen KoSIT-Validator 1.6.3 und der XRechnung-Konfiguration vom 31.08.2026 (Bundle 3.0.2).
 - **Bestellnummer (BT-13) korrigiert:** Bei einer Rechnung aus einem Kundenauftrag wurde die interne Auftragsnummer (z. B. `CO2606-0042`) als Bestellnummer des Käufers ausgegeben. Jetzt kommt BT-13 aus dem Feld „Ihr Zeichen“ (Kunden-BestellNr.) des Auftrags. Ist es leer und hat der Kunde eine Leitweg-ID, wird „Ihr Zeichen“ der Rechnung verwendet, für ZUGFeRD und XRechnung.
+- **Offizieller KoSIT-Validator in der CI:** Alle XML aus den Unit-Tests (derzeit 34, ZUGFeRD und XRechnung) werden bei jedem Push und vor jedem Release mit dem Validator der KoSIT geprüft (`tests/kosit-validate.sh`, Bundle XRechnung 3.0.2 vom 31.08.2026).
 - **Nach dem Update das Modul einmal deaktivieren und wieder aktivieren**, damit das neue Feld „E-Rechnungsformat“ angelegt wird.
 - Meldungen im Dolibarr-Log (Syslog) auf Englisch statt Französisch, z. B. „Factur-X PDF generated for …“ statt „PDF Factur-X généré pour …“. Die Meldungen für Nutzer bleiben in deren Sprache (Sprachdateien).
 

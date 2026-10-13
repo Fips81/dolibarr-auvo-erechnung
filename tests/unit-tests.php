@@ -96,6 +96,13 @@ function lfx_std_validate($xml, $xsdPath, $expectBrOk = true)
 	$violations = auvoerechnung_validate_business_rules($xml);
 	if ($expectBrOk) {
 		lfx_assert(empty($violations), 'Règles BR respectées ('.implode(' ; ', $violations).')');
+		// Tout XML jugé conforme ici est aussi soumis au validateur officiel
+		// KoSIT en CI (tests/kosit-validate.sh) : le contrôle interne ne doit
+		// jamais être plus permissif que le Schematron officiel.
+		static $dumpCount = 0;
+		$dumpCount++;
+		$label = preg_replace('/[^A-Za-z0-9]+/', '-', explode(' ', $GLOBALS['currentTest'] ?? 'test')[0]);
+		lfx_dump(sprintf('std-%03d-%s', $dumpCount, $label), $xml);
 	} else {
 		lfx_assert(!empty($violations), 'Violations BR attendues');
 	}

@@ -25,3 +25,9 @@ jobs:
 
       - name: Run standalone unit tests (XSD + règles métier EN16931)
         run: php tests/unit-tests.php
+
+      - name: Official KoSIT validation (EN16931 + XRechnung)
+        # Validateur officiel de la KoSIT (Java préinstallé sur ubuntu-latest) sur
+        # tous les XML jugés conformes par les tests unitaires. Bundle téléchargé
+        # depuis projekte.kosit.org, intégrité vérifiée par SHA-256 (cf. script).
+        run: bash tests/kosit-validate.sh

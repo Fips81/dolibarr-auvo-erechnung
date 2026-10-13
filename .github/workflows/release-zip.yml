@@ -22,6 +22,12 @@ jobs:
       - name: Run standalone unit tests
         run: php tests/unit-tests.php
 
+      - name: Official KoSIT validation (EN16931 + XRechnung)
+        # Validateur officiel de la KoSIT (Java préinstallé sur ubuntu-latest) sur
+        # tous les XML jugés conformes par les tests unitaires. Bundle téléchargé
+        # depuis projekte.kosit.org, intégrité vérifiée par SHA-256 (cf. script).
+        run: bash tests/kosit-validate.sh
+
       - name: Build clean ZIP (dossier racine = auvoerechnung/, nom Dolistore module_<nom>-x.y.z.zip)
         run: |
           # Dolistore exige le format de makepack : module_<nom>-x.y(.z).zip
