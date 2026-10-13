@@ -1281,6 +1281,47 @@ lfx_assert(!lfx_contains(auvoerechnung_validate_business_rules(auvoerechnung_bui
 echo "U39 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U40 Lieferantennummer (BT-29) et chemin du fichier XRechnung';
+lfx_reset([
+	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
+	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
+	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
+], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+$kuSeller = lfx_make_party(['name' => 'KLEIN DESIGN', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen', 'address' => 'Weg 2',
+	'email' => 'info@klein.example', 'tva_intra' => '', 'idprof1' => '22/180/80394', 'idprof2' => '', 'tva_assuj' => 0]);
+$amt = lfx_make_party(['name' => 'Bundesamt für Beispiele', 'country_code' => 'DE', 'zip' => '53113', 'town' => 'Bonn', 'address' => 'Amtsweg 1',
+	'email' => '', 'tva_intra' => '', 'idprof1' => '', 'idprof2' => '',
+	'array_options' => ['options_lfxleitwegid' => '991-33333TEST-33', 'options_lfxsupplierno' => ' K-100234 ']]);
+lfx_assert_eq('K-100234', auvoerechnung_party_supplier_number($amt), 'Lieferantennummer lue sur la fiche client (espaces retirés)');
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-0300';
+$inv->thirdparty = $amt;
+$inv->lines = [lfx_make_line(400.00, 0.0, 0.00, 1.0, 'Gestaltung', 1)];
+$inv->total_ht = 400.00;
+$inv->total_tva = 0.00;
+$inv->total_ttc = 400.00;
+foreach (['xrechnung' => ['profile' => 'xrechnung'], 'zugferd' => []] as $label => $opt) {
+	$w = [];
+	$xml = auvoerechnung_build_xml($inv, $kuSeller, $w, $opt);
+	lfx_std_validate($xml, $xsdPath);
+	$xp = lfx_xpath($xml);
+	lfx_assert_eq(1, $xp->query('//ram:SellerTradeParty/ram:ID')->length, $label.' : un seul BT-29');
+	lfx_assert_eq('K-100234', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:ID'), $label.' : BT-29 = Lieferantennummer (remplace le repli Steuernummer)');
+	lfx_assert_eq('22/180/80394', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="FC"]'), $label.' : Steuernummer toujours en BT-32');
+	lfx_dump('xr-04-lieferantennummer-'.$label, $xml);
+}
+// Sans Lieferantennummer : repli Steuernummer en BT-29 (BR-CO-26) inchangé.
+$amt2 = clone $amt;
+$amt2->array_options = ['options_lfxleitwegid' => '991-33333TEST-33'];
+$inv->thirdparty = $amt2;
+lfx_assert_eq('22/180/80394', lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($inv, $kuSeller, $w, ['profile' => 'xrechnung'])), '//ram:SellerTradeParty/ram:ID'), 'sans Lieferantennummer : repli Steuernummer');
+// Chemin du fichier : nom fixe dans le dossier de la facture
+$GLOBALS['conf'] = $GLOBALS['conf'] ?? new stdClass();
+$GLOBALS['conf']->facture = (object) ['multidir_output' => [1 => '/data/facture'], 'dir_output' => '/data/facture'];
+lfx_assert_eq('/data/facture/RE2026-0300/RE2026-0300-XRECHNUNG.xml', auvoerechnung_xrechnung_path('RE2026-0300', 1), 'chemin {ref}/{ref}-XRECHNUNG.xml');
+echo "U40 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

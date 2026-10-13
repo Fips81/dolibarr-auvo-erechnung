@@ -145,6 +145,7 @@ class modAuvoERechnung extends DolibarrModules
 		$this->fixChorusExtraFieldsDisplay();
 		$this->createLeitwegIdExtraField();
 		$this->createEFormatExtraField();
+		$this->createSupplierNumberExtraField();
 		return $result;
 	}
 
@@ -182,6 +183,7 @@ class modAuvoERechnung extends DolibarrModules
 			'lfxmarche'      => 'AuvoERechnungEfMarche',
 			'lfxleitwegid'   => 'AuvoERechnungEfLeitwegId',
 			'lfxeformat'     => 'AuvoERechnungEfEFormat',
+			'lfxsupplierno'  => 'AuvoERechnungEfSupplierNo',
 		);
 		foreach ($labels as $name => $label) {
 			$sql = "UPDATE ".MAIN_DB_PREFIX."extrafields SET";
@@ -347,6 +349,27 @@ class modAuvoERechnung extends DolibarrModules
 		$extrafields->addExtraField(
 			'lfxeformat', 'AuvoERechnungEfEFormat', 'select', 201, '', 'societe',
 			0, 0, '', $param, 1, '', '1', '', '', '',
+			'auvoerechnung@auvoerechnung', '$conf->auvoerechnung->enabled'
+		);
+	}
+
+	/**
+	 * Crée (si absent) l'extrafield tiers « Unsere Lieferantennummer beim
+	 * Kunden » : n° de fournisseur attribué par le client, émis en BT-29
+	 * (exigé par § 5 E-RechV quand l'administration l'a communiqué). Idempotent.
+	 */
+	private function createSupplierNumberExtraField()
+	{
+		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+
+		$extrafields = new ExtraFields($this->db);
+		$extrafields->fetch_name_optionals_label('societe');
+		if (!empty($extrafields->attributes['societe']['label']['lfxsupplierno'])) {
+			return; // déjà présent
+		}
+		$extrafields->addExtraField(
+			'lfxsupplierno', 'AuvoERechnungEfSupplierNo', 'varchar', 202, '100', 'societe',
+			0, 0, '', '', 1, '', '1', '', '', '',
 			'auvoerechnung@auvoerechnung', '$conf->auvoerechnung->enabled'
 		);
 	}

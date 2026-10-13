@@ -303,3 +303,11 @@ AuvoERechnungXrContactPhone = Contact phone (BT-42)
 AuvoERechnungXrContactEmail = Contact e-mail (BT-43)
 AuvoERechnungXrContactHint = Mandatory in every XRechnung. Empty = data of the user who created the invoice; phone and e-mail fall back to the company.
 AuvoERechnungXrInfo = An XRechnung is generated in addition to the ZUGFeRD PDF as file {invoice}-XRECHNUNG.xml when the customer has a Leitweg-ID or the e-invoice format "XRechnung".
+AuvoERechnungEfSupplierNo = Our supplier number at this customer (BT-29)
+AuvoERechnungBtnXRechnung = Generate XRechnung
+AuvoERechnungBtnXRechnungDownload = Download XRechnung
+AuvoERechnungDiagXrContactFromAuthor = No fixed contact person set: every XRechnung uses the user who created the invoice (maintain name, phone, e-mail on the user)
+AuvoERechnungDiagXrPhoneMissing = No contact phone number (neither in the setup nor on the company); it must then be set on the user
+AuvoERechnungDiagXrEmailMissing = No company e-mail address: mandatory for every XRechnung (BT-34)
+AuvoERechnungDiagXrVersion = Identifier %s
+AuvoERechnungDiagXrCustomers = %s customer(s) automatically receive an XRechnung (Leitweg-ID or format "XRechnung")

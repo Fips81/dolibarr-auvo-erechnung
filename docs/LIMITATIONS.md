@@ -111,7 +111,6 @@ XML-Datei** (`{Rechnung}-XRECHNUNG.xml`, Syntax CII). Noch nicht enthalten:
   die eingebettete Bibliothek kennt dieses Profil nicht; die PDF bleibt
   ZUGFeRD EN16931. Für die OZG-RE des Bundes die XML-Datei verwenden.
 - **Skonto** in der XRechnung-Syntax (`#SKONTO#TAGE=…#PROZENT=…#`, BT-20).
-- **Lieferantennummer** (BT-29 vom Auftraggeber) als eigenes Feld.
 - Die Variante **UBL** und die **XRechnung-Extension**.
 - Der Versand (OZG-RE-Upload, E-Mail-Kanal, Peppol) bleibt Handarbeit.
 

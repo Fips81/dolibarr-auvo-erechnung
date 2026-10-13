@@ -69,6 +69,56 @@ class AuvoerechnungApi extends DolibarrApi
 	}
 
 	/**
+	 * Génère et renvoie la XRechnung (CIUS KoSIT, syntaxe CII) d'une facture.
+	 *
+	 * Lecture seule : le XML est reconstruit à la volée, aucun fichier n'est
+	 * écrit (le fichier {ref}-XRECHNUNG.xml naît à la génération du PDF ou via
+	 * le menu de la fiche facture). 'problems' liste les données manquantes
+	 * (contrôle amont) ; 'violations' les règles EN16931/BR-DE non respectées.
+	 * 'xml' est null tant que des données manquent.
+	 *
+	 * @param int $id ID de la facture
+	 * @return array
+	 *
+	 * @url GET invoice/{id}/xrechnung
+	 */
+	public function getXRechnung($id)
+	{
+		global $mysoc, $conf;
+
+		$invoice = $this->loadInvoice($id);
+
+		$modulePath = dirname(__DIR__);
+		require_once $modulePath.'/core/lib/auvoerechnung.lib.php';
+		require_once $modulePath.'/core/lib/auvoerechnung_rules.php';
+
+		$unsupported = auvoerechnung_check_supported($invoice);
+		if ($unsupported !== null) {
+			throw new RestException(422, 'Unsupported invoice: '.$unsupported);
+		}
+
+		$problems = auvoerechnung_check_xrechnung($invoice, $mysoc);
+		$xml = null;
+		$violations = [];
+		$buildWarnings = [];
+		if (empty($problems)) {
+			$xml = auvoerechnung_build_xml($invoice, $mysoc, $buildWarnings, ['profile' => 'xrechnung']);
+			$violations = auvoerechnung_validate_business_rules($xml);
+		}
+		$file = auvoerechnung_xrechnung_path($invoice->ref, (int) ($invoice->entity ?? $conf->entity));
+
+		return [
+			'ref'              => $invoice->ref,
+			'customer_expects' => auvoerechnung_wants_xrechnung($invoice->thirdparty),
+			'file_exists'      => ($file !== '' && file_exists($file)),
+			'problems'         => $problems,
+			'xml'              => $xml,
+			'warnings'         => $buildWarnings,
+			'violations'       => $violations,
+		];
+	}
+
+	/**
 	 * Statut Factur-X du PDF de la facture : XML embarqué présent et conforme ?
 	 *
 	 * @param int $id ID de la facture

@@ -303,3 +303,11 @@ AuvoERechnungXrContactPhone = Téléphone du contact (BT-42)
 AuvoERechnungXrContactEmail = Email du contact (BT-43)
 AuvoERechnungXrContactHint = Obligatoire dans une XRechnung. Vide = auteur de la facture ; à défaut téléphone et email de la société.
 AuvoERechnungXrInfo = Une XRechnung est générée en plus du PDF, fichier {facture}-XRECHNUNG.xml, si le client a une Leitweg-ID ou le format « XRechnung ».
+AuvoERechnungEfSupplierNo = Notre n° fournisseur chez ce client (BT-29)
+AuvoERechnungBtnXRechnung = Générer la XRechnung
+AuvoERechnungBtnXRechnungDownload = Télécharger la XRechnung
+AuvoERechnungDiagXrContactFromAuthor = Aucun contact fixe : chaque XRechnung reprend l'auteur de la facture
+AuvoERechnungDiagXrPhoneMissing = Aucun téléphone de contact (ni réglage ni société) : il doit alors figurer sur l'utilisateur
+AuvoERechnungDiagXrEmailMissing = Aucun email de la société : obligatoire pour toute XRechnung (BT-34)
+AuvoERechnungDiagXrVersion = Identifiant %s
+AuvoERechnungDiagXrCustomers = %s client(s) reçoivent automatiquement une XRechnung

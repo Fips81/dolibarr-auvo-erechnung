@@ -38,6 +38,12 @@ if (!function_exists('dolibarr_set_const')) {
 		return 1;
 	}
 }
+if (!function_exists('dol_sanitizeFileName')) {
+	function dol_sanitizeFileName($str)
+	{
+		return preg_replace('/[^A-Za-z0-9._-]/', '_', (string) $str);
+	}
+}
 if (!function_exists('dol_syslog')) {
 	function dol_syslog($msg, $level = 0)
 	{

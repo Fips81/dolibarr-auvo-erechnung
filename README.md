@@ -179,7 +179,9 @@ Bedrohungsmodell, detaillierte Schutzmaßnahmen und Meldeprozess: siehe [SECURIT
 Für öffentliche Auftraggeber in Deutschland (und Firmenkunden, die es verlangen) erzeugt das Modul zusätzlich eine **XRechnung 3.0** nach der Spezifikation der KoSIT, als eigene Datei `{Rechnung}-XRECHNUNG.xml` neben der PDF.
 
 - **Wann:** automatisch, sobald beim Geschäftspartner eine **Leitweg-ID** eingetragen ist. Über das Feld **„E-Rechnungsformat“** am Geschäftspartner lässt sich das erzwingen („XRechnung“) oder abschalten („ZUGFeRD“).
-- **Pflichtangaben:** Ansprechpartner mit Telefon und E-Mail (Moduleinstellungen, Block „XRechnung“; leer = Ersteller der Rechnung), E-Mail der Firma, PLZ/Ort von Firma und Kunde, IBAN bei Überweisung, Leitweg-ID oder Kundenreferenz. Fehlt etwas, erscheint beim Erzeugen der PDF eine Liste der fehlenden Angaben, und es wird keine XRechnung geschrieben.
+- **Pflichtangaben:** Ansprechpartner mit Telefon und E-Mail (Moduleinstellungen, Block „XRechnung“; leer = Ersteller der Rechnung), E-Mail der Firma, PLZ/Ort von Firma und Kunde, IBAN bei Überweisung, Leitweg-ID oder „Ihr Zeichen“ der Rechnung. Fehlt etwas, erscheint beim Erzeugen der PDF eine Liste der fehlenden Angaben, und es wird keine XRechnung geschrieben.
+- **Wenn vom Auftraggeber mitgeteilt** (§ 5 E-RechV): die **Bestellnummer** in „Ihr Zeichen“ (am Auftrag oder an der Rechnung) und die **Lieferantennummer** im Feld **„Unsere Lieferantennummer beim Kunden“** am Geschäftspartner (BT-29).
+- **Bedienung:** Im Menü **ZUGFeRD ▾** auf der Rechnung gibt es **„XRechnung erzeugen“** (auch für Kunden ohne Leitweg-ID, für einzelne Rechnungen) und, sobald die Datei existiert, **„XRechnung herunterladen“**. Die Datei liegt außerdem bei den Dokumenten der Rechnung. Die **Diagnose** auf der Einstellungsseite zeigt, ob die Firmendaten für XRechnung reichen und wie viele Kunden automatisch eine XRechnung erhalten.
 - **Bund (OZG-RE):** Die Datei über die Weboberfläche hochladen oder über den freigeschalteten E-Mail-Kanal senden (eine Rechnung pro E-Mail, von der bei der OZG-RE hinterlegten Absenderadresse). Keine zusätzliche PDF-Kopie schicken.
 - **Aktualität:** Die KoSIT veröffentlicht zum 01.02. und 01.07. Die Version der Kennung (Standard `3.0`) ist in den Moduleinstellungen einstellbar.
 
@@ -396,6 +398,7 @@ Mit aktiviertem Dolibarr-REST-API-Modul (Benutzer-API-Schlüssel, Rechnungsrecht
 |---|---|
 | `GET /api/index.php/auvoerechnung/invoice/{id}/xml` | Neu erzeugtes Factur-X-XML + Warnungen + BR-Verstöße |
 | `GET /api/index.php/auvoerechnung/invoice/{id}/status` | PDF vorhanden? XML eingebettet? BR-Verstöße des eingebetteten XML |
+| `GET /api/index.php/auvoerechnung/invoice/{id}/xrechnung` | XRechnung der Rechnung (frisch erzeugt, schreibt keine Datei) + fehlende Angaben + Regelverstöße; `customer_expects`, `file_exists` |
 
 ## Stapelexport
 
@@ -478,7 +481,8 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 - **Korrektur BR-CO-26 (betrifft auch ZUGFeRD):** Verkäufer ohne USt-IdNr. (z. B. Kleinunternehmer) wurden vom offiziellen Validator abgelehnt, weil die Steuernummer (BT-32) die Regel nicht erfüllt. Jetzt wird bei deutschen Verkäufern die Handelsregisternummer (Prof-ID 3) als BT-30 ausgegeben, sonst die Steuernummer zusätzlich als Verkäuferkennung BT-29. Die interne Prüfung von BR-CO-26 entspricht jetzt dem offiziellen Schematron.
 - Geprüft mit dem offiziellen KoSIT-Validator 1.6.3 und der XRechnung-Konfiguration vom 31.08.2026 (Bundle 3.0.2).
 - **Bestellnummer (BT-13) korrigiert:** Bei einer Rechnung aus einem Kundenauftrag wurde die interne Auftragsnummer (z. B. `CO2606-0042`) als Bestellnummer des Käufers ausgegeben. Jetzt kommt BT-13 aus dem Feld „Ihr Zeichen“ (Kunden-BestellNr.) des Auftrags. Ist es leer und hat der Kunde eine Leitweg-ID, wird „Ihr Zeichen“ der Rechnung verwendet, für ZUGFeRD und XRechnung.
-- **Offizieller KoSIT-Validator in der CI:** Alle XML aus den Unit-Tests (derzeit 34, ZUGFeRD und XRechnung) werden bei jedem Push und vor jedem Release mit dem Validator der KoSIT geprüft (`tests/kosit-validate.sh`, Bundle XRechnung 3.0.2 vom 31.08.2026).
+- **XRechnung, Bedienung und Lieferantennummer:** neues Geschäftspartner-Feld **„Unsere Lieferantennummer beim Kunden“** (BT-29, Pflicht nach § 5 E-RechV, wenn der Auftraggeber sie mitteilt; ersetzt dann den Steuernummer-Behelf in BT-29, für ZUGFeRD und XRechnung). Menüpunkte **„XRechnung erzeugen“** und **„XRechnung herunterladen“** auf der Rechnung, REST-Endpunkt `GET …/invoice/{id}/xrechnung`, XRechnung-Prüfung in der Diagnose. Die Datei heißt immer `{Rechnung}/{Rechnung}-XRECHNUNG.xml`, auch bei ODT-Vorlagen. **Modul nach dem Update einmal deaktivieren und wieder aktivieren**, damit das neue Feld angelegt wird.
+- **Offizieller KoSIT-Validator in der CI:** Alle XML aus den Unit-Tests (derzeit 38, ZUGFeRD und XRechnung) werden bei jedem Push und vor jedem Release mit dem Validator der KoSIT geprüft (`tests/kosit-validate.sh`, Bundle XRechnung 3.0.2 vom 31.08.2026).
 - **Nach dem Update das Modul einmal deaktivieren und wieder aktivieren**, damit das neue Feld „E-Rechnungsformat“ angelegt wird.
 - Meldungen im Dolibarr-Log (Syslog) auf Englisch statt Französisch, z. B. „Factur-X PDF generated for …“ statt „PDF Factur-X généré pour …“. Die Meldungen für Nutzer bleiben in deren Sprache (Sprachdateien).
 

@@ -303,3 +303,11 @@ AuvoERechnungXrContactPhone = Telefon des Ansprechpartners (BT-42)
 AuvoERechnungXrContactEmail = E-Mail des Ansprechpartners (BT-43)
 AuvoERechnungXrContactHint = Pflicht in jeder XRechnung. Leer = Daten des Benutzers, der die Rechnung erstellt hat; Telefon und E-Mail notfalls von der Firma.
 AuvoERechnungXrInfo = Eine XRechnung wird zusätzlich zur ZUGFeRD-PDF als Datei {Rechnung}-XRECHNUNG.xml erzeugt, wenn beim Kunden eine Leitweg-ID eingetragen ist oder das E-Rechnungsformat „XRechnung“ gewählt ist.
+AuvoERechnungEfSupplierNo = Unsere Lieferantennummer beim Kunden (BT-29)
+AuvoERechnungBtnXRechnung = XRechnung erzeugen
+AuvoERechnungBtnXRechnungDownload = XRechnung herunterladen
+AuvoERechnungDiagXrContactFromAuthor = Kein fester Ansprechpartner eingestellt: Auf jeder XRechnung steht der Benutzer, der die Rechnung erstellt hat (Name, Telefon, E-Mail beim Benutzer pflegen)
+AuvoERechnungDiagXrPhoneMissing = Keine Telefonnummer für den Ansprechpartner (weder in den Einstellungen noch bei der Firma); dann muss sie beim Benutzer hinterlegt sein
+AuvoERechnungDiagXrEmailMissing = Keine E-Mail-Adresse der Firma: Pflicht für jede XRechnung (BT-34)
+AuvoERechnungDiagXrVersion = Kennung %s
+AuvoERechnungDiagXrCustomers = %s Kunde(n) erhalten automatisch eine XRechnung (Leitweg-ID oder Format „XRechnung“)

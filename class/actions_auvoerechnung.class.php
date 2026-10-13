@@ -179,7 +179,7 @@ class ActionsAuvoERechnung
 
 			// XRechnung : fichier XML autonome à côté du PDF pour les clients qui
 			// l'exigent (Leitweg-ID ou format choisi sur la fiche tiers).
-			$xr = $this->generateXRechnungXml($invoice, $file, $mysoc, $modulePath);
+			$xr = $this->generateXRechnungXml($invoice, $mysoc, $modulePath);
 			if ($xr !== null && !$xr['ok']) {
 				$warnings = array_merge($warnings, $xr['msgs']);
 			}
@@ -407,7 +407,7 @@ class ActionsAuvoERechnung
 				$warnings[] = auvoerechnung_trans('AuvoERechnungChorusSuggested');
 			}
 
-			$xr = $this->generateXRechnungXml($invoice, $pdf, $mysoc, $modulePath);
+			$xr = $this->generateXRechnungXml($invoice, $mysoc, $modulePath);
 			if ($xr !== null && !$xr['ok']) {
 				$warnings = array_merge($warnings, $xr['msgs']);
 			}
@@ -487,28 +487,36 @@ class ActionsAuvoERechnung
 	}
 
 	/**
-	 * Écrit la XRechnung (XML CII, CIUS KoSIT) de la facture à côté du PDF
-	 * principal : `{ref}-XRECHNUNG.xml`, visible dans les documents de la facture,
-	 * à déposer sur l'OZG-RE ou à joindre au mail.
+	 * Écrit la XRechnung (XML CII, CIUS KoSIT) de la facture dans son dossier
+	 * documents : `{ref}/{ref}-XRECHNUNG.xml` (auvoerechnung_xrechnung_path),
+	 * visible dans les documents de la facture, à déposer sur l'OZG-RE ou à
+	 * joindre au mail.
 	 *
-	 * Seulement si le tiers attend une XRechnung (auvoerechnung_wants_xrechnung).
+	 * Seulement si le tiers attend une XRechnung (auvoerechnung_wants_xrechnung),
+	 * sauf $force (génération demandée explicitement depuis la fiche facture).
 	 * Non bloquant pour le PDF : en cas de données manquantes ou de XML non
 	 * conforme, aucun fichier n'est écrit et un éventuel fichier d'une génération
 	 * précédente est supprimé (pour ne jamais laisser traîner une XRechnung
 	 * périmée) ; les causes sont renvoyées comme avertissements.
 	 *
 	 * @param Facture $invoice
-	 * @param string  $mainPdf     Chemin du PDF principal
 	 * @param Societe $mysoc
 	 * @param string  $modulePath
+	 * @param bool    $force       Générer même si le tiers n'attend pas de XRechnung
 	 * @return array{ok:bool,msgs:string[]}|null  Résultat et messages, ou null si la facture n'est pas concernée
 	 */
-	protected function generateXRechnungXml($invoice, $mainPdf, $mysoc, $modulePath)
+	protected function generateXRechnungXml($invoice, $mysoc, $modulePath, $force = false)
 	{
-		if (!auvoerechnung_wants_xrechnung($invoice->thirdparty)) {
+		global $conf;
+
+		if (!$force && !auvoerechnung_wants_xrechnung($invoice->thirdparty)) {
 			return null;
 		}
-		$target = preg_replace('/\.pdf$/i', '', $mainPdf).'-XRECHNUNG.xml';
+		$target = auvoerechnung_xrechnung_path($invoice->ref, (int) ($invoice->entity ?? $conf->entity));
+		if ($target === '') {
+			return ['ok' => false, 'msgs' => [auvoerechnung_trans('AuvoERechnungXrWriteError', $invoice->ref.'-XRECHNUNG.xml')]];
+		}
+		dol_mkdir(dirname($target));
 
 		$problems = auvoerechnung_check_xrechnung($invoice, $mysoc);
 		if (empty($problems)) {
@@ -573,6 +581,33 @@ class ActionsAuvoERechnung
 	}
 
 	/**
+	 * Génère la XRechnung à la demande (menu de la fiche facture), même si le
+	 * client n'est pas marqué XRechnung. Affiche le résultat en message.
+	 *
+	 * @param Facture $invoice
+	 */
+	protected function generateXRechnungOnDemand($invoice)
+	{
+		global $mysoc;
+
+		$modulePath = dirname(__DIR__);
+		require_once $modulePath.'/core/lib/auvoerechnung.lib.php';
+		require_once $modulePath.'/core/lib/auvoerechnung_rules.php';
+		if (empty($invoice->thirdparty) || !is_object($invoice->thirdparty)) {
+			$invoice->fetch_thirdparty();
+		}
+		if (is_object($invoice->thirdparty) && empty($invoice->thirdparty->array_options) && method_exists($invoice->thirdparty, 'fetch_optionals')) {
+			$invoice->thirdparty->fetch_optionals();
+		}
+		if (empty($invoice->lines)) {
+			$invoice->fetch_lines();
+		}
+		$res = $this->generateXRechnungXml($invoice, $mysoc, $modulePath, true);
+		$first = array_shift($res['msgs']);
+		setEventMessages($first, $res['msgs'], $res['ok'] ? 'mesgs' : 'warnings');
+	}
+
+	/**
 	 * Rend un menu déroulant « bouton + liste » autonome (élément <details>,
 	 * sans dépendance JS framework). $items = [['href'=>..,'label'=>..], ...].
 	 *
@@ -617,6 +652,7 @@ class ActionsAuvoERechnung
 		if (is_object($langs)) {
 			$langs->loadLangs(['auvoerechnung@auvoerechnung']);
 		}
+		require_once dirname(__DIR__).'/core/lib/auvoerechnung.lib.php';
 
 		// Menu déroulant unique « Factur-X ▾ » regroupant les actions du module
 		// (et l'envoi via SUPER PDP si ce module compagnon est actif).
@@ -636,6 +672,19 @@ class ActionsAuvoERechnung
 			$items[] = array('href' => $url.'&action=auvoerechnung_regenerate', 'label' => $langs->trans('AuvoERechnungBtnRegenerate'));
 			if (getDolGlobalInt('AUVOERECHNUNG_CHORUS_ENABLED')) {
 				$items[] = array('href' => $url.'&action=auvoerechnung_generatechorus', 'label' => $langs->trans('AuvoERechnungBtnGenerateChorus'));
+			}
+			// XRechnung à la demande : aussi pour un client sans Leitweg-ID ni
+			// format choisi (envoi ponctuel à un destinataire qui l'exige).
+			$items[] = array('href' => $url.'&action=auvoerechnung_xrechnung', 'label' => $langs->trans('AuvoERechnungBtnXRechnung'));
+		}
+		if ($canRead) {
+			$xrFile = auvoerechnung_xrechnung_path($object->ref, (int) ($object->entity ?? 1));
+			if ($xrFile !== '' && file_exists($xrFile)) {
+				$safeRef = dol_sanitizeFileName($object->ref);
+				$items[] = array(
+					'href' => DOL_URL_ROOT.'/document.php?modulepart=facture&entity='.((int) ($object->entity ?? 1)).'&file='.urlencode($safeRef.'/'.basename($xrFile)),
+					'label' => $langs->trans('AuvoERechnungBtnXRechnungDownload'),
+				);
 			}
 		}
 
@@ -658,7 +707,7 @@ class ActionsAuvoERechnung
 		if (!in_array('invoicecard', $contexts, true)) {
 			return 0;
 		}
-		if (!in_array($action, ['auvoerechnung_verify', 'auvoerechnung_regenerate', 'auvoerechnung_generatechorus'], true)) {
+		if (!in_array($action, ['auvoerechnung_verify', 'auvoerechnung_regenerate', 'auvoerechnung_generatechorus', 'auvoerechnung_xrechnung'], true)) {
 			return 0;
 		}
 		if (!is_object($object) || !($object instanceof Facture) || empty($object->id)) {
@@ -699,6 +748,16 @@ class ActionsAuvoERechnung
 				setEventMessages($langs->trans('AuvoERechnungMsgRegenerateFailed').' : '.$object->error, null, 'errors');
 			}
 			// Les messages de succès/avertissement sont émis par afterPDFCreation
+			$action = '';
+			return 0;
+		}
+
+		if ($action === 'auvoerechnung_xrechnung') {
+			if (!$this->userCanWrite($user)) {
+				setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+				return 0;
+			}
+			$this->generateXRechnungOnDemand($object);
 			$action = '';
 			return 0;
 		}

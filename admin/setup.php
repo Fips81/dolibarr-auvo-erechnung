@@ -501,6 +501,39 @@ if (isModEnabled('multicurrency')) {
 	$diagOk[] = $langs->trans("AuvoERechnungDiagMulticurrencyNote");
 }
 
+// XRechnung : données du vendeur requises par la CIUS KoSIT (vendeur allemand).
+// Les données propres à chaque facture (Leitweg-ID, réf. client, adresse du
+// client) sont contrôlées à la génération.
+if (strtoupper((string) ($mysoc->country_code ?? '')) === 'DE') {
+	$xrPrefix = $langs->trans("AuvoERechnungSecXRechnung").' — ';
+	$xrName = trim(getDolGlobalString('AUVOERECHNUNG_CONTACT_NAME', ''));
+	if ($xrName !== '') {
+		$diagOk[] = $xrPrefix.$langs->trans("AuvoERechnungXrContactName").' : '.dol_escape_htmltag($xrName);
+	} else {
+		$diagWarnings[] = ['msg' => $xrPrefix.$langs->trans("AuvoERechnungDiagXrContactFromAuthor")];
+	}
+	$xrPhone = trim(getDolGlobalString('AUVOERECHNUNG_CONTACT_PHONE', '')) ?: trim((string) ($mysoc->phone ?? ''));
+	if (preg_match('/([0-9].*){3,}/', $xrPhone)) {
+		$diagOk[] = $xrPrefix.$langs->trans("AuvoERechnungXrContactPhone").' : '.dol_escape_htmltag($xrPhone);
+	} else {
+		$diagWarnings[] = ['msg' => $xrPrefix.$langs->trans("AuvoERechnungDiagXrPhoneMissing")];
+	}
+	$xrEmail = trim(getDolGlobalString('AUVOERECHNUNG_CONTACT_EMAIL', '')) ?: trim((string) ($mysoc->email ?? ''));
+	if ($xrEmail !== '') {
+		$diagOk[] = $xrPrefix.$langs->trans("AuvoERechnungXrContactEmail").' : '.dol_escape_htmltag($xrEmail);
+	} else {
+		$diagErrors[] = ['msg' => $xrPrefix.$langs->trans("AuvoERechnungDiagXrEmailMissing"), 'fix' => '/admin/company.php'];
+	}
+	$diagOk[] = $xrPrefix.$langs->trans("AuvoERechnungDiagXrVersion", dol_escape_htmltag(auvoerechnung_xrechnung_cius_id()));
+	$sqlXr = "SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."societe_extrafields ef";
+	$sqlXr .= " INNER JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid = ef.fk_object AND s.entity IN (".getEntity('societe').")";
+	$sqlXr .= " WHERE (ef.lfxleitwegid IS NOT NULL AND ef.lfxleitwegid <> '' AND (ef.lfxeformat IS NULL OR ef.lfxeformat <> 'zugferd'))";
+	$sqlXr .= " OR ef.lfxeformat = 'xrechnung'";
+	$resXr = $db->query($sqlXr);
+	$nbXr = ($resXr && ($o = $db->fetch_object($resXr))) ? (int) $o->nb : 0;
+	$diagOk[] = $xrPrefix.$langs->trans("AuvoERechnungDiagXrCustomers", $nbXr);
+}
+
 print '<table class="noborder centpercent">';
 print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("AuvoERechnungDiagResults").'</td></tr>';
 

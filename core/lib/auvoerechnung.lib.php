@@ -279,6 +279,13 @@ function auvoerechnung_build_xml($invoice, $mysoc, &$buildWarnings = [], $option
 	// de l'acheteur public = Leitweg-ID sous le schéma 0204 (identifiant Peppol
 	// des destinataires de l'OZG-RE), à défaut son email.
 	$sellerExtra = $isXRechnung ? ['contact' => auvoerechnung_get_seller_contact($invoice, $mysoc)] : [];
+	// BT-29 : n° de fournisseur attribué par l'acheteur (« Lieferantennummer »,
+	// exigée par § 5 E-RechV si l'administration l'a communiquée), saisi sur la
+	// fiche du CLIENT. Émis pour tous les profils.
+	$supplierNo = auvoerechnung_party_supplier_number($buyer);
+	if ($supplierNo !== '') {
+		$sellerExtra['seller_id'] = $supplierNo;
+	}
 	$buyerExtra = ($isXRechnung && $leitwegId !== '') ? ['endpoint' => ['0204', $leitwegId]] : [];
 	$xml .= auvoerechnung_build_trade_party_xml('Seller', $mysoc, $mysoc->email ?? '', $legalIdMode, $sellerExtra);
 	$xml .= auvoerechnung_build_trade_party_xml('Buyer', $buyer, auvoerechnung_get_buyer_email($buyer, $invoice->db), $legalIdMode, $buyerExtra);
@@ -1170,6 +1177,7 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
  *                       'contact'  => ['name' =>, 'phone' =>, 'email' =>] (BG-6)
  *                       'endpoint' => [schemeID, valeur] remplaçant l'adresse
  *                                     électronique calculée (ex. 0204 + Leitweg-ID)
+ *                       'seller_id' => BT-29 (n° de fournisseur chez l'acheteur)
  */
 function auvoerechnung_build_trade_party_xml($role, $party, $email, $legalIdMode = 'siren', $extra = [])
 {
@@ -1202,18 +1210,20 @@ function auvoerechnung_build_trade_party_xml($role, $party, $email, $legalIdMode
 	// « Handelsregister-Nummer ») → BT-30 ; sans USt-IdNr ni registre (cas typique
 	// du Kleinunternehmer), la Steuernummer est aussi portée en BT-29 (Seller
 	// identifier, sans schéma) pour que le vendeur reste identifiable.
-	$deSellerId = '';
+	// Un n° de fournisseur communiqué par l'acheteur (extra 'seller_id') est le
+	// vrai BT-29 et satisfait à lui seul BR-CO-26 : il remplace alors ce repli.
+	$sellerId = ($role === 'Seller') ? trim((string) ($extra['seller_id'] ?? '')) : '';
 	$deRegister = '';
 	if ($role === 'Seller' && strtoupper($country) === 'DE') {
 		$deRegister = trim((string) ($party->idprof3 ?? ''));
-		if ($vat === '' && $deRegister === '') {
-			$deSellerId = auvoerechnung_party_steuernummer($party);
+		if ($sellerId === '' && $vat === '' && $deRegister === '') {
+			$sellerId = auvoerechnung_party_steuernummer($party);
 		}
 	}
 
 	$xml  = '    <ram:'.$tag.'>'."\n";
-	if ($deSellerId !== '') {
-		$xml .= '      <ram:ID>'.auvoerechnung_xml_encode($deSellerId).'</ram:ID>'."\n";
+	if ($sellerId !== '') {
+		$xml .= '      <ram:ID>'.auvoerechnung_xml_encode($sellerId).'</ram:ID>'."\n";
 	}
 	if (!$chorus && !empty($siret14)) {
 		// BT-29 (vendeur) / BT-46 (acheteur) avec scheme ISO 6523 (0009 = SIRET) :
@@ -2236,6 +2246,41 @@ function auvoerechnung_xrechnung_cius_id()
 		$version = AUVOERECHNUNG_XRECHNUNG_DEFAULT_VERSION;
 	}
 	return 'urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_'.$version;
+}
+
+/**
+ * N° de fournisseur du vendeur chez ce client (BT-29), extrafield tiers
+ * « Unsere Lieferantennummer beim Kunden » (lfxsupplierno).
+ *
+ * @param object $party  Tiers acheteur
+ * @return string
+ */
+function auvoerechnung_party_supplier_number($party)
+{
+	$ao = (is_object($party) && !empty($party->array_options)) ? $party->array_options : [];
+	return trim((string) ($ao['options_lfxsupplierno'] ?? ''));
+}
+
+/**
+ * Chemin du fichier XRechnung d'une facture : {dossier facture}/{ref}-XRECHNUNG.xml.
+ * Nom fixe, indépendant du nom du PDF (les modèles ODT produisent {ref}_{modèle}.pdf).
+ *
+ * @param string $ref     Référence de la facture
+ * @param int    $entity  Entité de la facture
+ * @return string  Chemin, ou '' si le répertoire documents des factures est inconnu
+ */
+function auvoerechnung_xrechnung_path($ref, $entity)
+{
+	global $conf;
+
+	$dir = !empty($conf->facture->multidir_output[$entity])
+		? $conf->facture->multidir_output[$entity]
+		: ($conf->facture->dir_output ?? '');
+	if (empty($dir)) {
+		return '';
+	}
+	$safeRef = dol_sanitizeFileName($ref);
+	return $dir.'/'.$safeRef.'/'.$safeRef.'-XRECHNUNG.xml';
 }
 
 /**
