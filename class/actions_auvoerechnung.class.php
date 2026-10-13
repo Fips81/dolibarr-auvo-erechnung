@@ -177,7 +177,7 @@ class ActionsAuvoERechnung
 				$warnings[] = auvoerechnung_trans('AuvoERechnungChorusSuggested');
 			}
 
-			dol_syslog('AuVo E-Rechnung: PDF Factur-X généré pour '.$invoice->ref, LOG_INFO);
+			dol_syslog('AuVo E-Rechnung: Factur-X PDF generated for '.$invoice->ref, LOG_INFO);
 			$this->reportSuccess($invoice->ref, $warnings);
 			return 0;
 		} finally {
@@ -400,7 +400,7 @@ class ActionsAuvoERechnung
 				$warnings[] = auvoerechnung_trans('AuvoERechnungChorusSuggested');
 			}
 
-			dol_syslog('AuVo E-Rechnung: PDF Factur-X (ODT) généré pour '.$invoice->ref, LOG_INFO);
+			dol_syslog('AuVo E-Rechnung: Factur-X PDF (ODT) generated for '.$invoice->ref, LOG_INFO);
 			$this->reportSuccess($invoice->ref, $warnings);
 			return 0;
 		} finally {
@@ -437,14 +437,14 @@ class ActionsAuvoERechnung
 		// copie si le XML profil Chorus ne passe pas le XSD.
 		$xsdError = $this->validateXml($chorusXml, $modulePath);
 		if ($xsdError !== null) {
-			dol_syslog('AuVo E-Rechnung Chorus: XML invalide pour '.$invoice->ref.' : '.$xsdError, LOG_ERR);
+			dol_syslog('AuVo E-Rechnung Chorus: invalid XML for '.$invoice->ref.': '.$xsdError, LOG_ERR);
 			return array('ok' => false, 'msg' => auvoerechnung_trans('AuvoERechnungChorusErr'));
 		}
 
 		// Copie {ref}-CHORUS.pdf dans le même dossier que le PDF principal.
 		$chorusPdf = preg_replace('/\.pdf$/i', '', $mainPdf).'-CHORUS.pdf';
 		if (!@copy($mainPdf, $chorusPdf)) {
-			dol_syslog('AuVo E-Rechnung Chorus: copie PDF impossible vers '.$chorusPdf, LOG_ERR);
+			dol_syslog('AuVo E-Rechnung Chorus: unable to copy PDF to '.$chorusPdf, LOG_ERR);
 			return array('ok' => false, 'msg' => auvoerechnung_trans('AuvoERechnungChorusErr'));
 		}
 
@@ -454,7 +454,7 @@ class ActionsAuvoERechnung
 		if ($tmp === false || file_put_contents($tmp, $chorusXml) === false) {
 			if ($tmp !== false) { @unlink($tmp); }
 			@unlink($chorusPdf);
-			dol_syslog('AuVo E-Rechnung Chorus: écriture XML temp impossible', LOG_ERR);
+			dol_syslog('AuVo E-Rechnung Chorus: unable to write temporary XML', LOG_ERR);
 			return array('ok' => false, 'msg' => auvoerechnung_trans('AuvoERechnungChorusErr'));
 		}
 
@@ -463,14 +463,14 @@ class ActionsAuvoERechnung
 			$inj = $this->injectFacturx($chorusPdf, $tmp, $modulePath);
 			if (!$inj['ok']) {
 				@unlink($chorusPdf);
-				dol_syslog('AuVo E-Rechnung Chorus: injection KO : '.dol_trunc($inj['error'], 300), LOG_ERR);
+				dol_syslog('AuVo E-Rechnung Chorus: embedding failed: '.dol_trunc($inj['error'], 300), LOG_ERR);
 				return array('ok' => false, 'msg' => auvoerechnung_trans('AuvoERechnungChorusErr'));
 			}
 		} finally {
 			@unlink($tmp);
 		}
 
-		dol_syslog('AuVo E-Rechnung: PDF Chorus généré pour '.$invoice->ref.' ('.basename($chorusPdf).')', LOG_INFO);
+		dol_syslog('AuVo E-Rechnung: Chorus PDF generated for '.$invoice->ref.' ('.basename($chorusPdf).')', LOG_INFO);
 		return array('ok' => true, 'msg' => auvoerechnung_trans('AuvoERechnungChorusGenerated', basename($chorusPdf)));
 	}
 
@@ -743,10 +743,10 @@ class ActionsAuvoERechnung
 
 		// veraPDF (format text) : "PASS file.pdf" / "FAIL file.pdf"
 		if (strpos($text, 'PASS') === 0 || preg_match('/^PASS\b/m', $text)) {
-			dol_syslog('AuVo E-Rechnung: veraPDF PASS pour '.$pdfFile, LOG_INFO);
+			dol_syslog('AuVo E-Rechnung: veraPDF PASS for '.$pdfFile, LOG_INFO);
 			return null;
 		}
-		dol_syslog('AuVo E-Rechnung: veraPDF KO pour '.$pdfFile.' : '.dol_trunc($text, 500), LOG_WARNING);
+		dol_syslog('AuVo E-Rechnung: veraPDF FAIL for '.$pdfFile.': '.dol_trunc($text, 500), LOG_WARNING);
 		return auvoerechnung_trans('AuvoERechnungWarnVeraPdfFailed');
 	}
 
@@ -800,7 +800,7 @@ class ActionsAuvoERechnung
 		// `:`, `\`, `(`, `)`, espace autorisés pour les chemins Windows
 		// (ex C:\Program Files\php\php.exe).
 		if (!preg_match('#^[A-Za-z0-9/._:() \\\\-]+$#', $phpBin)) {
-			dol_syslog('AuVo E-Rechnung: AUVOERECHNUNG_PHP_CLI_PATH valeur reçue : '.$phpBin, LOG_ERR);
+			dol_syslog('AuVo E-Rechnung: AUVOERECHNUNG_PHP_CLI_PATH value received: '.$phpBin, LOG_ERR);
 			$this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrPhpCliChars'), $strict);
 			return null;
 		}
@@ -1120,7 +1120,7 @@ class ActionsAuvoERechnung
 		require_once $modulePath.'/core/lib/auvoerechnung_rules.php';
 		$xsdPath = $modulePath.'/vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.09.2_EN16931.xsd';
 		if (!file_exists($xsdPath)) {
-			dol_syslog('AuVo E-Rechnung: XSD EN16931 absent de vendor/, validation structurelle limitée au well-formed', LOG_WARNING);
+			dol_syslog('AuVo E-Rechnung: EN16931 XSD missing from vendor/, structural validation limited to well-formedness', LOG_WARNING);
 		}
 		return auvoerechnung_validate_xsd($xml, $modulePath);
 	}

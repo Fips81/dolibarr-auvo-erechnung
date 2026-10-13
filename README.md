@@ -454,6 +454,10 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 
 ## Changelog
 
+### Unveröffentlicht
+
+- Meldungen im Dolibarr-Log (Syslog) auf Englisch statt Französisch, z. B. „Factur-X PDF generated for …“ statt „PDF Factur-X généré pour …“. Die Meldungen für Nutzer bleiben in deren Sprache (Sprachdateien).
+
 ### 5.0.0 — Umbenennung in AuVo E-Rechnung (Oktober 2026)
 
 - **Neuer Name**: DoliZUGFeRD heißt jetzt **AuVo E-Rechnung** (Modulordner `auvoerechnung`, Konstanten `AUVOERECHNUNG_*`, REST-API `/auvoerechnung/…`, Release-Asset `module_auvoerechnung-X.Y.Z.zip`, Repo `Fips81/dolibarr-auvo-erechnung`). Der Name nennt das Thema statt eines Standards: Er passt zur geplanten XRechnung-Erweiterung und vermeidet fremde Marken im Modulnamen.
