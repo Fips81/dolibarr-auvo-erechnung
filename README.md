@@ -10,6 +10,20 @@ Ein Fork von [LemonFacturX](https://hellolemon.fr) (Lemon, Webagentur aus Clermo
 
 > AuVo E-Rechnung ist ein unabhängiges Modul für Dolibarr. Es ist kein offizielles Produkt des Forums elektronische Rechnung Deutschland (FeRD), der Dolibarr Foundation oder von Lemon und wird von diesen nicht unterstützt. ZUGFeRD, Factur-X, XRechnung und Dolibarr sind Namen bzw. Marken ihrer jeweiligen Inhaber.
 
+## Unterstützte Standards (Stand Oktober 2026)
+
+Das Modul arbeitet mit den **aktuellen Fassungen** der deutschen und französischen E-Rechnungsstandards:
+
+| Standard | Version im Modul | Stand |
+|---|---|---|
+| **ZUGFeRD / Factur-X**, Profil EN16931 (COMFORT) | **ZUGFeRD 2.5.2 / Factur-X 1.09.2** (XML-Schemata aus `atgp/factur-x` 3.5.0) | neueste Version, veröffentlicht am 04.08.2026, gültig ab 01.09.2026 |
+| **XRechnung** (CIUS der KoSIT), Syntax CII | **XRechnung 3.0.2**, Bundle vom 31.08.2026 | aktuell gültige Version, gilt laut KoSIT mindestens bis 31.07.2027; XRechnung 4.0 liegt bisher nur als Vorversion vor (endgültig voraussichtlich Frühjahr 2027) |
+| **EN 16931** (europäische Norm), Prüfregeln | CEN-Schematron 1.3.16 | Teil der offiziellen KoSIT-Validator-Konfiguration vom 31.08.2026 |
+
+**Wie das geprüft wird:** Jede Änderung und jedes Release wird automatisch mit dem **offiziellen Validator der KoSIT** (1.6.3) gegen die EN16931- und XRechnung-Regeln geprüft, siehe [Validierung und Tests](#validierung-und-tests).
+
+**Aktualität:** Die KoSIT veröffentlicht XRechnung-Fassungen zum 01.02. und 01.07., FeRD/FNFE-MPE neue ZUGFeRD/Factur-X-Versionen etwa halbjährlich. Neue Fassungen werden mit einem Modul-Update nachgezogen; die XRechnung-Kennung (Version) lässt sich zusätzlich in den Moduleinstellungen anpassen.
+
 ## Voraussetzungen
 
 - **Dolibarr** 19.0 → 24.x — Mindestversion bei Aktivierung geprüft (`need_dolibarr_version`)
@@ -116,7 +130,7 @@ auvoerechnung/
 │   ├── unit-tests.php                       # Standalone-Tests (ohne Dolibarr, CI)
 │   └── run-tests.php                        # Integrationstests (Fixtures aus demo/)
 ├── docs/LIMITATIONS.md                      # Nicht behandelte Fälle und Gründe
-└── vendor/                                  # Lib atgp/factur-x v3.4.1 + Abhängigkeiten
+└── vendor/                                  # Lib atgp/factur-x v3.5.0 + Abhängigkeiten
 ```
 
 ## Funktionsweise
@@ -412,7 +426,7 @@ Extrahiert das eingebettete Factur-X-XML aller validierten Rechnungen (des angeg
 
 Der Ordner `vendor/` enthält die benötigten Libs (kein Composer auf dem Server erforderlich):
 
-- `atgp/factur-x` v3.4.1 — Erzeugung von Factur-X-PDFs
+- `atgp/factur-x` v3.5.0 — Erzeugung von Factur-X-PDFs (Schemata Factur-X 1.09.2 / ZUGFeRD 2.5.2)
 - `setasign/fpdi` v2.6.6 — Lesen/Schreiben von PDFs
 - `setasign/fpdf` 1.8.6 — PDF-Engine (von atgp genutzt, **nicht** von Dolibarr)
 - `smalot/pdfparser` v2.12.5 — PDF-Parsing
