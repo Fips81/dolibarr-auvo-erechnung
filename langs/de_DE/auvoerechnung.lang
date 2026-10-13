@@ -259,3 +259,47 @@ AuvoERechnungErrInjWriteOutput = Ausgabe-PDF konnte nicht geschrieben werden
 AuvoERechnungErrInjReplacePdf = Original-PDF konnte nicht ersetzt werden
 AuvoERechnungErrInjNoPhpCli = PHP-CLI-Programm nicht gefunden
 AuvoERechnungErrInjFpdiConflict = %s ist bereits außerhalb des Modul-vendor geladen (%s): FPDI-Konflikt, In-Process-Einbettung nicht möglich
+
+# XRechnung (CIUS KoSIT)
+AuvoERechnungEfEFormat = E-Rechnungsformat
+AuvoERechnungEfEFormatAuto = Automatisch (XRechnung bei Leitweg-ID)
+AuvoERechnungEfEFormatZugferd = ZUGFeRD
+AuvoERechnungEfEFormatXRechnung = XRechnung
+AuvoERechnungXrGenerated = XRechnung erzeugt: %s (bei den Dokumenten der Rechnung, zum Hochladen auf die OZG-RE oder als E-Mail-Anhang)
+AuvoERechnungXrNotGenerated = XRechnung NICHT erzeugt — der Kunde erwartet eine XRechnung, es fehlen aber Angaben:
+AuvoERechnungXrWriteError = XRechnung-Datei %s konnte nicht geschrieben werden
+AuvoERechnungXrMissingBuyerRef = Käuferreferenz fehlt (BT-10, BR-DE-15): Leitweg-ID beim Kunden oder Kundenreferenz in der Rechnung eintragen
+AuvoERechnungXrMissingContactName = Name des Ansprechpartners fehlt (BT-41, BR-DE-5): in den Moduleinstellungen eintragen oder beim Ersteller der Rechnung hinterlegen
+AuvoERechnungXrMissingContactPhone = Telefonnummer des Ansprechpartners fehlt oder ist ungültig (BT-42, BR-DE-6): mindestens 3 Ziffern; in den Moduleinstellungen, beim Benutzer oder bei der Firma eintragen
+AuvoERechnungXrMissingContactEmail = E-Mail des Ansprechpartners fehlt oder ist ungültig (BT-43, BR-DE-7)
+AuvoERechnungXrMissingSellerEmail = E-Mail-Adresse der Firma fehlt (BT-34, elektronische Adresse des Verkäufers)
+AuvoERechnungXrMissingBuyerAddress = Elektronische Adresse des Kunden fehlt (BT-49): Leitweg-ID oder E-Mail beim Kunden eintragen
+AuvoERechnungXrMissingSellerZipTown = PLZ oder Ort der Firma fehlt (BR-DE-3/4)
+AuvoERechnungXrMissingBuyerZipTown = PLZ oder Ort des Kunden fehlt (BR-DE-8/9)
+AuvoERechnungXrMissingIban = IBAN fehlt (BR-DE-1/23): für Überweisung muss ein Bankkonto mit IBAN eingestellt sein
+AuvoERechnungRuleXrR001 = Geschäftsprozesstyp (BT-23) fehlt
+AuvoERechnungRuleDE15 = Käuferreferenz (BT-10) fehlt
+AuvoERechnungRuleXrR020 = Elektronische Adresse des Verkäufers (BT-34) fehlt
+AuvoERechnungRuleXrR010 = Elektronische Adresse des Käufers (BT-49) fehlt
+AuvoERechnungRuleDE2 = Kontaktgruppe des Verkäufers (BG-6) fehlt
+AuvoERechnungRuleDE5 = Ansprechpartner des Verkäufers (BT-41) fehlt
+AuvoERechnungRuleDE6 = Telefon des Ansprechpartners (BT-42) fehlt
+AuvoERechnungRuleDE7 = E-Mail des Ansprechpartners (BT-43) fehlt
+AuvoERechnungRuleDE3 = Ort des Verkäufers (BT-37) fehlt
+AuvoERechnungRuleDE4 = PLZ des Verkäufers (BT-38) fehlt
+AuvoERechnungRuleDE8 = Ort des Käufers (BT-52) fehlt
+AuvoERechnungRuleDE9 = PLZ des Käufers (BT-53) fehlt
+AuvoERechnungRuleDE1 = Zahlungsanweisungen (BG-16) fehlen
+AuvoERechnungRuleDE23a = Überweisung ohne Konto des Zahlungsempfängers (BG-17/BT-84)
+AuvoERechnungRuleDE31 = Lastschrift ohne belastetes Konto (BT-91)
+AuvoERechnungRuleDE16 = Weder USt-IdNr. (BT-31) noch Steuernummer (BT-32) des Verkäufers
+AuvoERechnungRuleDE14 = Steuersatz (BT-119) fehlt für Kategorie %s
+AuvoERechnungRuleDE18 = Skonto-Zeile „%s“ entspricht nicht der Syntax #SKONTO#TAGE=n#PROZENT=n.nn#
+AuvoERechnungSecXRechnung = XRechnung
+AuvoERechnungXrVersion = XRechnung-Version
+AuvoERechnungXrVersionHint = Version der KoSIT-Spezifikation für die Kennung BT-24, z. B. 3.0. Die KoSIT veröffentlicht zum 01.02. und 01.07.; nur ändern, wenn eine neue Version gilt.
+AuvoERechnungXrContactName = Ansprechpartner (BT-41)
+AuvoERechnungXrContactPhone = Telefon des Ansprechpartners (BT-42)
+AuvoERechnungXrContactEmail = E-Mail des Ansprechpartners (BT-43)
+AuvoERechnungXrContactHint = Pflicht in jeder XRechnung. Leer = Daten des Benutzers, der die Rechnung erstellt hat; Telefon und E-Mail notfalls von der Firma.
+AuvoERechnungXrInfo = Eine XRechnung wird zusätzlich zur ZUGFeRD-PDF als Datei {Rechnung}-XRECHNUNG.xml erzeugt, wenn beim Kunden eine Leitweg-ID eingetragen ist oder das E-Rechnungsformat „XRechnung“ gewählt ist.

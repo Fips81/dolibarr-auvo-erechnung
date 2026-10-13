@@ -292,10 +292,12 @@ function auvoerechnung_validate_business_rules($xml)
 		}
 	}
 
-	// === BR-CO-26 : identifiant vendeur (légal ou fiscal) obligatoire ===
+	// === BR-CO-26 : BT-29 (ID / GlobalID), BT-30 (registre) ou BT-31 (TVA, schéma VA).
+	// Le n° fiscal BT-32 (schéma FC) ne suffit PAS (Schematron EN16931 officiel).
+	$sellerId = $str('//ram:SellerTradeParty/ram:ID') ?: $str('//ram:SellerTradeParty/ram:GlobalID');
 	$sellerLegal = $str('//ram:SellerTradeParty/ram:SpecifiedLegalOrganization/ram:ID');
-	$sellerTax = $str('//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID');
-	if (empty($sellerLegal) && empty($sellerTax)) {
+	$sellerVat = $str('//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="VA"]');
+	if (empty($sellerId) && empty($sellerLegal) && empty($sellerVat)) {
 		$violations[] = auvoerechnung_rule_msg('BR-CO-26', 'AuvoERechnungRuleCO26');
 	}
 
@@ -416,6 +418,87 @@ function auvoerechnung_validate_business_rules($xml)
 			$uriVal = trim($uriNode->textContent);
 			if ($uriVal !== '' && !preg_match('/^[A-Za-z0-9._-]+$/', $uriVal)) {
 				$violations[] = auvoerechnung_rule_msg('BR-FR-23', 'AuvoERechnungRuleFR23', $uriVal);
+			}
+		}
+	}
+
+	// =========================================================================
+	// Règles XRechnung (CIUS allemande, KoSIT) — sous-ensemble des règles
+	// « fatal » du Schematron XRechnung 3.0 contrôlable sur le XML émis.
+	// Appliquées seulement quand BT-24 annonce XRechnung : un ZUGFeRD EN16931
+	// n'y est pas soumis. Le validateur officiel KoSIT reste la référence.
+	// =========================================================================
+	$bt24 = (string) $str('//rsm:ExchangedDocumentContext/ram:GuidelineSpecifiedDocumentContextParameter/ram:ID');
+	if (strpos($bt24, 'urn:xeinkauf.de:kosit:xrechnung_') !== false) {
+		$seller = '//ram:SellerTradeParty';
+		$buyerP = '//ram:BuyerTradeParty';
+		// PEPPOL-EN16931-R001 : processus métier (BT-23)
+		if (empty($str('//rsm:ExchangedDocumentContext/ram:BusinessProcessSpecifiedDocumentContextParameter/ram:ID'))) {
+			$violations[] = auvoerechnung_rule_msg('PEPPOL-EN16931-R001', 'AuvoERechnungRuleXrR001');
+		}
+		// BR-DE-15 : référence acheteur (BT-10)
+		if (empty($str('//ram:ApplicableHeaderTradeAgreement/ram:BuyerReference'))) {
+			$violations[] = auvoerechnung_rule_msg('BR-DE-15', 'AuvoERechnungRuleDE15');
+		}
+		// PEPPOL-EN16931-R020 / R010 : adresses électroniques vendeur / acheteur
+		if (empty($str($seller.'/ram:URIUniversalCommunication/ram:URIID'))) {
+			$violations[] = auvoerechnung_rule_msg('PEPPOL-EN16931-R020', 'AuvoERechnungRuleXrR020');
+		}
+		if (empty($str($buyerP.'/ram:URIUniversalCommunication/ram:URIID'))) {
+			$violations[] = auvoerechnung_rule_msg('PEPPOL-EN16931-R010', 'AuvoERechnungRuleXrR010');
+		}
+		// BR-DE-2/5/6/7 : contact vendeur (BG-6)
+		if ($xp->query($seller.'/ram:DefinedTradeContact')->length === 0) {
+			$violations[] = auvoerechnung_rule_msg('BR-DE-2', 'AuvoERechnungRuleDE2');
+		} else {
+			$contact = $seller.'/ram:DefinedTradeContact';
+			if (empty($str($contact.'/ram:PersonName')) && empty($str($contact.'/ram:DepartmentName'))) {
+				$violations[] = auvoerechnung_rule_msg('BR-DE-5', 'AuvoERechnungRuleDE5');
+			}
+			if (empty($str($contact.'/ram:TelephoneUniversalCommunication/ram:CompleteNumber'))) {
+				$violations[] = auvoerechnung_rule_msg('BR-DE-6', 'AuvoERechnungRuleDE6');
+			}
+			if (empty($str($contact.'/ram:EmailURIUniversalCommunication/ram:URIID'))) {
+				$violations[] = auvoerechnung_rule_msg('BR-DE-7', 'AuvoERechnungRuleDE7');
+			}
+		}
+		// BR-DE-3/4/8/9 : ville et code postal vendeur / acheteur
+		foreach ([['BR-DE-3', $seller, 'CityName'], ['BR-DE-4', $seller, 'PostcodeCode'], ['BR-DE-8', $buyerP, 'CityName'], ['BR-DE-9', $buyerP, 'PostcodeCode']] as $r) {
+			if (empty($str($r[1].'/ram:PostalTradeAddress/ram:'.$r[2]))) {
+				$violations[] = auvoerechnung_rule_msg($r[0], 'AuvoERechnungRule'.str_replace('-', '', substr($r[0], 3)));
+			}
+		}
+		// BR-DE-1 : instructions de paiement (BG-16)
+		$pmNodes = $xp->query('//ram:SpecifiedTradeSettlementPaymentMeans');
+		if ($pmNodes->length === 0) {
+			$violations[] = auvoerechnung_rule_msg('BR-DE-1', 'AuvoERechnungRuleDE1');
+		}
+		// BR-DE-23-a / BR-DE-25-a : virement → BG-17 (IBAN) ; prélèvement → BT-89/90/91
+		foreach ($pmNodes as $pm) {
+			$code = $str('ram:TypeCode', $pm);
+			if (in_array($code, ['30', '58'], true) && empty($str('ram:PayeePartyCreditorFinancialAccount/ram:IBANID', $pm)) && empty($str('ram:PayeePartyCreditorFinancialAccount/ram:ProprietaryID', $pm))) {
+				$violations[] = auvoerechnung_rule_msg('BR-DE-23-a', 'AuvoERechnungRuleDE23a');
+			}
+			if ($code === '59' && empty($str('ram:PayerPartyDebtorFinancialAccount/ram:IBANID', $pm))) {
+				$violations[] = auvoerechnung_rule_msg('BR-DE-31', 'AuvoERechnungRuleDE31');
+			}
+		}
+		// BR-DE-16 : identifiant fiscal du vendeur (BT-31 ou BT-32)
+		if ($xp->query($seller.'/ram:SpecifiedTaxRegistration/ram:ID')->length === 0) {
+			$violations[] = auvoerechnung_rule_msg('BR-DE-16', 'AuvoERechnungRuleDE16');
+		}
+		// BR-DE-14 : taux de TVA (BT-119) dans chaque ventilation
+		foreach ($xp->query('//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax') as $tax) {
+			if ($str('ram:RateApplicablePercent', $tax) === null || $str('ram:RateApplicablePercent', $tax) === '') {
+				$violations[] = auvoerechnung_rule_msg('BR-DE-14', 'AuvoERechnungRuleDE14', $str('ram:CategoryCode', $tax));
+			}
+		}
+		// BR-DE-18 : lignes Skonto de BT-20 conformes à la syntaxe KoSIT
+		foreach ($xp->query('//ram:SpecifiedTradePaymentTerms/ram:Description') as $desc) {
+			foreach (preg_split('/\r?\n/', $desc->textContent) as $l) {
+				if (strpos($l, '#') === 0 && !preg_match('/^#SKONTO#TAGE=[0-9]+#PROZENT=[0-9]+\.[0-9]{2}(#BASISBETRAG=-?[0-9]+\.[0-9]{2})?#$/', trim($l))) {
+					$violations[] = auvoerechnung_rule_msg('BR-DE-18', 'AuvoERechnungRuleDE18', trim($l));
+				}
 			}
 		}
 	}

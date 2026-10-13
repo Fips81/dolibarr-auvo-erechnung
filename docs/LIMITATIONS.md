@@ -104,10 +104,20 @@ XRechnung und gehört nicht zum hier erzeugten Profil EN16931.
 ## Übermittlung
 
 ### XRechnung
-**Nicht erzeugt.** Das Modul gibt ZUGFeRD im Profil EN16931 (COMFORT) aus.
-Viele öffentliche Auftraggeber in Deutschland (Rechnungen mit Leitweg-ID)
-verlangen XRechnung. Ob ZUGFeRD EN16931 akzeptiert wird, hängt vom
-jeweiligen Rechnungseingangsportal ab — vorher beim Auftraggeber klären.
+**Teilweise.** Für Kunden mit Leitweg-ID (oder E-Rechnungsformat „XRechnung“)
+erzeugt das Modul zusätzlich zur ZUGFeRD-PDF eine **XRechnung 3.0 als eigene
+XML-Datei** (`{Rechnung}-XRECHNUNG.xml`, Syntax CII). Noch nicht enthalten:
+- ZUGFeRD-PDF im **Profil XRECHNUNG** (XRechnung-XML in der PDF eingebettet):
+  die eingebettete Bibliothek kennt dieses Profil nicht; die PDF bleibt
+  ZUGFeRD EN16931. Für die OZG-RE des Bundes die XML-Datei verwenden.
+- **Skonto** in der XRechnung-Syntax (`#SKONTO#TAGE=…#PROZENT=…#`, BT-20).
+- **Lieferantennummer** (BT-29 vom Auftraggeber) als eigenes Feld.
+- Die Variante **UBL** und die **XRechnung-Extension**.
+- Der Versand (OZG-RE-Upload, E-Mail-Kanal, Peppol) bleibt Handarbeit.
+
+Die interne Prüfung deckt die „fatal“-Regeln BR-DE-1 bis -9, -14 bis -16,
+-18, -23, -31 und PEPPOL-EN16931-R001/R010/R020 ab. Verbindlich ist der
+offizielle KoSIT-Validator.
 
 ### Anbindung an Plattformen (Frankreich: PDP/PPF; Deutschland: Portale)
 **Nicht behandelt.** Das Modul erzeugt das **Format**. Die **Übermittlung**

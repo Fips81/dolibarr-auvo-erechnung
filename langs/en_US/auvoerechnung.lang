@@ -259,3 +259,47 @@ AuvoERechnungErrInjWriteOutput = unable to write the output PDF
 AuvoERechnungErrInjReplacePdf = unable to replace the original PDF
 AuvoERechnungErrInjNoPhpCli = PHP CLI binary not found
 AuvoERechnungErrInjFpdiConflict = %s already loaded outside the module vendor (%s): FPDI conflict, in-process embedding impossible
+
+# XRechnung (KoSIT CIUS)
+AuvoERechnungEfEFormat = E-invoice format
+AuvoERechnungEfEFormatAuto = Automatic (XRechnung when Leitweg-ID is set)
+AuvoERechnungEfEFormatZugferd = ZUGFeRD
+AuvoERechnungEfEFormatXRechnung = XRechnung
+AuvoERechnungXrGenerated = XRechnung generated: %s (in the invoice documents, for upload to OZG-RE or as e-mail attachment)
+AuvoERechnungXrNotGenerated = XRechnung NOT generated — the customer expects an XRechnung but data is missing:
+AuvoERechnungXrWriteError = Unable to write XRechnung file %s
+AuvoERechnungXrMissingBuyerRef = Buyer reference missing (BT-10, BR-DE-15): set the Leitweg-ID on the customer or a customer reference on the invoice
+AuvoERechnungXrMissingContactName = Contact name missing (BT-41, BR-DE-5): set it in the module setup or on the invoice author
+AuvoERechnungXrMissingContactPhone = Contact phone missing or invalid (BT-42, BR-DE-6): at least 3 digits
+AuvoERechnungXrMissingContactEmail = Contact e-mail missing or invalid (BT-43, BR-DE-7)
+AuvoERechnungXrMissingSellerEmail = Company e-mail missing (BT-34, seller electronic address)
+AuvoERechnungXrMissingBuyerAddress = Customer electronic address missing (BT-49): set the Leitweg-ID or an e-mail on the customer
+AuvoERechnungXrMissingSellerZipTown = Company post code or city missing (BR-DE-3/4)
+AuvoERechnungXrMissingBuyerZipTown = Customer post code or city missing (BR-DE-8/9)
+AuvoERechnungXrMissingIban = IBAN missing (BR-DE-1/23): credit transfer requires a bank account with IBAN
+AuvoERechnungRuleXrR001 = business process type (BT-23) missing
+AuvoERechnungRuleDE15 = buyer reference (BT-10) missing
+AuvoERechnungRuleXrR020 = seller electronic address (BT-34) missing
+AuvoERechnungRuleXrR010 = buyer electronic address (BT-49) missing
+AuvoERechnungRuleDE2 = seller contact group (BG-6) missing
+AuvoERechnungRuleDE5 = seller contact point (BT-41) missing
+AuvoERechnungRuleDE6 = seller contact telephone (BT-42) missing
+AuvoERechnungRuleDE7 = seller contact e-mail (BT-43) missing
+AuvoERechnungRuleDE3 = seller city (BT-37) missing
+AuvoERechnungRuleDE4 = seller post code (BT-38) missing
+AuvoERechnungRuleDE8 = buyer city (BT-52) missing
+AuvoERechnungRuleDE9 = buyer post code (BT-53) missing
+AuvoERechnungRuleDE1 = payment instructions (BG-16) missing
+AuvoERechnungRuleDE23a = credit transfer without payee account (BG-17/BT-84)
+AuvoERechnungRuleDE31 = direct debit without debited account (BT-91)
+AuvoERechnungRuleDE16 = neither seller VAT ID (BT-31) nor tax number (BT-32)
+AuvoERechnungRuleDE14 = VAT rate (BT-119) missing for category %s
+AuvoERechnungRuleDE18 = discount line "%s" does not match #SKONTO#TAGE=n#PROZENT=n.nn#
+AuvoERechnungSecXRechnung = XRechnung
+AuvoERechnungXrVersion = XRechnung version
+AuvoERechnungXrVersionHint = KoSIT specification version used for the BT-24 identifier, e.g. 3.0. Only change when a new version applies.
+AuvoERechnungXrContactName = Contact person (BT-41)
+AuvoERechnungXrContactPhone = Contact phone (BT-42)
+AuvoERechnungXrContactEmail = Contact e-mail (BT-43)
+AuvoERechnungXrContactHint = Mandatory in every XRechnung. Empty = data of the user who created the invoice; phone and e-mail fall back to the company.
+AuvoERechnungXrInfo = An XRechnung is generated in addition to the ZUGFeRD PDF as file {invoice}-XRECHNUNG.xml when the customer has a Leitweg-ID or the e-invoice format "XRechnung".

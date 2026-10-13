@@ -34,6 +34,12 @@ if (!defined('AUVOERECHNUNG_EU_COUNTRIES')) {
 	define('AUVOERECHNUNG_DEFAULT_NOTE_PMD', 'En cas de retard de paiement, une pénalité égale à 3 fois le taux d\'intérêt légal sera exigible (article L.441-10 du Code de commerce).');
 	define('AUVOERECHNUNG_DEFAULT_NOTE_PMT', 'Une indemnité forfaitaire de 40 euros sera exigible pour frais de recouvrement en cas de retard de paiement.');
 	define('AUVOERECHNUNG_DEFAULT_NOTE_AAB', 'Pas d\'escompte pour paiement anticipé.');
+	// XRechnung (CIUS allemande de l'EN16931, KoSIT) : BT-23 imposé par la règle
+	// PEPPOL-EN16931-R001 du Schematron XRechnung, version par défaut de la
+	// spécification (BT-24). La KoSIT publie deux fois par an (01.02 / 01.07) ;
+	// la version reste réglable via AUVOERECHNUNG_XRECHNUNG_VERSION.
+	define('AUVOERECHNUNG_XRECHNUNG_BUSINESS_PROCESS', 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0');
+	define('AUVOERECHNUNG_XRECHNUNG_DEFAULT_VERSION', '3.0');
 }
 
 /**
@@ -146,7 +152,10 @@ function auvoerechnung_build_xml($invoice, $mysoc, &$buildWarnings = [], $option
 
 	// Profil de génération. 'pdp' (défaut) = norme EN16931/PDP (SIREN en BT-30).
 	// 'choruspro' = profil B2G Chorus Pro (SIRET en BT-30 + champs BT-10/12/13).
-	$profile = (isset($options['profile']) && $options['profile'] === 'choruspro') ? 'choruspro' : 'pdp';
+	// 'xrechnung' = CIUS XRechnung (KoSIT) : BT-23/BT-24 propres, contact vendeur
+	// (BG-6), adresses électroniques obligatoires, Leitweg-ID en BT-49 (0204).
+	$profile = (isset($options['profile']) && in_array($options['profile'], ['choruspro', 'xrechnung'], true)) ? $options['profile'] : 'pdp';
+	$isXRechnung = ($profile === 'xrechnung');
 	$legalIdMode = ($profile === 'choruspro') ? 'siret' : 'siren';
 
 	// Tout le bloc « socle réforme française » (BT-23, note BAR, mentions
@@ -205,18 +214,23 @@ function auvoerechnung_build_xml($invoice, $mysoc, &$buildWarnings = [], $option
 	//    acomptes imputés (cas nominal : dépôt de la facture par le fournisseur).
 	// Vendeur hors France : BT-23 est optionnel en EN16931 (0..1) et les codes
 	// B1/S1/M1 sont propres à XP Z12-012 → on n'émet rien.
-	$bt23 = ($profile === 'choruspro')
-		? (!empty($options['cadre']) ? $options['cadre'] : 'A1')
-		: ($sellerIsFR
-			? auvoerechnung_resolve_business_process($billableLines, $typeCode, auvoerechnung_get_prepaid_amount($invoice))
-			: '');
+	if ($isXRechnung) {
+		// XRechnung : BT-23 obligatoire (PEPPOL-EN16931-R001), valeur Peppol BIS Billing.
+		$bt23 = AUVOERECHNUNG_XRECHNUNG_BUSINESS_PROCESS;
+	} else {
+		$bt23 = ($profile === 'choruspro')
+			? (!empty($options['cadre']) ? $options['cadre'] : 'A1')
+			: ($sellerIsFR
+				? auvoerechnung_resolve_business_process($billableLines, $typeCode, auvoerechnung_get_prepaid_amount($invoice))
+				: '');
+	}
 	if ($bt23 !== '') {
 		$xml .= '  <ram:BusinessProcessSpecifiedDocumentContextParameter>'."\n";
 		$xml .= '    <ram:ID>'.auvoerechnung_xml_encode($bt23).'</ram:ID>'."\n";
 		$xml .= '  </ram:BusinessProcessSpecifiedDocumentContextParameter>'."\n";
 	}
 	$xml .= '  <ram:GuidelineSpecifiedDocumentContextParameter>'."\n";
-	$xml .= '    <ram:ID>urn:cen.eu:en16931:2017</ram:ID>'."\n";
+	$xml .= '    <ram:ID>'.auvoerechnung_xml_encode($isXRechnung ? auvoerechnung_xrechnung_cius_id() : 'urn:cen.eu:en16931:2017').'</ram:ID>'."\n";
 	$xml .= '  </ram:GuidelineSpecifiedDocumentContextParameter>'."\n";
 	$xml .= '</rsm:ExchangedDocumentContext>'."\n";
 
@@ -261,12 +275,23 @@ function auvoerechnung_build_xml($invoice, $mysoc, &$buildWarnings = [], $option
 	if ($buyerRef !== '') {
 		$xml .= '    <ram:BuyerReference>'.auvoerechnung_xml_encode($buyerRef).'</ram:BuyerReference>'."\n";
 	}
-	$xml .= auvoerechnung_build_trade_party_xml('Seller', $mysoc, $mysoc->email ?? '', $legalIdMode);
-	$xml .= auvoerechnung_build_trade_party_xml('Buyer', $buyer, auvoerechnung_get_buyer_email($buyer, $invoice->db), $legalIdMode);
+	// XRechnung : contact vendeur (BG-6, BR-DE-2/5/6/7) et adresse électronique
+	// de l'acheteur public = Leitweg-ID sous le schéma 0204 (identifiant Peppol
+	// des destinataires de l'OZG-RE), à défaut son email.
+	$sellerExtra = $isXRechnung ? ['contact' => auvoerechnung_get_seller_contact($invoice, $mysoc)] : [];
+	$buyerExtra = ($isXRechnung && $leitwegId !== '') ? ['endpoint' => ['0204', $leitwegId]] : [];
+	$xml .= auvoerechnung_build_trade_party_xml('Seller', $mysoc, $mysoc->email ?? '', $legalIdMode, $sellerExtra);
+	$xml .= auvoerechnung_build_trade_party_xml('Buyer', $buyer, auvoerechnung_get_buyer_email($buyer, $invoice->db), $legalIdMode, $buyerExtra);
 	// BT-13 : n° d'engagement juridique (Chorus) sinon référence de la commande liée.
 	$orderRef = ($profile === 'choruspro' && !empty($options['engagement']))
 		? $options['engagement']
 		: auvoerechnung_get_linked_order_ref($invoice);
+	// XRechnung avec Leitweg-ID : BT-10 est occupé par la Leitweg-ID ; la
+	// référence client de la facture (n° de commande de l'administration,
+	// exigé par § 5 E-RechV s'il a été communiqué) passe alors en BT-13.
+	if ($isXRechnung && $orderRef === '' && $leitwegId !== '' && !empty($invoice->ref_client)) {
+		$orderRef = $invoice->ref_client;
+	}
 	if ($orderRef !== '') {
 		$xml .= '    <ram:BuyerOrderReferencedDocument>'."\n";
 		$xml .= '      <ram:IssuerAssignedID>'.auvoerechnung_xml_encode($orderRef).'</ram:IssuerAssignedID>'."\n";
@@ -1139,8 +1164,13 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
  * @param string $role   'Seller' ou 'Buyer'
  * @param object $party  Société émettrice (mysoc) ou Societe acheteur
  * @param string $email  Email à publier dans le bloc URI (BT-49 / BT-34)
+ * @param string $legalIdMode  'siren' (défaut) ou 'siret' (Chorus Pro)
+ * @param array  $extra  Options du profil XRechnung :
+ *                       'contact'  => ['name' =>, 'phone' =>, 'email' =>] (BG-6)
+ *                       'endpoint' => [schemeID, valeur] remplaçant l'adresse
+ *                                     électronique calculée (ex. 0204 + Leitweg-ID)
  */
-function auvoerechnung_build_trade_party_xml($role, $party, $email, $legalIdMode = 'siren')
+function auvoerechnung_build_trade_party_xml($role, $party, $email, $legalIdMode = 'siren', $extra = [])
 {
 	$tag = ($role === 'Seller') ? 'SellerTradeParty' : 'BuyerTradeParty';
 	$country = !empty($party->country_code) ? $party->country_code : 'FR';
@@ -1166,7 +1196,24 @@ function auvoerechnung_build_trade_party_xml($role, $party, $email, $legalIdMode
 	//    qui est la clé de routage de l'annuaire Chorus Pro (il ne lit QUE ce champ).
 	$chorus = ($legalIdMode === 'siret');
 
+	// Vendeur allemand : BR-CO-26 exige BT-29, BT-30 ou BT-31 — la Steuernummer
+	// (BT-32) n'y compte PAS. Registre du commerce (idprof3, ProfId3DE
+	// « Handelsregister-Nummer ») → BT-30 ; sans USt-IdNr ni registre (cas typique
+	// du Kleinunternehmer), la Steuernummer est aussi portée en BT-29 (Seller
+	// identifier, sans schéma) pour que le vendeur reste identifiable.
+	$deSellerId = '';
+	$deRegister = '';
+	if ($role === 'Seller' && strtoupper($country) === 'DE') {
+		$deRegister = trim((string) ($party->idprof3 ?? ''));
+		if ($vat === '' && $deRegister === '') {
+			$deSellerId = auvoerechnung_party_steuernummer($party);
+		}
+	}
+
 	$xml  = '    <ram:'.$tag.'>'."\n";
+	if ($deSellerId !== '') {
+		$xml .= '      <ram:ID>'.auvoerechnung_xml_encode($deSellerId).'</ram:ID>'."\n";
+	}
 	if (!$chorus && !empty($siret14)) {
 		// BT-29 (vendeur) / BT-46 (acheteur) avec scheme ISO 6523 (0009 = SIRET) :
 		// l'identifiant qualifié va dans ram:GlobalID, PAS dans ram:ID. EN16931 ne
@@ -1183,6 +1230,34 @@ function auvoerechnung_build_trade_party_xml($role, $party, $email, $legalIdMode
 		$xml .= '      <ram:SpecifiedLegalOrganization>'."\n";
 		$xml .= '        <ram:ID schemeID="0002">'.auvoerechnung_xml_encode($siren).'</ram:ID>'."\n";
 		$xml .= '      </ram:SpecifiedLegalOrganization>'."\n";
+	} elseif ($deRegister !== '') {
+		// BT-30 sans schemeID : aucun code ISO 6523 pour le registre allemand.
+		$xml .= '      <ram:SpecifiedLegalOrganization>'."\n";
+		$xml .= '        <ram:ID>'.auvoerechnung_xml_encode($deRegister).'</ram:ID>'."\n";
+		$xml .= '      </ram:SpecifiedLegalOrganization>'."\n";
+	}
+	// BG-6 / BG-9 : contact. Séquence XSD du TradePartyType : après
+	// SpecifiedLegalOrganization, avant PostalTradeAddress. Éléments vides omis
+	// (PEPPOL-EN16931-R008).
+	if (!empty($extra['contact'])) {
+		$c = $extra['contact'];
+		if (($c['name'] ?? '') !== '' || ($c['phone'] ?? '') !== '' || ($c['email'] ?? '') !== '') {
+			$xml .= '      <ram:DefinedTradeContact>'."\n";
+			if (($c['name'] ?? '') !== '') {
+				$xml .= '        <ram:PersonName>'.auvoerechnung_xml_encode($c['name']).'</ram:PersonName>'."\n";
+			}
+			if (($c['phone'] ?? '') !== '') {
+				$xml .= '        <ram:TelephoneUniversalCommunication>'."\n";
+				$xml .= '          <ram:CompleteNumber>'.auvoerechnung_xml_encode($c['phone']).'</ram:CompleteNumber>'."\n";
+				$xml .= '        </ram:TelephoneUniversalCommunication>'."\n";
+			}
+			if (($c['email'] ?? '') !== '') {
+				$xml .= '        <ram:EmailURIUniversalCommunication>'."\n";
+				$xml .= '          <ram:URIID>'.auvoerechnung_xml_encode($c['email']).'</ram:URIID>'."\n";
+				$xml .= '        </ram:EmailURIUniversalCommunication>'."\n";
+			}
+			$xml .= '      </ram:DefinedTradeContact>'."\n";
+		}
 	}
 	$xml .= '      <ram:PostalTradeAddress>'."\n";
 	$xml .= '        <ram:PostcodeCode>'.auvoerechnung_xml_encode($party->zip ?? '').'</ram:PostcodeCode>'."\n";
@@ -1194,7 +1269,13 @@ function auvoerechnung_build_trade_party_xml($role, $party, $email, $legalIdMode
 	// Le réseau des Plateformes Agréées (réforme FR) route par SIREN ; l'endpoint
 	// porte donc le SIREN avec schemeID="0225" (annuaire PPF), pas l'email. Le rôle
 	// est transmis : certaines PA exigent un suffixe sur l'adresse VENDEUR.
-	$xml .= auvoerechnung_build_endpoint_uri($siren, $email, $role);
+	if (!empty($extra['endpoint'][0]) && ($extra['endpoint'][1] ?? '') !== '') {
+		$xml .= '      <ram:URIUniversalCommunication>'."\n";
+		$xml .= '        <ram:URIID schemeID="'.auvoerechnung_xml_encode($extra['endpoint'][0]).'">'.auvoerechnung_xml_encode($extra['endpoint'][1]).'</ram:URIID>'."\n";
+		$xml .= '      </ram:URIUniversalCommunication>'."\n";
+	} else {
+		$xml .= auvoerechnung_build_endpoint_uri($siren, $email, $role);
+	}
 	if (!empty($vat)) {
 		$xml .= '      <ram:SpecifiedTaxRegistration>'."\n";
 		$xml .= '        <ram:ID schemeID="VA">'.auvoerechnung_xml_encode($vat).'</ram:ID>'."\n";
@@ -2131,6 +2212,152 @@ function auvoerechnung_party_leitwegid($party)
 {
 	$ao = (is_object($party) && !empty($party->array_options)) ? $party->array_options : [];
 	return trim((string) ($ao['options_lfxleitwegid'] ?? ''));
+}
+
+/**
+ * Identifiant de spécification XRechnung (BT-24), ex.
+ * urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0
+ * (BR-DE-21). Version « majeure.mineure » réglable (AUVOERECHNUNG_XRECHNUNG_VERSION)
+ * pour suivre les publications semestrielles de la KoSIT sans nouvelle version
+ * du module ; toute valeur mal formée retombe sur la version par défaut.
+ *
+ * @return string
+ */
+function auvoerechnung_xrechnung_cius_id()
+{
+	$version = trim(getDolGlobalString('AUVOERECHNUNG_XRECHNUNG_VERSION', AUVOERECHNUNG_XRECHNUNG_DEFAULT_VERSION));
+	if (!preg_match('/^\d+\.\d+$/', $version)) {
+		$version = AUVOERECHNUNG_XRECHNUNG_DEFAULT_VERSION;
+	}
+	return 'urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_'.$version;
+}
+
+/**
+ * Faut-il produire une XRechnung pour ce tiers ?
+ *
+ * Extrafield tiers « E-Rechnungsformat » (lfxeformat) :
+ *   'xrechnung' → oui ; 'zugferd' → non ;
+ *   vide / 'auto' → oui dès qu'une Leitweg-ID est renseignée (acheteur public
+ *   allemand, qui attend XRechnung ou ZUGFeRD au profil XRECHNUNG).
+ *
+ * @param object $buyer  Tiers acheteur (array_options chargés)
+ * @return bool
+ */
+function auvoerechnung_wants_xrechnung($buyer)
+{
+	$ao = (is_object($buyer) && !empty($buyer->array_options)) ? $buyer->array_options : [];
+	$format = strtolower(trim((string) ($ao['options_lfxeformat'] ?? '')));
+	if ($format === 'xrechnung') {
+		return true;
+	}
+	if ($format === 'zugferd') {
+		return false;
+	}
+	return auvoerechnung_party_leitwegid($buyer) !== '';
+}
+
+/**
+ * Contact du vendeur pour XRechnung (BG-6 : BT-41 nom, BT-42 téléphone,
+ * BT-43 email ; BR-DE-2/5/6/7). Chaque champ est pris, dans l'ordre :
+ *   1. réglage du module (AUVOERECHNUNG_CONTACT_NAME / _PHONE / _EMAIL) ;
+ *   2. auteur de la facture (nom complet, téléphone pro/mobile, email) ;
+ *   3. société émettrice (téléphone, email ; pas de nom de personne).
+ * Le téléphone ne garde que les caractères admis par l'OZG-RE (0-9 ( ) - + et
+ * espace).
+ *
+ * @param object $invoice  Facture
+ * @param object $mysoc    Société émettrice
+ * @return array{name:string,phone:string,email:string}
+ */
+function auvoerechnung_get_seller_contact($invoice, $mysoc)
+{
+	$author = null;
+	$authorId = (int) ($invoice->fk_user_author ?? ($invoice->user_author ?? 0));
+	if ($authorId > 0 && is_object($invoice->db ?? null) && class_exists('User')) {
+		$u = new User($invoice->db);
+		if ($u->fetch($authorId) > 0) {
+			$author = $u;
+		}
+	}
+
+	$name = trim(getDolGlobalString('AUVOERECHNUNG_CONTACT_NAME', ''));
+	if ($name === '' && $author !== null) {
+		$name = trim(method_exists($author, 'getFullName') ? $author->getFullName(null) : trim(($author->firstname ?? '').' '.($author->lastname ?? '')));
+	}
+
+	$phone = trim(getDolGlobalString('AUVOERECHNUNG_CONTACT_PHONE', ''));
+	if ($phone === '' && $author !== null) {
+		$phone = trim((string) (!empty($author->office_phone) ? $author->office_phone : ($author->user_mobile ?? '')));
+	}
+	if ($phone === '') {
+		$phone = trim((string) ($mysoc->phone ?? ''));
+	}
+	$phone = trim(preg_replace('/[^0-9()+\- ]/', '', $phone));
+
+	$email = trim(getDolGlobalString('AUVOERECHNUNG_CONTACT_EMAIL', ''));
+	if ($email === '' && $author !== null) {
+		$email = trim((string) ($author->email ?? ''));
+	}
+	if ($email === '') {
+		$email = trim((string) ($mysoc->email ?? ''));
+	}
+
+	return ['name' => $name, 'phone' => $phone, 'email' => $email];
+}
+
+/**
+ * Contrôle amont des données requises par XRechnung (règles BR-DE fatales
+ * et PEPPOL-EN16931-R010/R020). Renvoie des messages traduits ; une liste vide
+ * signifie que la XRechnung peut être produite.
+ *
+ * @param object $invoice  Facture (thirdparty chargé)
+ * @param object $mysoc    Société émettrice
+ * @return string[]
+ */
+function auvoerechnung_check_xrechnung($invoice, $mysoc)
+{
+	$problems = [];
+	$buyer = $invoice->thirdparty ?? null;
+
+	// BT-10 (BR-DE-15) : Leitweg-ID, à défaut référence client.
+	if (auvoerechnung_party_leitwegid($buyer) === '' && empty($invoice->ref_client)) {
+		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingBuyerRef');
+	}
+	// BG-6 (BR-DE-2/5/6/7)
+	$contact = auvoerechnung_get_seller_contact($invoice, $mysoc);
+	if ($contact['name'] === '') {
+		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingContactName');
+	}
+	if (!preg_match('/([0-9].*){3,}/', $contact['phone'])) {
+		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingContactPhone');
+	}
+	if (!preg_match('/^[^@\s]+@([^@.\s]+\.)+[^@.\s]+$/', $contact['email'])) {
+		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingContactEmail');
+	}
+	// BT-34 (PEPPOL-EN16931-R020) : email de la société.
+	if (empty($mysoc->email)) {
+		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingSellerEmail');
+	}
+	// BT-49 (PEPPOL-EN16931-R010) : Leitweg-ID (0204) ou email de l'acheteur.
+	if (auvoerechnung_party_leitwegid($buyer) === '' && auvoerechnung_get_buyer_email($buyer, $invoice->db ?? null) === '') {
+		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingBuyerAddress');
+	}
+	// BT-37/38, BT-52/53 (BR-DE-3/4/8/9)
+	if (empty($mysoc->zip) || empty($mysoc->town)) {
+		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingSellerZipTown');
+	}
+	if (empty($buyer->zip) || empty($buyer->town)) {
+		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingBuyerZipTown');
+	}
+	// BG-16 (BR-DE-1, BR-DE-23-a) : virement → IBAN obligatoire.
+	$paymentMeans = getDolGlobalString('AUVOERECHNUNG_PAYMENT_MEANS', '30');
+	if (in_array($paymentMeans, ['30', '58'], true)) {
+		$bank = auvoerechnung_get_bank_account($invoice->db ?? null, $invoice);
+		if (empty($bank['iban'])) {
+			$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingIban');
+		}
+	}
+	return $problems;
 }
 
 /**

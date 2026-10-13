@@ -67,6 +67,10 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		['AUVOERECHNUNG_CHORUS_ENABLED', GETPOSTINT('AUVOERECHNUNG_CHORUS_ENABLED'), 'int'],
 		['AUVOERECHNUNG_PHP_CLI_PATH', trim(GETPOST('AUVOERECHNUNG_PHP_CLI_PATH', 'alphanohtml')), 'chaine'],
 		['AUVOERECHNUNG_VERAPDF_PATH', trim(GETPOST('AUVOERECHNUNG_VERAPDF_PATH', 'alphanohtml')), 'chaine'],
+		['AUVOERECHNUNG_XRECHNUNG_VERSION', preg_match('/^\d+\.\d+$/', trim(GETPOST('AUVOERECHNUNG_XRECHNUNG_VERSION', 'alphanohtml'))) ? trim(GETPOST('AUVOERECHNUNG_XRECHNUNG_VERSION', 'alphanohtml')) : '3.0', 'chaine'],
+		['AUVOERECHNUNG_CONTACT_NAME', trim(GETPOST('AUVOERECHNUNG_CONTACT_NAME', 'alphanohtml')), 'chaine'],
+		['AUVOERECHNUNG_CONTACT_PHONE', trim(GETPOST('AUVOERECHNUNG_CONTACT_PHONE', 'alphanohtml')), 'chaine'],
+		['AUVOERECHNUNG_CONTACT_EMAIL', trim(GETPOST('AUVOERECHNUNG_CONTACT_EMAIL', 'email')), 'chaine'],
 		['AUVOERECHNUNG_NOTE_PMD',     trim(GETPOST('AUVOERECHNUNG_NOTE_PMD', 'restricthtml')),    'chaine'],
 		['AUVOERECHNUNG_NOTE_PMT',     trim(GETPOST('AUVOERECHNUNG_NOTE_PMT', 'restricthtml')),    'chaine'],
 		['AUVOERECHNUNG_NOTE_AAB',     trim(GETPOST('AUVOERECHNUNG_NOTE_AAB', 'restricthtml')),    'chaine'],
@@ -207,6 +211,24 @@ print '<select name="AUVOERECHNUNG_NOTES_OVERWRITE" class="flat">';
 print '<option value="0"'.(!$notesOverwrite ? ' selected' : '').'>'.$langs->trans("No").' ('.$langs->trans("AuvoERechnungNotesAppend").')</option>';
 print '<option value="1"'.($notesOverwrite ? ' selected' : '').'>'.$langs->trans("Yes").' ('.$langs->trans("AuvoERechnungNotesReplace").')</option>';
 print '</select></td></tr>';
+
+// ---- Bloc 2b : XRechnung (Allemagne, CIUS KoSIT) ----
+// Contact vendeur BG-6 (obligatoire en XRechnung) et version de la spécification.
+print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("AuvoERechnungSecXRechnung").'</td></tr>';
+print '<tr class="oddeven"><td colspan="2"><span class="opacitymedium small">'.$langs->trans("AuvoERechnungXrInfo").'</span></td></tr>';
+foreach ([
+	'AUVOERECHNUNG_CONTACT_NAME'  => 'AuvoERechnungXrContactName',
+	'AUVOERECHNUNG_CONTACT_PHONE' => 'AuvoERechnungXrContactPhone',
+	'AUVOERECHNUNG_CONTACT_EMAIL' => 'AuvoERechnungXrContactEmail',
+] as $constName => $transKey) {
+	print '<tr class="oddeven"><td>'.$langs->trans($transKey);
+	if ($constName === 'AUVOERECHNUNG_CONTACT_NAME') {
+		print '<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungXrContactHint").'</span>';
+	}
+	print '</td><td><input type="text" name="'.$constName.'" class="flat minwidth300" value="'.dol_escape_htmltag(getDolGlobalString($constName, '')).'"></td></tr>';
+}
+print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungXrVersion").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungXrVersionHint").'</span></td><td>';
+print '<input type="text" name="AUVOERECHNUNG_XRECHNUNG_VERSION" class="flat width75" value="'.dol_escape_htmltag(getDolGlobalString('AUVOERECHNUNG_XRECHNUNG_VERSION', '3.0')).'"></td></tr>';
 
 // ---- Bloc 3 : Secteur public (Chorus Pro) ----
 print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("AuvoERechnungSecPublic").'</td></tr>';

@@ -106,6 +106,18 @@ function lfx_std_validate($xml, $xsdPath, $expectBrOk = true)
  * Vrai si au moins une entrée du tableau contient le fragment donné
  * (préfixe de règle « BR-FR-01 », clé de traduction, etc.).
  */
+/**
+ * Écrit un XML de test dans LFX_DUMP_DIR (si défini), pour validation externe
+ * (validateur officiel KoSIT en CI).
+ */
+function lfx_dump($name, $xml)
+{
+	$dir = getenv('LFX_DUMP_DIR');
+	if ($dir !== false && $dir !== '' && is_dir($dir)) {
+		file_put_contents(rtrim($dir, '/').'/'.$name.'.xml', $xml);
+	}
+}
+
 function lfx_contains($entries, $needle)
 {
 	foreach ((array) $entries as $e) {
@@ -1141,6 +1153,119 @@ $frNoMail = clone $mysoc;
 $frNoMail->email = '';
 lfx_assert(lfx_contains(auvoerechnung_check_mandatory($inv, $frNoMail), 'AuvoERechnungWarnBuyerEndpoint'), 'vendeur FR : warning BT-49 conservé');
 echo "U38 OK\n";
+
+// ---------------------------------------------------------------------------
+$currentTest = 'U39 XRechnung (CIUS KoSIT) : profil xrechnung';
+lfx_reset([
+	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
+	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
+	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
+], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+$xrSeller = lfx_make_party([
+	'name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen',
+	'address' => 'Hauptstr. 1', 'email' => 'rechnung@muster.example', 'phone' => '06772 99',
+	'tva_intra' => 'DE811111111', 'idprof1' => '22/180/80394', 'idprof2' => 'Amtsgericht Koblenz', 'tva_assuj' => 1,
+]);
+$xrBuyer = lfx_make_party([
+	'name' => 'Bundesamt für Beispiele', 'country_code' => 'DE', 'zip' => '53113', 'town' => 'Bonn',
+	'address' => 'Amtsweg 1', 'email' => '', 'tva_intra' => '', 'idprof1' => '', 'idprof2' => '',
+	'array_options' => ['options_lfxleitwegid' => '991-33333TEST-33'],
+]);
+// Choix du format
+lfx_assert(auvoerechnung_wants_xrechnung($xrBuyer), 'XRechnung automatique dès qu\'une Leitweg-ID est renseignée');
+lfx_assert(!auvoerechnung_wants_xrechnung(lfx_make_party(['country_code' => 'DE'])), 'pas de XRechnung sans Leitweg-ID ni choix explicite');
+lfx_assert(auvoerechnung_wants_xrechnung(lfx_make_party(['array_options' => ['options_lfxeformat' => 'xrechnung']])), 'XRechnung forcée sur la fiche tiers');
+lfx_assert(!auvoerechnung_wants_xrechnung(lfx_make_party(['array_options' => ['options_lfxeformat' => 'zugferd', 'options_lfxleitwegid' => '991-1-11']])), 'ZUGFeRD forcé malgré une Leitweg-ID');
+
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-0200';
+$inv->ref_client = 'BEST-4711';
+$inv->thirdparty = $xrBuyer;
+$inv->date_lim_reglement = mktime(0, 0, 0, 7, 1, 2026);
+$inv->lines = [lfx_make_line(1000.00, 19.0, 190.00, 1.0, 'Beratung', 1)];
+$inv->total_ht = 1000.00;
+$inv->total_tva = 190.00;
+$inv->total_ttc = 1190.00;
+lfx_assert(empty(auvoerechnung_check_xrechnung($inv, $xrSeller)), 'contrôle amont XRechnung OK ('.implode(' ; ', auvoerechnung_check_xrechnung($inv, $xrSeller)).')');
+$w = [];
+$xml = auvoerechnung_build_xml($inv, $xrSeller, $w, ['profile' => 'xrechnung']);
+lfx_std_validate($xml, $xsdPath);
+$xp = lfx_xpath($xml);
+lfx_assert_eq('urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0', lfx_xp_str($xp, '//ram:GuidelineSpecifiedDocumentContextParameter/ram:ID'), 'BT-24 = XRechnung 3.0 (BR-DE-21)');
+lfx_assert_eq('urn:fdc:peppol.eu:2017:poacc:billing:01:1.0', lfx_xp_str($xp, '//ram:BusinessProcessSpecifiedDocumentContextParameter/ram:ID'), 'BT-23 Peppol billing (PEPPOL-EN16931-R001)');
+lfx_assert_eq('991-33333TEST-33', lfx_xp_str($xp, '//ram:BuyerReference'), 'BT-10 = Leitweg-ID');
+lfx_assert_eq('991-33333TEST-33', lfx_xp_str($xp, '//ram:BuyerTradeParty/ram:URIUniversalCommunication/ram:URIID[@schemeID="0204"]'), 'BT-49 = Leitweg-ID, schéma 0204');
+lfx_assert_eq('BEST-4711', lfx_xp_str($xp, '//ram:BuyerOrderReferencedDocument/ram:IssuerAssignedID'), 'référence client en BT-13 quand BT-10 porte la Leitweg-ID');
+lfx_assert_eq('Erika Mustermann', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:DefinedTradeContact/ram:PersonName'), 'BT-41 contact');
+lfx_assert_eq('+49 6772 123456', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:DefinedTradeContact/ram:TelephoneUniversalCommunication/ram:CompleteNumber'), 'BT-42 téléphone');
+lfx_assert_eq('rechnung@muster.example', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:DefinedTradeContact/ram:EmailURIUniversalCommunication/ram:URIID'), 'BT-43 email (repli société)');
+lfx_assert_eq('rechnung@muster.example', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:URIUniversalCommunication/ram:URIID[@schemeID="EM"]'), 'BT-34 email société');
+lfx_assert_eq('DE811111111', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="VA"]'), 'BT-31');
+lfx_assert_eq('58', lfx_xp_str($xp, '//ram:SpecifiedTradeSettlementPaymentMeans/ram:TypeCode'), 'BT-81 SEPA-Überweisung');
+// Le ZUGFeRD EN16931 n'est pas modifié par le profil XRechnung.
+$xpZ = lfx_xpath(auvoerechnung_build_xml($inv, $xrSeller, $w));
+lfx_assert_eq('urn:cen.eu:en16931:2017', lfx_xp_str($xpZ, '//ram:GuidelineSpecifiedDocumentContextParameter/ram:ID'), 'profil ZUGFeRD inchangé (BT-24 EN16931)');
+lfx_assert_eq(0, $xpZ->query('//ram:DefinedTradeContact')->length, 'pas de contact BG-6 ajouté au ZUGFeRD');
+lfx_dump('xr-01-standard-19', $xml);
+
+// Kleinunternehmer (§ 19 UStG), Steuernummer seule (BT-32), facture d'avoir (381)
+$ku = lfx_make_party(['name' => 'KLEIN DESIGN', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen', 'address' => 'Weg 2',
+	'email' => 'info@klein.example', 'tva_intra' => '', 'idprof1' => '22/180/80394', 'idprof2' => '', 'tva_assuj' => 0]);
+$inv2 = clone $inv;
+$inv2->ref = 'RE2026-0201';
+$inv2->lines = [lfx_make_line(500.00, 0.0, 0.00, 1.0, 'Gestaltung', 1)];
+$inv2->total_ht = 500.00;
+$inv2->total_tva = 0.00;
+$inv2->total_ttc = 500.00;
+$w = [];
+$xml2 = auvoerechnung_build_xml($inv2, $ku, $w, ['profile' => 'xrechnung']);
+lfx_std_validate($xml2, $xsdPath);
+lfx_assert_eq('22/180/80394', lfx_xp_str(lfx_xpath($xml2), '//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="FC"]'), 'Kleinunternehmer : BT-32 (BR-DE-16)');
+lfx_dump('xr-02-kleinunternehmer', $xml2);
+lfx_assert_eq('22/180/80394', lfx_xp_str(lfx_xpath($xml2), '//ram:SellerTradeParty/ram:ID'), 'Kleinunternehmer : Steuernummer aussi en BT-29 (BR-CO-26)');
+// Registre du commerce renseigné : BT-30 au lieu de BT-29
+$kuHrb = clone $ku;
+$kuHrb->idprof3 = 'HRB 12345';
+$xpH = lfx_xpath(auvoerechnung_build_xml($inv2, $kuHrb, $w, ['profile' => 'xrechnung']));
+lfx_assert_eq('HRB 12345', lfx_xp_str($xpH, '//ram:SellerTradeParty/ram:SpecifiedLegalOrganization/ram:ID'), 'Handelsregister en BT-30');
+lfx_assert_eq(0, $xpH->query('//ram:SellerTradeParty/ram:ID')->length, 'pas de BT-29 quand BT-30 est présent');
+// La règle interne BR-CO-26 ne se contente plus de la Steuernummer (FC) seule.
+$xmlFcOnly = preg_replace('#<ram:ID>22/180/80394</ram:ID>\s*#', '', $xml2, 1);
+lfx_assert(lfx_contains(auvoerechnung_validate_business_rules($xmlFcOnly), 'BR-CO-26'), 'BR-CO-26 détectée avec BT-32 seul');
+
+// Client privé/entreprise sans Leitweg-ID, format forcé : BT-10 = ref_client, BT-49 = email
+$b2b = lfx_make_party(['name' => 'KUNDE GMBH', 'country_code' => 'DE', 'zip' => '56355', 'town' => 'Nastätten', 'address' => 'Brückwiese 4',
+	'email' => 'buchhaltung@kunde.example', 'tva_intra' => 'DE123456789', 'idprof1' => '', 'idprof2' => '',
+	'array_options' => ['options_lfxeformat' => 'xrechnung']]);
+$inv3 = clone $inv;
+$inv3->ref = 'RE2026-0202';
+$inv3->thirdparty = $b2b;
+$w = [];
+$xml3 = auvoerechnung_build_xml($inv3, $xrSeller, $w, ['profile' => 'xrechnung']);
+lfx_std_validate($xml3, $xsdPath);
+$xp3 = lfx_xpath($xml3);
+lfx_assert_eq('BEST-4711', lfx_xp_str($xp3, '//ram:BuyerReference'), 'sans Leitweg-ID : BT-10 = référence client');
+lfx_assert_eq('buchhaltung@kunde.example', lfx_xp_str($xp3, '//ram:BuyerTradeParty/ram:URIUniversalCommunication/ram:URIID[@schemeID="EM"]'), 'sans Leitweg-ID : BT-49 = email');
+lfx_dump('xr-03-b2b-email', $xml3);
+
+// Données manquantes : contrôle amont et règles BR-DE
+lfx_reset(['AUVOERECHNUNG_PAYMENT_MEANS' => '58'], null);
+$bare = lfx_make_party(['name' => 'OHNE DATEN', 'country_code' => 'DE', 'zip' => '', 'town' => '', 'email' => '', 'phone' => '', 'tva_intra' => 'DE811111111', 'idprof1' => '', 'idprof2' => '']);
+$inv4 = clone $inv;
+$inv4->ref_client = '';
+$inv4->thirdparty = lfx_make_party(['name' => 'X', 'country_code' => 'DE', 'zip' => '', 'town' => '', 'email' => '']);
+$probs = auvoerechnung_check_xrechnung($inv4, $bare);
+foreach (['AuvoERechnungXrMissingBuyerRef', 'AuvoERechnungXrMissingContactName', 'AuvoERechnungXrMissingContactPhone', 'AuvoERechnungXrMissingContactEmail', 'AuvoERechnungXrMissingSellerEmail', 'AuvoERechnungXrMissingBuyerAddress', 'AuvoERechnungXrMissingSellerZipTown', 'AuvoERechnungXrMissingBuyerZipTown', 'AuvoERechnungXrMissingIban'] as $k) {
+	lfx_assert(lfx_contains($probs, $k), 'contrôle amont : '.$k);
+}
+$w = [];
+$v = auvoerechnung_validate_business_rules(auvoerechnung_build_xml($inv4, $bare, $w, ['profile' => 'xrechnung']));
+foreach (['BR-DE-15', 'PEPPOL-EN16931-R020', 'PEPPOL-EN16931-R010', 'BR-DE-2', 'BR-DE-1'] as $rule) {
+	lfx_assert(lfx_contains($v, $rule), 'règle '.$rule.' détectée');
+}
+// Les règles BR-DE ne s'appliquent pas à un ZUGFeRD EN16931.
+lfx_assert(!lfx_contains(auvoerechnung_validate_business_rules(auvoerechnung_build_xml($inv4, $bare, $w)), 'BR-DE-'), 'pas de BR-DE sur un ZUGFeRD EN16931');
+echo "U39 OK\n";
 
 // ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";

@@ -177,8 +177,15 @@ class ActionsAuvoERechnung
 				$warnings[] = auvoerechnung_trans('AuvoERechnungChorusSuggested');
 			}
 
+			// XRechnung : fichier XML autonome à côté du PDF pour les clients qui
+			// l'exigent (Leitweg-ID ou format choisi sur la fiche tiers).
+			$xr = $this->generateXRechnungXml($invoice, $file, $mysoc, $modulePath);
+			if ($xr !== null && !$xr['ok']) {
+				$warnings = array_merge($warnings, $xr['msgs']);
+			}
+
 			dol_syslog('AuVo E-Rechnung: Factur-X PDF generated for '.$invoice->ref, LOG_INFO);
-			$this->reportSuccess($invoice->ref, $warnings);
+			$this->reportSuccess($invoice->ref, $warnings, ($xr !== null && $xr['ok']) ? $xr['msgs'] : []);
 			return 0;
 		} finally {
 			if ($this->xmlTmpFile !== null) {
@@ -400,8 +407,13 @@ class ActionsAuvoERechnung
 				$warnings[] = auvoerechnung_trans('AuvoERechnungChorusSuggested');
 			}
 
+			$xr = $this->generateXRechnungXml($invoice, $pdf, $mysoc, $modulePath);
+			if ($xr !== null && !$xr['ok']) {
+				$warnings = array_merge($warnings, $xr['msgs']);
+			}
+
 			dol_syslog('AuVo E-Rechnung: Factur-X PDF (ODT) generated for '.$invoice->ref, LOG_INFO);
-			$this->reportSuccess($invoice->ref, $warnings);
+			$this->reportSuccess($invoice->ref, $warnings, ($xr !== null && $xr['ok']) ? $xr['msgs'] : []);
 			return 0;
 		} finally {
 			if ($this->xmlTmpFile !== null) {
@@ -472,6 +484,64 @@ class ActionsAuvoERechnung
 
 		dol_syslog('AuVo E-Rechnung: Chorus PDF generated for '.$invoice->ref.' ('.basename($chorusPdf).')', LOG_INFO);
 		return array('ok' => true, 'msg' => auvoerechnung_trans('AuvoERechnungChorusGenerated', basename($chorusPdf)));
+	}
+
+	/**
+	 * Écrit la XRechnung (XML CII, CIUS KoSIT) de la facture à côté du PDF
+	 * principal : `{ref}-XRECHNUNG.xml`, visible dans les documents de la facture,
+	 * à déposer sur l'OZG-RE ou à joindre au mail.
+	 *
+	 * Seulement si le tiers attend une XRechnung (auvoerechnung_wants_xrechnung).
+	 * Non bloquant pour le PDF : en cas de données manquantes ou de XML non
+	 * conforme, aucun fichier n'est écrit et un éventuel fichier d'une génération
+	 * précédente est supprimé (pour ne jamais laisser traîner une XRechnung
+	 * périmée) ; les causes sont renvoyées comme avertissements.
+	 *
+	 * @param Facture $invoice
+	 * @param string  $mainPdf     Chemin du PDF principal
+	 * @param Societe $mysoc
+	 * @param string  $modulePath
+	 * @return array{ok:bool,msgs:string[]}|null  Résultat et messages, ou null si la facture n'est pas concernée
+	 */
+	protected function generateXRechnungXml($invoice, $mainPdf, $mysoc, $modulePath)
+	{
+		if (!auvoerechnung_wants_xrechnung($invoice->thirdparty)) {
+			return null;
+		}
+		$target = preg_replace('/\.pdf$/i', '', $mainPdf).'-XRECHNUNG.xml';
+
+		$problems = auvoerechnung_check_xrechnung($invoice, $mysoc);
+		if (empty($problems)) {
+			$xw = [];
+			$xml = auvoerechnung_build_xml($invoice, $mysoc, $xw, ['profile' => 'xrechnung']);
+			$xsdError = $this->validateXml($xml, $modulePath);
+			if ($xsdError !== null) {
+				$problems[] = $xsdError;
+			}
+			foreach (auvoerechnung_validate_business_rules($xml) as $v) {
+				$problems[] = $v;
+			}
+		}
+
+		if (!empty($problems)) {
+			if (file_exists($target)) {
+				@unlink($target);
+			}
+			dol_syslog('AuVo E-Rechnung XRechnung: not generated for '.$invoice->ref.': '.implode(' ; ', $problems), LOG_WARNING);
+			$out = [auvoerechnung_trans('AuvoERechnungXrNotGenerated')];
+			foreach ($problems as $pr) {
+				$out[] = '— '.$pr;
+			}
+			return ['ok' => false, 'msgs' => $out];
+		}
+
+		if (file_put_contents($target, $xml) === false) {
+			dol_syslog('AuVo E-Rechnung XRechnung: unable to write '.$target, LOG_ERR);
+			return ['ok' => false, 'msgs' => [auvoerechnung_trans('AuvoERechnungXrWriteError', basename($target))]];
+		}
+		@chmod($target, octdec(getDolGlobalString('MAIN_UMASK', '0664')));
+		dol_syslog('AuVo E-Rechnung: XRechnung generated for '.$invoice->ref.' ('.basename($target).')', LOG_INFO);
+		return ['ok' => true, 'msgs' => [auvoerechnung_trans('AuvoERechnungXrGenerated', basename($target))]];
 	}
 
 	/**
@@ -1046,11 +1116,17 @@ class ActionsAuvoERechnung
 	 * @param string $invoiceRef
 	 * @param array  $warnings
 	 */
-	protected function reportSuccess($invoiceRef, array $warnings)
+	protected function reportSuccess($invoiceRef, array $warnings, array $infos = [])
 	{
 		// Pas de session interactive (API REST, CLI, cron) : log uniquement
 		if (!function_exists('setEventMessages') || (php_sapi_name() === 'cli')) {
 			return;
+		}
+
+		// Informations (ex. XRechnung écrite) : message séparé, jamais compté
+		// comme avertissement.
+		foreach ($infos as $info) {
+			setEventMessages($info, null, 'mesgs');
 		}
 
 		$safeRef = dol_escape_htmltag($invoiceRef);

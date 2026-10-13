@@ -259,3 +259,47 @@ AuvoERechnungErrInjWriteOutput = écriture du PDF de sortie impossible
 AuvoERechnungErrInjReplacePdf = remplacement du PDF impossible
 AuvoERechnungErrInjNoPhpCli = binaire PHP CLI introuvable
 AuvoERechnungErrInjFpdiConflict = %s déjà chargé hors du vendor du module (%s) : conflit FPDI, injection in-process impossible
+
+# XRechnung (CIUS KoSIT, Allemagne)
+AuvoERechnungEfEFormat = Format de facture électronique
+AuvoERechnungEfEFormatAuto = Automatique (XRechnung si Leitweg-ID)
+AuvoERechnungEfEFormatZugferd = ZUGFeRD / Factur-X
+AuvoERechnungEfEFormatXRechnung = XRechnung
+AuvoERechnungXrGenerated = XRechnung générée : %s (dans les documents de la facture)
+AuvoERechnungXrNotGenerated = XRechnung NON générée — le client attend une XRechnung mais des données manquent :
+AuvoERechnungXrWriteError = Écriture du fichier XRechnung %s impossible
+AuvoERechnungXrMissingBuyerRef = Référence acheteur manquante (BT-10, BR-DE-15) : Leitweg-ID sur le tiers ou référence client sur la facture
+AuvoERechnungXrMissingContactName = Nom du contact manquant (BT-41, BR-DE-5)
+AuvoERechnungXrMissingContactPhone = Téléphone du contact manquant ou invalide (BT-42, BR-DE-6)
+AuvoERechnungXrMissingContactEmail = Email du contact manquant ou invalide (BT-43, BR-DE-7)
+AuvoERechnungXrMissingSellerEmail = Email de la société manquant (BT-34)
+AuvoERechnungXrMissingBuyerAddress = Adresse électronique du client manquante (BT-49) : Leitweg-ID ou email
+AuvoERechnungXrMissingSellerZipTown = Code postal ou ville de la société manquant (BR-DE-3/4)
+AuvoERechnungXrMissingBuyerZipTown = Code postal ou ville du client manquant (BR-DE-8/9)
+AuvoERechnungXrMissingIban = IBAN manquant (BR-DE-1/23)
+AuvoERechnungRuleXrR001 = type de processus métier (BT-23) manquant
+AuvoERechnungRuleDE15 = référence acheteur (BT-10) manquante
+AuvoERechnungRuleXrR020 = adresse électronique du vendeur (BT-34) manquante
+AuvoERechnungRuleXrR010 = adresse électronique de l'acheteur (BT-49) manquante
+AuvoERechnungRuleDE2 = groupe contact du vendeur (BG-6) manquant
+AuvoERechnungRuleDE5 = contact du vendeur (BT-41) manquant
+AuvoERechnungRuleDE6 = téléphone du contact (BT-42) manquant
+AuvoERechnungRuleDE7 = email du contact (BT-43) manquant
+AuvoERechnungRuleDE3 = ville du vendeur (BT-37) manquante
+AuvoERechnungRuleDE4 = code postal du vendeur (BT-38) manquant
+AuvoERechnungRuleDE8 = ville de l'acheteur (BT-52) manquante
+AuvoERechnungRuleDE9 = code postal de l'acheteur (BT-53) manquant
+AuvoERechnungRuleDE1 = instructions de paiement (BG-16) manquantes
+AuvoERechnungRuleDE23a = virement sans compte du bénéficiaire (BG-17/BT-84)
+AuvoERechnungRuleDE31 = prélèvement sans compte débité (BT-91)
+AuvoERechnungRuleDE16 = ni n° de TVA (BT-31) ni identifiant fiscal (BT-32) du vendeur
+AuvoERechnungRuleDE14 = taux de TVA (BT-119) manquant pour la catégorie %s
+AuvoERechnungRuleDE18 = ligne d'escompte « %s » non conforme à #SKONTO#TAGE=n#PROZENT=n.nn#
+AuvoERechnungSecXRechnung = XRechnung (Allemagne)
+AuvoERechnungXrVersion = Version XRechnung
+AuvoERechnungXrVersionHint = Version de la spécification KoSIT pour l'identifiant BT-24, ex. 3.0.
+AuvoERechnungXrContactName = Contact (BT-41)
+AuvoERechnungXrContactPhone = Téléphone du contact (BT-42)
+AuvoERechnungXrContactEmail = Email du contact (BT-43)
+AuvoERechnungXrContactHint = Obligatoire dans une XRechnung. Vide = auteur de la facture ; à défaut téléphone et email de la société.
+AuvoERechnungXrInfo = Une XRechnung est générée en plus du PDF, fichier {facture}-XRECHNUNG.xml, si le client a une Leitweg-ID ou le format « XRechnung ».

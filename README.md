@@ -174,6 +174,17 @@ Seit 3.8.0 klinkt sich das Modul auch in den Hook `afterODTCreation` (Kontext `o
 
 Bedrohungsmodell, detaillierte Schutzmaßnahmen und Meldeprozess: siehe [SECURITY.md](SECURITY.md). Kontakt für Disclosure: **r.vogel@auvo-design.de**.
 
+## XRechnung
+
+Für öffentliche Auftraggeber in Deutschland (und Firmenkunden, die es verlangen) erzeugt das Modul zusätzlich eine **XRechnung 3.0** nach der Spezifikation der KoSIT, als eigene Datei `{Rechnung}-XRECHNUNG.xml` neben der PDF.
+
+- **Wann:** automatisch, sobald beim Geschäftspartner eine **Leitweg-ID** eingetragen ist. Über das Feld **„E-Rechnungsformat“** am Geschäftspartner lässt sich das erzwingen („XRechnung“) oder abschalten („ZUGFeRD“).
+- **Pflichtangaben:** Ansprechpartner mit Telefon und E-Mail (Moduleinstellungen, Block „XRechnung“; leer = Ersteller der Rechnung), E-Mail der Firma, PLZ/Ort von Firma und Kunde, IBAN bei Überweisung, Leitweg-ID oder Kundenreferenz. Fehlt etwas, erscheint beim Erzeugen der PDF eine Liste der fehlenden Angaben, und es wird keine XRechnung geschrieben.
+- **Bund (OZG-RE):** Die Datei über die Weboberfläche hochladen oder über den freigeschalteten E-Mail-Kanal senden (eine Rechnung pro E-Mail, von der bei der OZG-RE hinterlegten Absenderadresse). Keine zusätzliche PDF-Kopie schicken.
+- **Aktualität:** Die KoSIT veröffentlicht zum 01.02. und 01.07. Die Version der Kennung (Standard `3.0`) ist in den Moduleinstellungen einstellbar.
+
+Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrechnung).
+
 ## Abgebildete Daten (Dolibarr → Factur-X)
 
 | Factur-X-Feld | Dolibarr-Quelle |
@@ -456,6 +467,10 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 
 ### Unveröffentlicht
 
+- **XRechnung 3.0 (CIUS KoSIT)**, erster Schritt: Für Kunden mit Leitweg-ID oder mit dem neuen Geschäftspartner-Feld **„E-Rechnungsformat“** = XRechnung wird zusätzlich zur ZUGFeRD-PDF die Datei `{Rechnung}-XRECHNUNG.xml` erzeugt. Inhalt: BT-24 `…#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0`, BT-23 Peppol Billing, Ansprechpartner des Verkäufers (BG-6, neu in den Moduleinstellungen, sonst Ersteller der Rechnung), elektronische Adresse des Käufers = Leitweg-ID mit Schema `0204`, Kundenreferenz als Bestellnummer (BT-13). Fehlen Pflichtangaben, wird keine Datei geschrieben und die Ursachen werden angezeigt. Neue interne Prüfregeln BR-DE-* / PEPPOL-EN16931-R001/R010/R020.
+- **Korrektur BR-CO-26 (betrifft auch ZUGFeRD):** Verkäufer ohne USt-IdNr. (z. B. Kleinunternehmer) wurden vom offiziellen Validator abgelehnt, weil die Steuernummer (BT-32) die Regel nicht erfüllt. Jetzt wird bei deutschen Verkäufern die Handelsregisternummer (Prof-ID 3) als BT-30 ausgegeben, sonst die Steuernummer zusätzlich als Verkäuferkennung BT-29. Die interne Prüfung von BR-CO-26 entspricht jetzt dem offiziellen Schematron.
+- Geprüft mit dem offiziellen KoSIT-Validator 1.6.3 und der XRechnung-Konfiguration vom 31.08.2026 (Bundle 3.0.2).
+- **Nach dem Update das Modul einmal deaktivieren und wieder aktivieren**, damit das neue Feld „E-Rechnungsformat“ angelegt wird.
 - Meldungen im Dolibarr-Log (Syslog) auf Englisch statt Französisch, z. B. „Factur-X PDF generated for …“ statt „PDF Factur-X généré pour …“. Die Meldungen für Nutzer bleiben in deren Sprache (Sprachdateien).
 
 ### 5.0.0 — Umbenennung in AuVo E-Rechnung (Oktober 2026)

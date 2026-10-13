@@ -98,6 +98,10 @@ class modAuvoERechnung extends DolibarrModules
 			array('AUVOERECHNUNG_NOTE_AAB', 'chaine', '', 'Hinweis Skonto (AAB); leer = französischer Standardtext nur bei Verkäufern in Frankreich', 1, 'current', 0),
 			array('AUVOERECHNUNG_NOTES_IN_FOOTER', 'int', '0', 'Pflichthinweise zusätzlich in die Rechnungsfußzeile übernehmen (INVOICE_FREE_TEXT)', 1, 'current', 0),
 			array('AUVOERECHNUNG_NOTES_OVERWRITE', 'int', '0', 'Übernahme: bestehenden Dolibarr-Fußtext überschreiben (1) statt die Hinweise anzuhängen (0)', 1, 'current', 0),
+			array('AUVOERECHNUNG_XRECHNUNG_VERSION', 'chaine', '3.0', 'XRechnung-Version für BT-24 (KoSIT, z. B. 3.0)', 1, 'current', 0),
+			array('AUVOERECHNUNG_CONTACT_NAME', 'chaine', '', 'XRechnung: Ansprechpartner (BT-41); leer = Ersteller der Rechnung', 1, 'current', 0),
+			array('AUVOERECHNUNG_CONTACT_PHONE', 'chaine', '', 'XRechnung: Telefon des Ansprechpartners (BT-42); leer = Ersteller, sonst Firma', 1, 'current', 0),
+			array('AUVOERECHNUNG_CONTACT_EMAIL', 'chaine', '', 'XRechnung: E-Mail des Ansprechpartners (BT-43); leer = Ersteller, sonst Firma', 1, 'current', 0),
 			array('AUVOERECHNUNG_CHORUS_ENABLED', 'int', '0', 'Chorus-Pro-Funktionen aktivieren (Reiter, Menü, 2. PDF; nur Frankreich) — opt-in', 1, 'current', 0),
 		);
 
@@ -140,6 +144,7 @@ class modAuvoERechnung extends DolibarrModules
 		$this->createChorusExtraFields();
 		$this->fixChorusExtraFieldsDisplay();
 		$this->createLeitwegIdExtraField();
+		$this->createEFormatExtraField();
 		return $result;
 	}
 
@@ -176,6 +181,7 @@ class modAuvoERechnung extends DolibarrModules
 			'lfxengagement'  => 'AuvoERechnungEfEngagement',
 			'lfxmarche'      => 'AuvoERechnungEfMarche',
 			'lfxleitwegid'   => 'AuvoERechnungEfLeitwegId',
+			'lfxeformat'     => 'AuvoERechnungEfEFormat',
 		);
 		foreach ($labels as $name => $label) {
 			$sql = "UPDATE ".MAIN_DB_PREFIX."extrafields SET";
@@ -314,6 +320,33 @@ class modAuvoERechnung extends DolibarrModules
 		$extrafields->addExtraField(
 			'lfxleitwegid', 'AuvoERechnungEfLeitwegId', 'varchar', 200, '46', 'societe',
 			0, 0, '', '', 1, '', '1', '', '', '',
+			'auvoerechnung@auvoerechnung', '$conf->auvoerechnung->enabled'
+		);
+	}
+
+	/**
+	 * Crée (si absent) l'extrafield tiers « E-Rechnungsformat » : choix du
+	 * format de facture électronique par client (automatique / ZUGFeRD /
+	 * XRechnung), lu par auvoerechnung_wants_xrechnung(). Vide = automatique
+	 * (XRechnung dès qu'une Leitweg-ID est renseignée). Idempotent.
+	 */
+	private function createEFormatExtraField()
+	{
+		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+
+		$extrafields = new ExtraFields($this->db);
+		$extrafields->fetch_name_optionals_label('societe');
+		if (!empty($extrafields->attributes['societe']['label']['lfxeformat'])) {
+			return; // déjà présent
+		}
+		$param = array('options' => array(
+			'auto'      => 'AuvoERechnungEfEFormatAuto',
+			'zugferd'   => 'AuvoERechnungEfEFormatZugferd',
+			'xrechnung' => 'AuvoERechnungEfEFormatXRechnung',
+		));
+		$extrafields->addExtraField(
+			'lfxeformat', 'AuvoERechnungEfEFormat', 'select', 201, '', 'societe',
+			0, 0, '', $param, 1, '', '1', '', '', '',
 			'auvoerechnung@auvoerechnung', '$conf->auvoerechnung->enabled'
 		);
 	}
