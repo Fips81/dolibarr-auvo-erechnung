@@ -282,14 +282,15 @@ function auvoerechnung_build_xml($invoice, $mysoc, &$buildWarnings = [], $option
 	$buyerExtra = ($isXRechnung && $leitwegId !== '') ? ['endpoint' => ['0204', $leitwegId]] : [];
 	$xml .= auvoerechnung_build_trade_party_xml('Seller', $mysoc, $mysoc->email ?? '', $legalIdMode, $sellerExtra);
 	$xml .= auvoerechnung_build_trade_party_xml('Buyer', $buyer, auvoerechnung_get_buyer_email($buyer, $invoice->db), $legalIdMode, $buyerExtra);
-	// BT-13 : n° d'engagement juridique (Chorus) sinon référence de la commande liée.
+	// BT-13 : n° d'engagement juridique (Chorus) sinon n° de commande de
+	// l'acheteur porté par la commande liée (sa réf. client).
 	$orderRef = ($profile === 'choruspro' && !empty($options['engagement']))
 		? $options['engagement']
 		: auvoerechnung_get_linked_order_ref($invoice);
-	// XRechnung avec Leitweg-ID : BT-10 est occupé par la Leitweg-ID ; la
-	// référence client de la facture (n° de commande de l'administration,
+	// Acheteur avec Leitweg-ID : BT-10 est occupé par la Leitweg-ID ; la réf.
+	// client de la facture (« Ihr Zeichen », n° de commande de l'administration
 	// exigé par § 5 E-RechV s'il a été communiqué) passe alors en BT-13.
-	if ($isXRechnung && $orderRef === '' && $leitwegId !== '' && !empty($invoice->ref_client)) {
+	if ($orderRef === '' && $leitwegId !== '' && !empty($invoice->ref_client)) {
 		$orderRef = $invoice->ref_client;
 	}
 	if ($orderRef !== '') {
@@ -1614,11 +1615,16 @@ function auvoerechnung_get_preceding_invoices($invoice, $typeCode = '')
 }
 
 /**
- * Référence de la première commande client liée à la facture (BT-13),
- * via llx_element_element (sans charger les objets liés).
+ * N° de commande DE L'ACHETEUR (BT-13 « Purchase order reference ») de la
+ * première commande client liée à la facture, via llx_element_element.
+ *
+ * C'est le champ « Réf. client » de la commande (ref_client, libellé allemand
+ * « Ihr Zeichen » / « Kunden-BestellNr. »), PAS la référence interne Dolibarr
+ * de la commande (c.ref, ex. CO2606-0042) : celle-ci est un numéro du vendeur,
+ * inexploitable par l'acheteur. Vide si la commande n'a pas de réf. client.
  *
  * @param object $invoice Facture Dolibarr
- * @return string Réf de commande ou chaîne vide
+ * @return string N° de commande de l'acheteur ou chaîne vide
  */
 function auvoerechnung_get_linked_order_ref($invoice)
 {
@@ -1626,7 +1632,7 @@ function auvoerechnung_get_linked_order_ref($invoice)
 	if (!is_object($db) || empty($invoice->id)) {
 		return '';
 	}
-	$sql = "SELECT c.ref FROM ".MAIN_DB_PREFIX."element_element ee"
+	$sql = "SELECT c.ref_client FROM ".MAIN_DB_PREFIX."element_element ee"
 		." INNER JOIN ".MAIN_DB_PREFIX."commande c ON c.rowid = ee.fk_source"
 		." WHERE ee.sourcetype = 'commande' AND ee.targettype = 'facture'"
 		." AND ee.fk_target = ".((int) $invoice->id)
@@ -1636,7 +1642,7 @@ function auvoerechnung_get_linked_order_ref($invoice)
 		return '';
 	}
 	$obj = $db->fetch_object($res);
-	return ($obj && !empty($obj->ref)) ? (string) $obj->ref : '';
+	return ($obj && !empty($obj->ref_client)) ? trim((string) $obj->ref_client) : '';
 }
 
 /**

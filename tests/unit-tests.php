@@ -458,7 +458,7 @@ $currentTest = 'U14 BT-8 (depuis TAX_MODE) + BT-10 + BT-13';
 lfx_reset([
 	'TAX_MODE' => 2,
 ], ['iban' => 'FR7630006000011234567890189', 'bic' => 'AGRIFRPP'], [
-	'element_element' => [(object) ['ref' => 'CO2606-0042']],
+	'element_element' => [(object) ['ref_client' => 'BESTELLUNG-4711']],
 ]);
 $inv = new LfxFakeInvoice();
 $inv->id = 11;
@@ -477,7 +477,13 @@ $xp = lfx_xpath($xml);
 lfx_assert_eq('B1', lfx_xp_str($xp, '//ram:BusinessProcessSpecifiedDocumentContextParameter/ram:ID'), 'BT-23 socle B1 en profil PDP (BR-FR-08)');
 lfx_assert_eq('72', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax/ram:DueDateTypeCode'), 'BT-8 = 72 (TAX_MODE=2 encaissements)');
 lfx_assert_eq('SERVICE-ACHATS-75', lfx_xp_str($xp, '//ram:BuyerReference'), 'BT-10 ref client');
-lfx_assert_eq('CO2606-0042', lfx_xp_str($xp, '//ram:BuyerOrderReferencedDocument/ram:IssuerAssignedID'), 'BT-13 commande liée');
+lfx_assert_eq('BESTELLUNG-4711', lfx_xp_str($xp, '//ram:BuyerOrderReferencedDocument/ram:IssuerAssignedID'), 'BT-13 = n° de commande de l\'acheteur (réf. client de la commande liée)');
+// Commande liée sans réf. client : pas de BT-13 (jamais la réf. interne CO…).
+lfx_reset(['TAX_MODE' => 2], ['iban' => 'FR7630006000011234567890189', 'bic' => 'AGRIFRPP'], [
+	'element_element' => [(object) ['ref_client' => '']],
+]);
+$xp = lfx_xpath(auvoerechnung_build_xml($inv, $mysoc, $w));
+lfx_assert_eq(0, $xp->query('//ram:BuyerOrderReferencedDocument')->length, 'commande liée sans réf. client : pas de BT-13');
 echo "U14 OK\n";
 
 // ---------------------------------------------------------------------------
