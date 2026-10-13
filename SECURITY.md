@@ -1,138 +1,138 @@
-# Politique de sécurité — AuvoZugferd
+# Sicherheitsrichtlinie — DoliZUGFeRD
 
-Ce document décrit le modèle de menace du module AuvoZugferd, les protections en place, les limitations assumées, et le processus de signalement responsable d'une faille.
+Dieses Dokument beschreibt das Bedrohungsmodell des Moduls DoliZUGFeRD, die vorhandenen Schutzmaßnahmen, bewusste Einschränkungen und das Verfahren zur verantwortungsvollen Meldung einer Sicherheitslücke.
 
-## Signaler une vulnérabilité
+## Sicherheitslücke melden
 
-Merci de **ne pas** ouvrir d'issue publique pour une faille de sécurité. Écrivez à :
+Bitte eröffnen Sie für eine Sicherheitslücke **kein** öffentliches Issue. Schreiben Sie an:
 
 **r.vogel@auvo-design.de**
 
-Précisez :
+Bitte angeben:
 
-- Version du module concernée (ou commit SHA)
-- Description de la vulnérabilité et impact estimé
-- Étapes de reproduction minimales
-- Éventuelle preuve de concept
+- Betroffene Modulversion (oder Commit-SHA)
+- Beschreibung der Lücke und geschätzte Auswirkung
+- Minimale Schritte zur Reproduktion
+- Gegebenenfalls einen Proof of Concept
 
-Nous nous engageons à :
+Wir verpflichten uns:
 
-- Accuser réception sous 72 heures
-- Vous tenir informé de l'avancement de l'analyse
-- Mentionner votre contribution (si vous le souhaitez) une fois le correctif publié
-- Appliquer un délai de divulgation coordonnée de 90 jours maximum avant publication publique du détail
+- den Eingang innerhalb von 72 Stunden zu bestätigen
+- Sie über den Fortschritt der Analyse auf dem Laufenden zu halten
+- Ihren Beitrag nach Veröffentlichung der Korrektur zu nennen (falls gewünscht)
+- eine koordinierte Offenlegungsfrist von höchstens 90 Tagen einzuhalten, bevor Details öffentlich gemacht werden
 
-Merci d'éviter toute action qui pourrait dégrader un service en production, accéder à des données tierces, ou exploiter une faille au-delà du strict nécessaire pour la démontrer.
+Bitte vermeiden Sie alles, was einen Produktivbetrieb beeinträchtigen, auf Daten Dritter zugreifen oder eine Lücke über das zum Nachweis Notwendige hinaus ausnutzen könnte.
 
-## Modèle de menace
+## Bedrohungsmodell
 
-AuvoZugferd est un module Dolibarr qui convertit automatiquement les PDF factures clients au format Factur-X EN16931 (PDF/A-3 avec XML CII embarqué). Il s'exécute **à l'intérieur** d'une instance Dolibarr authentifiée, branché sur le hook `afterPDFCreation`. Le modèle de menace est celui d'une application métier en intranet.
+DoliZUGFeRD ist ein Dolibarr-Modul, das die PDFs von Kundenrechnungen automatisch in das Format ZUGFeRD/Factur-X EN16931 umwandelt (PDF/A-3 mit eingebettetem CII-XML). Es läuft **innerhalb** einer authentifizierten Dolibarr-Instanz und hängt am Hook `afterPDFCreation`. Das Bedrohungsmodell ist das einer Geschäftsanwendung im Intranet.
 
-### Rôles
+### Rollen
 
-| Rôle | Accès | Confiance |
+| Rolle | Zugriff | Vertrauen |
 |---|---|---|
-| Administrateur Dolibarr | Configuration du module, y compris `AUVOZUGFERD_PHP_CLI_PATH` | **Confiance forte**. Un admin compromis implique de toute façon une compromission totale de Dolibarr. |
-| Utilisateur Dolibarr avec droit de générer un PDF facture | Déclenche l'injection Factur-X via le hook standard | Confiance interne. |
-| Utilisateur anonyme (hors Dolibarr) | Aucun accès | Non concerné : le module n'expose aucun endpoint public. |
+| Dolibarr-Administrator | Konfiguration des Moduls, einschließlich `DOLIZUGFERD_PHP_CLI_PATH` | **Hohes Vertrauen**. Ein kompromittierter Admin bedeutet ohnehin eine vollständige Kompromittierung von Dolibarr. |
+| Dolibarr-Nutzer mit dem Recht, eine Rechnungs-PDF zu erzeugen | Löst die ZUGFeRD-Einbettung über den Standard-Hook aus | Internes Vertrauen. |
+| Anonymer Nutzer (außerhalb von Dolibarr) | Kein Zugriff | Nicht betroffen: Das Modul stellt keinen öffentlichen Endpunkt bereit. |
 
-### Surface exposée
+### Angriffsfläche
 
-- **Hook `afterPDFCreation`** : exécuté dans le contexte d'une génération PDF facture (utilisateur authentifié)
-- **Hooks `invoicecard`** (boutons « Vérifier / Régénérer Factur-X ») : réservés aux utilisateurs authentifiés avec droits factures (`lire` / `creer`), protégés par token CSRF (`currentToken()`)
-- **Page de configuration admin** : `admin/setup.php`, réservée aux admins via `accessforbidden()` + protection CSRF sur le POST de mise à jour
-- **API REST** : `class/api_auvozugferd.class.php`, exposée uniquement si le module API REST Dolibarr est activé ; clé API requise, droits `facture->lire` + `_checkAccessToResource()` vérifiés
-- **Scripts CLI** : `scripts/inject_facturx.php`, `scripts/export_facturx_batch.php`, `tests/*.php`, `demo/*.php` — tous protégés contre l'accès HTTP direct par `PHP_SAPI === 'cli'`, et les dossiers `scripts/`, `tests/`, `demo/` portent un `.htaccess` `Require all denied` en défense en profondeur
-- **Appel HTTP sortant unique** : vérification de la dernière release GitHub via `api.github.com`, au chargement de la page de configuration admin, avec cache 24h (succès **et** échecs) et timeout 5s (aucune donnée locale envoyée, uniquement une requête `GET` anonyme)
-- **Binaire externe optionnel** : veraPDF (`AUVOZUGFERD_VERAPDF_PATH`, constante admin), invoqué via `escapeshellarg()` + `is_executable()`
-- **Aucun endpoint web exposé publiquement**
+- **Hook `afterPDFCreation`**: läuft im Kontext einer Rechnungs-PDF-Erzeugung (authentifizierter Nutzer)
+- **Hooks `invoicecard`** (Buttons „ZUGFeRD prüfen / neu erzeugen“): nur für authentifizierte Nutzer mit Rechnungsrechten (`lire` / `creer`), geschützt durch CSRF-Token (`currentToken()`)
+- **Admin-Konfigurationsseite**: `admin/setup.php`, nur für Admins über `accessforbidden()` + CSRF-Schutz beim Speichern
+- **REST-API**: `class/api_dolizugferd.class.php`, nur verfügbar, wenn das Dolibarr-Modul REST-API aktiv ist; API-Schlüssel erforderlich, Rechte `facture->lire` + `_checkAccessToResource()` werden geprüft
+- **CLI-Skripte**: `scripts/inject_facturx.php`, `scripts/export_facturx_batch.php`, `tests/*.php`, `demo/*.php` — alle gegen direkten HTTP-Zugriff durch `PHP_SAPI === 'cli'` geschützt; die Ordner `scripts/`, `tests/`, `demo/` enthalten zusätzlich eine `.htaccess` mit `Require all denied`
+- **Einziger ausgehender HTTP-Aufruf**: Prüfung der neuesten GitHub-Release über `api.github.com` beim Laden der Admin-Konfigurationsseite, mit 24-h-Cache (für Erfolge **und** Fehler) und 5 s Timeout (es werden keine lokalen Daten gesendet, nur ein anonymer `GET`)
+- **Optionales externes Programm**: veraPDF (`DOLIZUGFERD_VERAPDF_PATH`, Admin-Konstante), aufgerufen mit `escapeshellarg()` + `is_executable()`
+- **Kein öffentlich erreichbarer Web-Endpunkt**
 
-### Ce qui est **hors** modèle de menace
+### **Nicht** Teil des Bedrohungsmodells
 
-- Un administrateur Dolibarr malveillant. Un admin peut déjà tout faire dans Dolibarr (modules custom, `/admin/tools/*`, accès base, `/admin/const.php`). Aucun mécanisme ne protège contre un admin hostile (et ne le peut pas dans l'architecture Dolibarr).
-- La sécurité des bibliothèques tierces vendored (`atgp/factur-x`, `setasign/fpdi`, `setasign/fpdf`, `smalot/pdfparser`, `symfony/polyfill-mbstring`). Leur sécurité dépend des mainteneurs amont et des versions embarquées.
+- Ein böswilliger Dolibarr-Administrator. Ein Admin kann in Dolibarr ohnehin alles (eigene Module, `/admin/tools/*`, Datenbankzugriff, `/admin/const.php`). Kein Mechanismus schützt vor einem feindlichen Admin (und kann es in der Dolibarr-Architektur auch nicht).
+- Die Sicherheit der mitgelieferten Fremdbibliotheken (`atgp/factur-x`, `setasign/fpdi`, `setasign/fpdf`, `smalot/pdfparser`, `symfony/polyfill-mbstring`). Sie hängt von den Upstream-Maintainern und den eingebundenen Versionen ab.
 
-## Protections en place
+## Schutzmaßnahmen
 
-### Injection PDF : sous-process isolé par défaut
+### PDF-Einbettung: standardmäßig isolierter Subprozess
 
-Par défaut (mode `auto` avec `exec()` disponible), l'injection du XML dans le PDF se fait dans un **sous-process PHP isolé** (`scripts/inject_facturx.php`). C'est le chemin le plus robuste : le process est vierge — aucune classe Dolibarr ou tierce chargée — donc **aucun conflit de bibliothèques** possible. Le binaire PHP CLI est configurable via `AUVOZUGFERD_PHP_CLI_PATH`. Protections de l'appel :
+Standardmäßig (Modus `auto` mit verfügbarem `exec()`) wird das XML in einem **isolierten PHP-Subprozess** (`scripts/inject_facturx.php`) in die PDF eingebettet. Das ist der robusteste Weg: Der Prozess ist leer — keine Dolibarr- oder Fremdklassen geladen — und damit sind **keine Bibliothekskonflikte** möglich. Das PHP-CLI-Programm ist über `DOLIZUGFERD_PHP_CLI_PATH` einstellbar. Schutz des Aufrufs:
 
-- `escapeshellarg()` est appliqué sur **tous** les tokens de la commande (binaire PHP, script, PDF, fichier XML temporaire). Une valeur piégée dans la constante est quotée, et le shell cherche un binaire avec ce nom littéral qui n'existe pas → `command not found`. Pas de chaînage de commandes possible.
-- Validation par regex `^[A-Za-z0-9/._:() \\-]+$` sur `AUVOZUGFERD_PHP_CLI_PATH` avant l'appel (`: \ ( )` et espace autorisés pour les chemins Windows). Toute valeur contenant des caractères exotiques (`;`, `&`, `$`, guillemets, etc.) est refusée.
-- Si le chemin est absolu, `is_executable()` vérifie qu'un exécutable existe effectivement.
-- `function_exists('exec')` est testé en amont.
-- Le script CLI `inject_facturx.php` refuse tout appel via HTTP : `if (php_sapi_name() !== 'cli') { http_response_code(403); die(...); }`
+- `escapeshellarg()` wird auf **alle** Bestandteile des Befehls angewendet (PHP-Programm, Skript, PDF, temporäre XML-Datei). Ein manipulierter Wert in der Konstante wird gequotet, die Shell sucht ein Programm mit genau diesem Namen, das nicht existiert → `command not found`. Keine Befehlsverkettung möglich.
+- Prüfung per Regex `^[A-Za-z0-9/._:() \\-]+$` auf `DOLIZUGFERD_PHP_CLI_PATH` vor dem Aufruf (`: \ ( )` und Leerzeichen für Windows-Pfade erlaubt). Jeder Wert mit exotischen Zeichen (`;`, `&`, `$`, Anführungszeichen usw.) wird abgelehnt.
+- Bei absolutem Pfad prüft `is_executable()`, dass tatsächlich ein ausführbares Programm existiert.
+- `function_exists('exec')` wird vorab geprüft.
+- Das CLI-Skript `inject_facturx.php` verweigert jeden Aufruf über HTTP: `if (php_sapi_name() !== 'cli') { http_response_code(403); die(...); }`
 
-**Injection in-process (sans `exec()`)** — utilisée uniquement si `exec()` est désactivé (mode `auto` sur mutualisé durci) ou explicitement forcée (mode `inprocess`). Elle charge la lib d'injection dans la requête web, ce qui retire la dépendance à `exec()` (utile sur un hébergement durci). Risque connu et **traité** : si un autre composant (le `tcpdi` de Dolibarr, un autre module embarquant `setasign/fpdi`) a déjà chargé une version **incompatible** de FPDF, l'instanciation déclencherait une erreur fatale de compilation (« Declaration … must be compatible », `FpdfTplTrait::setPageFormat`) — non rattrapable par `try/catch`. Le module **détecte ce conflit en amont** (contrôle des classes FPDF/FPDI déjà chargées hors de son propre vendor) et **renonce proprement** à l'in-process au lieu de provoquer la fatale ; le PDF classique est alors conservé. C'est la raison pour laquelle le sous-process reste le mode par défaut dès que `exec()` est disponible.
+**In-Process-Einbettung (ohne `exec()`)** — wird nur verwendet, wenn `exec()` deaktiviert ist (Modus `auto` auf gehärtetem Shared Hosting) oder ausdrücklich erzwungen (Modus `inprocess`). Sie lädt die Einbettungsbibliothek in den Web-Request und kommt damit ohne `exec()` aus. Bekanntes und **behandeltes** Risiko: Hat eine andere Komponente (das `tcpdi` von Dolibarr, ein anderes Modul mit eigenem `setasign/fpdi`) bereits eine **inkompatible** FPDF-Version geladen, würde die Instanziierung einen fatalen Kompilierungsfehler auslösen („Declaration … must be compatible“, `FpdfTplTrait::setPageFormat`), der sich nicht mit `try/catch` abfangen lässt. Das Modul **erkennt diesen Konflikt vorab** (Prüfung der bereits außerhalb des eigenen vendor geladenen FPDF/FPDI-Klassen) und **verzichtet sauber** auf die In-Process-Einbettung, statt den fatalen Fehler zu provozieren; die normale PDF bleibt dann erhalten. Deshalb bleibt der Subprozess der Standard, sobald `exec()` verfügbar ist.
 
-### Manipulation de fichiers
+### Umgang mit Dateien
 
-- Le PDF source provient du flux interne Dolibarr (hook `afterPDFCreation`), pas d'un upload direct.
-- Les fichiers XML temporaires sont créés via `tempnam(DOL_DATA_ROOT.'/facturx/temp', 'facturx_')` (toujours dans l'`open_basedir` Dolibarr, permissions 0600, nom imprévisible) puis supprimés en bloc `finally` après l'injection.
-- L'écriture du PDF Factur-X est **atomique** quel que soit le mode (in-process comme subprocess) : écriture dans un fichier `.facturx.tmp` puis `rename()` — un crash, un disque plein ou un kill ne peut pas laisser un PDF tronqué.
-- Aucun path fourni par l'utilisateur n'est utilisé en lecture/écriture.
+- Die Quell-PDF stammt aus dem internen Dolibarr-Ablauf (Hook `afterPDFCreation`), nicht aus einem direkten Upload.
+- Temporäre XML-Dateien werden mit `tempnam(DOL_DATA_ROOT.'/facturx/temp', 'facturx_')` angelegt (immer innerhalb des Dolibarr-`open_basedir`, Rechte 0600, nicht vorhersagbarer Name) und nach der Einbettung in einem `finally`-Block gelöscht.
+- Das Schreiben der ZUGFeRD-PDF ist in jedem Modus **atomar** (In-Process wie Subprozess): Schreiben in eine Datei `.facturx.tmp`, dann `rename()` — ein Absturz, eine volle Platte oder ein Kill kann keine abgeschnittene PDF hinterlassen.
+- Es werden keine vom Nutzer gelieferten Pfade zum Lesen oder Schreiben verwendet.
 
-### Génération XML
+### XML-Erzeugung
 
-- Le XML CII est **construit** programmatiquement à partir des objets Dolibarr (`$invoice`, `$mysoc`, `$thirdparty`). Aucune donnée utilisateur n'est injectée en brut : les valeurs sont échappées avec `htmlspecialchars(..., ENT_XML1 | ENT_QUOTES, 'UTF-8')` via les helpers du module.
-- Aucun parsing de XML externe n'est effectué dans le chemin critique.
+- Das CII-XML wird programmatisch aus den Dolibarr-Objekten (`$invoice`, `$mysoc`, `$thirdparty`) **aufgebaut**. Keine Nutzerdaten werden roh eingefügt: Die Werte werden über die Hilfsfunktionen des Moduls mit `htmlspecialchars(..., ENT_XML1 | ENT_QUOTES, 'UTF-8')` maskiert.
+- Im kritischen Pfad wird kein externes XML geparst.
 
-### Validation XML interne avant injection
+### Interne XML-Prüfung vor der Einbettung
 
-Depuis la v1.1.0, avant d'écrire le XML sur disque et d'invoquer le subprocess d'injection, le module valide systématiquement :
+Seit v1.1.0 prüft das Modul vor dem Schreiben des XML auf die Platte und dem Aufruf des Einbettungs-Subprozesses immer:
 
-1. **XML well-formed** via `DOMDocument::loadXML()`. Un XML cassé (cas peu probable puisque la génération est programmatique, mais défense en profondeur) est rejeté avant qu'il atteigne la lib tierce.
-2. **Conformité XSD EN16931** via `DOMDocument::schemaValidate()` contre le schéma embarqué dans `vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.09.2_EN16931.xsd`. Les erreurs sont loggées dans `dol_syslog` pour diagnostic.
+1. **Wohlgeformtheit** über `DOMDocument::loadXML()`. Ein kaputtes XML (unwahrscheinlich, da programmatisch erzeugt, aber als zusätzliche Absicherung) wird abgelehnt, bevor es die Fremdbibliothek erreicht.
+2. **XSD-Konformität EN16931** über `DOMDocument::schemaValidate()` gegen das mitgelieferte Schema `vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.09.2_EN16931.xsd`. Fehler werden zur Diagnose in `dol_syslog` protokolliert.
 
-En mode `AUVOZUGFERD_STRICT_MODE=1`, ces validations échouées bloquent la génération avec une erreur visible. En mode best-effort (défaut), un warning est affiché et le PDF classique reste disponible (fail-open). Cette option permet de choisir explicitement la politique fail-open vs fail-closed selon le besoin de conformité.
+Im Modus `DOLIZUGFERD_STRICT_MODE=1` blockieren fehlgeschlagene Prüfungen die Erzeugung mit einer sichtbaren Fehlermeldung. Im best-effort-Modus (Standard) erscheint eine Warnung und die normale PDF bleibt verfügbar (fail-open). So lässt sich je nach Konformitätsbedarf bewusst zwischen fail-open und fail-closed wählen.
 
-### CSRF de la page admin
+### CSRF auf der Admin-Seite
 
-Le POST de mise à jour des constantes dans `admin/setup.php` est protégé par vérification du token CSRF standard Dolibarr (`currentToken()`), en plus du check `$user->admin`. Le token est regénéré par Dolibarr à chaque rendu et la comparaison utilise `currentToken()` (valeur de la soumission en cours), pas `newToken()` qui génère le token de la **prochaine** soumission.
+Das Speichern der Konstanten in `admin/setup.php` ist zusätzlich zur Prüfung `$user->admin` durch die Standard-CSRF-Prüfung von Dolibarr (`currentToken()`) geschützt. Dolibarr erzeugt das Token bei jeder Darstellung neu, und der Vergleich nutzt `currentToken()` (Wert der laufenden Übermittlung), nicht `newToken()`, das das Token der **nächsten** Übermittlung erzeugt.
 
-### Patch FPDF pour PDF/A-3
+### FPDF-Patch für PDF/A-3
 
-La bibliothèque `setasign/fpdf` vendored reçoit un patch pour ajouter le flag `/F 4` aux annotations (conformité PDF/A-3). Ce patch est appliqué au build du vendor et n'introduit pas de vecteur d'attaque.
+Die mitgelieferte Bibliothek `setasign/fpdf` erhält einen Patch, der den Annotationen das Flag `/F 4` hinzufügt (PDF/A-3-Konformität). Der Patch wird beim Bau des vendor-Ordners angewendet und schafft keinen Angriffsvektor.
 
-### Constantes Dolibarr
+### Dolibarr-Konstanten
 
-Toutes les constantes du module sont stockées en clair dans `llx_const` (convention Dolibarr). Aucune n'est un secret.
+Alle Konstanten des Moduls werden im Klartext in `llx_const` gespeichert (Dolibarr-Konvention). Keine davon ist ein Geheimnis.
 
-| Constante | Nature |
+| Konstante | Bedeutung |
 |---|---|
-| `AUVOZUGFERD_BANK_ACCOUNT` | ID du compte bancaire configuré |
-| `AUVOZUGFERD_PAYMENT_MEANS` | Code moyen de paiement UNTDID 4461 |
-| `AUVOZUGFERD_STRICT_MODE` | Politique erreur (best-effort / strict) |
-| `AUVOZUGFERD_BR_CHECK` | Contrôle interne des règles métier EN16931 |
-| `AUVOZUGFERD_INJECTION_MODE` | Mode d'injection XML (auto / in-process / sous-process) |
-| `AUVOZUGFERD_PHP_CLI_PATH` | Chemin du binaire PHP (validé par regex) |
-| `AUVOZUGFERD_VERAPDF_PATH` | Chemin du binaire veraPDF (optionnel, `is_executable()` vérifié) |
-| `AUVOZUGFERD_ENDPOINT_SUFFIX_SELLER` | Suffixe ajouté au SIREN vendeur dans l'endpoint BT-34 |
-| `AUVOZUGFERD_NOTE_PMD/PMT/AAB` | Mentions légales BR-FR-05 |
-| `AUVOZUGFERD_NOTES_IN_FOOTER` | Recopie des mentions BR-FR-05 dans le pied de facture (flag) |
-| `AUVOZUGFERD_NOTES_OVERWRITE` | Recopie pied : écraser (1) ou ajouter à la suite (0) |
-| `AUVOZUGFERD_CHORUS_ENABLED` | Flag d'activation des fonctionnalités Chorus Pro |
-| `AUVOZUGFERD_UPDATE_CHECK_CACHE` | JSON cache de la dernière version GitHub (TTL 24h, succès et échecs) |
+| `DOLIZUGFERD_BANK_ACCOUNT` | ID des eingestellten Bankkontos |
+| `DOLIZUGFERD_PAYMENT_MEANS` | Zahlungsart-Code UNTDID 4461 |
+| `DOLIZUGFERD_STRICT_MODE` | Fehlerverhalten (best-effort / strikt) |
+| `DOLIZUGFERD_BR_CHECK` | Interne Prüfung der EN16931-Geschäftsregeln |
+| `DOLIZUGFERD_INJECTION_MODE` | Einbettungsmodus des XML (auto / In-Process / Subprozess) |
+| `DOLIZUGFERD_PHP_CLI_PATH` | Pfad zum PHP-Programm (per Regex geprüft) |
+| `DOLIZUGFERD_VERAPDF_PATH` | Pfad zum veraPDF-Programm (optional, `is_executable()` geprüft) |
+| `DOLIZUGFERD_ENDPOINT_SUFFIX_SELLER` | Suffix zur SIREN des Verkäufers im Endpoint BT-34 (nur Frankreich) |
+| `DOLIZUGFERD_NOTE_PMD/PMT/AAB` | Pflichthinweise (Verzug, Mahnpauschale, Skonto) |
+| `DOLIZUGFERD_NOTES_IN_FOOTER` | Übernahme der Hinweise in die Rechnungsfußzeile (Schalter) |
+| `DOLIZUGFERD_NOTES_OVERWRITE` | Übernahme Fußzeile: überschreiben (1) oder anhängen (0) |
+| `DOLIZUGFERD_CHORUS_ENABLED` | Schalter für die Chorus-Pro-Funktionen (nur Frankreich) |
+| `DOLIZUGFERD_UPDATE_CHECK_CACHE` | JSON-Cache der neuesten GitHub-Version (TTL 24 h, Erfolge und Fehler) |
 
-## Dépendances vendored
+## Mitgelieferte Abhängigkeiten
 
-Le dossier `vendor/` embarque les bibliothèques suivantes (pas de Composer requis au déploiement) :
+Der Ordner `vendor/` enthält folgende Bibliotheken (bei der Installation ist kein Composer nötig):
 
-| Bibliothèque | Rôle |
+| Bibliothek | Aufgabe |
 |---|---|
-| `atgp/factur-x` v3.3.0 | Génération PDF Factur-X |
-| `setasign/fpdi` | Lecture/écriture PDF |
-| `setasign/fpdf` | Moteur PDF (utilisé par atgp, patch `/F 4` appliqué) |
-| `smalot/pdfparser` | Parsing PDF |
-| `symfony/polyfill-mbstring` | Compatibilité mbstring |
+| `atgp/factur-x` v3.5.0 | Erzeugung der Factur-X/ZUGFeRD-PDF |
+| `setasign/fpdi` | Lesen/Schreiben von PDFs |
+| `setasign/fpdf` | PDF-Engine (von atgp genutzt, Patch `/F 4` angewendet) |
+| `smalot/pdfparser` | Parsen von PDFs |
+| `symfony/polyfill-mbstring` | mbstring-Kompatibilität |
 
-Ces bibliothèques ne sont pas maintenues par auvo-design. Leur sécurité dépend des mainteneurs amont. Tout signalement de CVE amont nous sera transmis par les canaux habituels (GitHub, composer audit, etc.) et une nouvelle version vendored sera publiée au besoin.
+Diese Bibliotheken werden nicht von auvo-design gepflegt. Ihre Sicherheit hängt von den Upstream-Maintainern ab. Upstream-CVEs erreichen uns über die üblichen Kanäle (GitHub, composer audit usw.); bei Bedarf wird eine neue Version mit aktualisiertem vendor veröffentlicht.
 
-## Historique des avis
+## Bisherige Sicherheitshinweise
 
-_Aucune vulnérabilité corrigée n'a été publiée à ce jour._
+_Bisher wurde keine behobene Sicherheitslücke veröffentlicht._
 
 ---
 
-Pour toute question sur la sécurité de ce module : r.vogel@auvo-design.de
+Fragen zur Sicherheit dieses Moduls: r.vogel@auvo-design.de

@@ -1,22 +1,24 @@
 <?php
 /*
- * AuvoZugferd - Fixtures de démo
+ * DoliZUGFeRD - Fixtures de démo
  *
- * Crée : user admin axel, société émettrice, compte bancaire, 6 tiers variés,
+ * Crée : société émettrice, compte bancaire, 6 tiers variés,
  * 10 factures couvrant tous les cas métier Factur-X
  * (standard, multi-TVA, TVA 0%, avoir, heures, jours, sans email,
  *  UE autoliquidation, acompte TYPE_DEPOSIT, finale avec acompte imputé).
  *
- * Usage : php /var/www/dolibarr/htdocs/custom/auvozugferd/demo/fixtures.php
+ * À lancer UNIQUEMENT sur une instance Dolibarr de test (écrit dans la base) :
+ *   php htdocs/custom/dolizugferd/demo/fixtures.php
  */
 
-// Sécurité : ce script crée un compte admin de démo — exécution CLI uniquement.
+// Sécurité : ce script écrit des données de démo — exécution CLI uniquement.
 if (PHP_SAPI !== 'cli') {
 	http_response_code(403);
 	die('CLI only');
 }
 
-$res = @include "/var/www/dolibarr/htdocs/master.inc.php";
+// Localisation de master.inc.php : 3 niveaux au-dessus du module (htdocs/custom/dolizugferd/demo)
+$res = @include __DIR__.'/../../../master.inc.php';
 if (!$res) {
 	die("Impossible de charger master.inc.php\n");
 }
@@ -30,33 +32,9 @@ $user = new User($db);
 $user->fetch(1);
 $user->getrights();
 
-echo "=== User admin axel/0000 ===\n";
-// Dolibarr rejette "0000" via setPassword() (politique de complexité).
-// Pour une démo interne on force un hash bcrypt direct en DB.
-$axelHash = password_hash('0000', PASSWORD_BCRYPT);
-$u = new User($db);
-if ($u->fetch(0, 'axel') <= 0) {
-	$u = new User($db);
-	$u->login = 'axel';
-	$u->lastname = 'Piquet-Gauthier';
-	$u->firstname = 'Axel';
-	$u->email = 'axel@lemon-demo.local';
-	$u->admin = 1;
-	$uid = $u->create($user);
-	if ($uid > 0) {
-		$db->query("UPDATE ".MAIN_DB_PREFIX."user SET pass_crypted='".$db->escape($axelHash)."' WHERE rowid=".((int) $uid));
-		echo "  axel créé id=$uid (hash bcrypt forcé)\n";
-	} else {
-		echo "  ERR ".implode(', ', $u->errors)."\n";
-	}
-} else {
-	$db->query("UPDATE ".MAIN_DB_PREFIX."user SET pass_crypted='".$db->escape($axelHash)."' WHERE rowid=".((int) $u->id));
-	echo "  axel existe déjà id=".$u->id.", mot de passe réinitialisé (hash bcrypt forcé)\n";
-}
-
 echo "=== Constantes société émettrice ===\n";
 $consts = [
-	'MAIN_INFO_SOCIETE_NOM'     => 'LEMON DEMO SASU',
+	'MAIN_INFO_SOCIETE_NOM'     => 'DEMO SASU',
 	'MAIN_INFO_SOCIETE_ADDRESS' => '1 rue de la Démo',
 	'MAIN_INFO_SOCIETE_ZIP'     => '63000',
 	'MAIN_INFO_SOCIETE_TOWN'    => 'Clermont-Ferrand',
@@ -64,7 +42,7 @@ $consts = [
 	'MAIN_INFO_SIREN'           => '732829320',
 	'MAIN_INFO_SIRET'           => '73282932000074',
 	'MAIN_INFO_TVAINTRA'        => 'FR44732829320', // Nom de constante Dolibarr réel (sans underscore)
-	'MAIN_INFO_SOCIETE_MAIL'    => 'contact@lemon-demo.local',
+	'MAIN_INFO_SOCIETE_MAIL'    => 'contact@demo.example',
 ];
 foreach ($consts as $k => $v) {
 	dolibarr_set_const($db, $k, $v, 'chaine', 0, '', 1);
@@ -89,7 +67,7 @@ if ($bankId <= 0) {
 	exit(1);
 }
 echo "  compte id=$bankId (IBAN ".$bank->iban.")\n";
-dolibarr_set_const($db, 'AUVOZUGFERD_BANK_ACCOUNT', $bankId, 'int', 0, '', 1);
+dolibarr_set_const($db, 'DOLIZUGFERD_BANK_ACCOUNT', $bankId, 'int', 0, '', 1);
 
 echo "=== Tiers ===\n";
 function createTier($db, $user, $p)
@@ -228,8 +206,7 @@ if ($f['F009_deposit'] > 0 && $f['F010_with_deposit'] > 0) {
 }
 
 echo "\n=== Récap ===\n";
-echo "- 1 user admin : axel / 0000\n";
-echo "- 1 société émettrice : LEMON DEMO SASU (SIREN 732829320)\n";
+echo "- 1 société émettrice : DEMO SASU (SIREN 732829320)\n";
 echo "- 1 compte bancaire : FR76 3000 1007 9412 3456 7890 185\n";
 echo "- ".count($tiers)." tiers\n";
 echo "- ".count($f)." factures\n";

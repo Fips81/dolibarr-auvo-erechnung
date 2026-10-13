@@ -1,6 +1,6 @@
 <?php
 /*
- * Stubs Dolibarr minimaux pour exécuter la lib AuvoZugferd hors Dolibarr
+ * Stubs Dolibarr minimaux pour exécuter la lib DoliZUGFeRD hors Dolibarr
  * (tests unitaires standalone + CI). Chaque stub n'est défini que si la
  * fonction/classe Dolibarr réelle n'existe pas.
  */

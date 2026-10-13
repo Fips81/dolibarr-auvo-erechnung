@@ -1,7 +1,7 @@
 <?php
 /*
  * Copyright (C) 2026 SASU LEMON <https://hellolemon.fr>
- * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — renamed/modified for private use as AuvoZugferd
+ * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — fork, renamed and modified as DoliZUGFeRD
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ $destDir = rtrim($argv[1], '/');
 $year = isset($argv[2]) ? (int) $argv[2] : 0;
 
 if (!is_dir($destDir) && !mkdir($destDir, 0750, true)) {
-	fwrite(STDERR, "ERROR: destination non accessible : $destDir\n");
+	fwrite(STDERR, "FEHLER: Zielverzeichnis nicht beschreibbar: $destDir\n");
 	exit(2);
 }
 
@@ -50,11 +50,11 @@ foreach ($candidates as $c) {
 	}
 }
 if (!$loaded) {
-	fwrite(STDERR, "ERROR: master.inc.php introuvable. Lancer depuis un Dolibarr installé.\n");
+	fwrite(STDERR, "FEHLER: master.inc.php nicht gefunden. Bitte aus einer installierten Dolibarr-Instanz starten.\n");
 	exit(2);
 }
 
-require_once __DIR__.'/../core/lib/auvozugferd.lib.php';
+require_once __DIR__.'/../core/lib/dolizugferd.lib.php';
 
 $sql = "SELECT rowid, ref, datef, entity, last_main_doc FROM ".MAIN_DB_PREFIX."facture"
 	." WHERE fk_statut >= 1 AND entity IN (".getEntity('invoice').")";
@@ -66,20 +66,20 @@ $sql .= " ORDER BY datef ASC, rowid ASC";
 
 $res = $db->query($sql);
 if (!$res) {
-	fwrite(STDERR, "ERROR: requête factures échouée : ".$db->lasterror()."\n");
+	fwrite(STDERR, "FEHLER: Abfrage der Rechnungen fehlgeschlagen: ".$db->lasterror()."\n");
 	exit(2);
 }
 
 $counts = ['OK' => 0, 'NO_PDF' => 0, 'NO_XML' => 0];
 
-echo "=== AuvoZugferd - Export batch des XML Factur-X ===\n";
-echo "Destination : $destDir".($year > 0 ? " | Année : $year" : '')."\n\n";
+echo "=== DoliZUGFeRD - Stapelexport der ZUGFeRD-XML ===\n";
+echo "Ziel: $destDir".($year > 0 ? " | Jahr: $year" : '')."\n\n";
 
 while ($obj = $db->fetch_object($res)) {
 	$ref = $obj->ref;
 	// Entité de la facture (et non l'entité courante) : en multicompany avec
 	// partage, le PDF vit dans le répertoire documents de SON entité.
-	$pdfPath = auvozugferd_invoice_pdf_path($ref, (int) $obj->entity, (string) ($obj->last_main_doc ?? ''));
+	$pdfPath = dolizugferd_invoice_pdf_path($ref, (int) $obj->entity, (string) ($obj->last_main_doc ?? ''));
 
 	if ($pdfPath === null) {
 		$counts['NO_PDF']++;
@@ -87,7 +87,7 @@ while ($obj = $db->fetch_object($res)) {
 		continue;
 	}
 
-	$xml = auvozugferd_extract_xml_from_pdf($pdfPath);
+	$xml = dolizugferd_extract_xml_from_pdf($pdfPath);
 	if ($xml === null) {
 		$counts['NO_XML']++;
 		printf("%-20s NO_XML\n", $ref);
@@ -96,14 +96,14 @@ while ($obj = $db->fetch_object($res)) {
 
 	$safeRef = dol_sanitizeFileName($ref);
 	if (file_put_contents($destDir.'/'.$safeRef.'.xml', $xml) === false) {
-		fwrite(STDERR, "ERROR: écriture impossible pour $ref\n");
+		fwrite(STDERR, "FEHLER: Schreiben nicht möglich für $ref\n");
 		exit(2);
 	}
 	$counts['OK']++;
 	printf("%-20s OK\n", $ref);
 }
 
-echo "\n=== Résultat ===\n";
-printf("Exportés : %d | Sans PDF : %d | Sans XML Factur-X : %d\n", $counts['OK'], $counts['NO_PDF'], $counts['NO_XML']);
-echo "Astuce : les factures NO_XML peuvent être régénérées via le bouton « Régénérer Factur-X » de la fiche facture.\n";
+echo "\n=== Ergebnis ===\n";
+printf("Exportiert: %d | Ohne PDF: %d | Ohne ZUGFeRD-XML: %d\n", $counts['OK'], $counts['NO_PDF'], $counts['NO_XML']);
+echo "Tipp: Rechnungen mit NO_XML lassen sich über den Button „ZUGFeRD neu erzeugen\" auf der Rechnungsseite neu erzeugen.\n";
 exit(0);

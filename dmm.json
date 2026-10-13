@@ -1,8 +1,8 @@
 {
   "schema_version": "1",
-  "module_id": "auvozugferd",
-  "name": "AuvoZugferd",
-  "description": "Génération automatique de factures Factur-X EN16931 : injecte un XML CrossIndustryInvoice EN16931 dans chaque PDF facture client générée.",
+  "module_id": "dolizugferd",
+  "name": "DoliZUGFeRD",
+  "description": "Automatische Erzeugung von ZUGFeRD-EN16931-E-Rechnungen (Factur-X): bettet ein CrossIndustryInvoice-XML in jede erzeugte Kundenrechnungs-PDF ein.",
   "author": "auvo-design",
   "url": "https://auvo-design.de",
   "license": "GPL-3.0-or-later",
@@ -10,9 +10,9 @@
   "branch": "main",
   "dolibarr_module_id": 486213,
   "compatibility": {
-    "3.x": {
+    "4.x": {
       "dolibarr_min": "19.0.0",
-      "dolibarr_max": "23.*",
+      "dolibarr_max": "24.*",
       "php_min": "8.1"
     }
   },

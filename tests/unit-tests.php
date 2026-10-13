@@ -1,6 +1,6 @@
 <?php
 /*
- * Suite de tests unitaires standalone AuvoZugferd — AUCUN Dolibarr requis.
+ * Suite de tests unitaires standalone DoliZUGFeRD — AUCUN Dolibarr requis.
  *
  * Génère le XML Factur-X sur des objets factices (stubs.php) et vérifie pour
  * chaque scénario : validation XSD EN16931, règles métier internes (BR-*),
@@ -14,8 +14,8 @@
  */
 
 require_once __DIR__.'/stubs.php';
-require_once __DIR__.'/../core/lib/auvozugferd.lib.php';
-require_once __DIR__.'/../core/lib/auvozugferd_rules.php';
+require_once __DIR__.'/../core/lib/dolizugferd.lib.php';
+require_once __DIR__.'/../core/lib/dolizugferd_rules.php';
 
 $xsdPath = __DIR__.'/../vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.09.2_EN16931.xsd';
 
@@ -67,12 +67,12 @@ function lfx_xp_str($xp, $query)
 
 function lfx_check_xsd($xml, $xsdPath)
 {
-	// Même implémentation que la production (core/lib/auvozugferd_rules.php) :
+	// Même implémentation que la production (core/lib/dolizugferd_rules.php) :
 	// les tests valident le code réellement exécuté par le hook.
 	if (!file_exists($xsdPath)) {
 		return 'XSD absent';
 	}
-	return auvozugferd_validate_xsd($xml, dirname(__DIR__));
+	return dolizugferd_validate_xsd($xml, dirname(__DIR__));
 }
 
 /**
@@ -81,8 +81,8 @@ function lfx_check_xsd($xml, $xsdPath)
 function lfx_reset($conf = [], $bank = ['iban' => 'FR7630006000011234567890189', 'bic' => 'AGRIFRPP'], $dbHandlers = [])
 {
 	$GLOBALS['lfx_test_conf'] = array_merge([
-		'AUVOZUGFERD_BANK_ACCOUNT' => $bank !== null ? 1 : 0,
-		'AUVOZUGFERD_PAYMENT_MEANS' => '30',
+		'DOLIZUGFERD_BANK_ACCOUNT' => $bank !== null ? 1 : 0,
+		'DOLIZUGFERD_PAYMENT_MEANS' => '30',
 		'MAIN_PDF_FORCE_FONT' => 'pdfahelvetica',
 	], $conf);
 	$GLOBALS['lfx_test_bank'] = $bank;
@@ -93,7 +93,7 @@ function lfx_std_validate($xml, $xsdPath, $expectBrOk = true)
 {
 	$xsdErr = lfx_check_xsd($xml, $xsdPath);
 	lfx_assert($xsdErr === null, 'XSD valide ('.($xsdErr ?? '').')');
-	$violations = auvozugferd_validate_business_rules($xml);
+	$violations = dolizugferd_validate_business_rules($xml);
 	if ($expectBrOk) {
 		lfx_assert(empty($violations), 'Règles BR respectées ('.implode(' ; ', $violations).')');
 	} else {
@@ -116,9 +116,9 @@ function lfx_contains($entries, $needle)
 	return false;
 }
 
-echo "=== AuvoZugferd - Tests unitaires standalone ===\n\n";
+echo "=== DoliZUGFeRD - Tests unitaires standalone ===\n\n";
 
-$mysoc = lfx_make_party(['name' => 'LEMON SASU', 'idprof1' => '909458306', 'idprof2' => '90945830600012', 'tva_intra' => 'FR38909458306']);
+$mysoc = lfx_make_party(['name' => 'DEMO SASU', 'idprof1' => '909458306', 'idprof2' => '90945830600012', 'tva_intra' => 'FR38909458306']);
 
 // ---------------------------------------------------------------------------
 $currentTest = 'U01 standard FR 20%';
@@ -131,7 +131,7 @@ $inv->total_ht = 1000.00;
 $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('380', lfx_xp_str($xp, '//rsm:ExchangedDocument/ram:TypeCode'), 'TypeCode');
@@ -150,18 +150,18 @@ echo "U01 OK\n";
 // U01b : source du SIREN — idprof1 prioritaire, fallback dérivé du SIRET
 $wb = [];
 $socPrio = lfx_make_party(['idprof1' => '111222333', 'idprof2' => '44455566600018', 'tva_intra' => '', 'tva_assuj' => 0]);
-$xpb = lfx_xpath(auvozugferd_build_xml($inv, $socPrio, $wb));
+$xpb = lfx_xpath(dolizugferd_build_xml($inv, $socPrio, $wb));
 lfx_assert_eq('111222333', lfx_xp_str($xpb, '//ram:SellerTradeParty/ram:SpecifiedLegalOrganization/ram:ID'), 'BT-30 SIREN = idprof1 (prioritaire sur le SIRET)');
 lfx_assert_eq('44455566600018', lfx_xp_str($xpb, '//ram:SellerTradeParty/ram:GlobalID'), 'BT-29 SIRET = idprof2');
 $wf = [];
 $socFb = lfx_make_party(['idprof1' => '', 'idprof2' => '90945830600012', 'tva_intra' => 'FR38909458306']);
-$xpf = lfx_xpath(auvozugferd_build_xml($inv, $socFb, $wf));
+$xpf = lfx_xpath(dolizugferd_build_xml($inv, $socFb, $wf));
 lfx_assert_eq('909458306', lfx_xp_str($xpf, '//ram:SellerTradeParty/ram:SpecifiedLegalOrganization/ram:ID'), 'BT-30 SIREN dérivé du SIRET quand idprof1 absent');
 echo "U01b OK\n";
 
 // U01c : profil Chorus Pro — SIRET-14 dans SpecifiedLegalOrganization (0009) + BT-10/12/13
 $wc = [];
-$xmlChorus = auvozugferd_build_xml($inv, $mysoc, $wc, [
+$xmlChorus = dolizugferd_build_xml($inv, $mysoc, $wc, [
 	'profile'      => 'choruspro',
 	'service_code' => 'SVC12345678',
 	'engagement'   => 'EJ2026-42',
@@ -192,7 +192,7 @@ $inv->total_ht = -1000.00;
 $inv->total_tva = -200.00;
 $inv->total_ttc = -1200.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('381', lfx_xp_str($xp, '//rsm:ExchangedDocument/ram:TypeCode'), 'TypeCode 381');
@@ -219,7 +219,7 @@ $inv->total_ht = 900.00;
 $inv->total_tva = 180.00;
 $inv->total_ttc = 1080.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq(1, $xp->query('//ram:IncludedSupplyChainTradeLineItem')->length, 'une seule ligne (la remise est sortie des lignes)');
@@ -243,7 +243,7 @@ $inv->total_ht = 2000.00;
 $inv->total_tva = 0.00;
 $inv->total_ttc = 2000.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('K', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax/ram:CategoryCode'), 'catégorie K (biens)');
@@ -263,7 +263,7 @@ $inv->total_ht = 2000.00;
 $inv->total_tva = 0.00;
 $inv->total_ttc = 2000.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('AE', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax/ram:CategoryCode'), 'catégorie AE (services, art. 196)');
@@ -281,7 +281,7 @@ $inv->total_ht = 5000.00;
 $inv->total_tva = 0.00;
 $inv->total_ttc = 5000.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('G', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax/ram:CategoryCode'), 'catégorie G');
@@ -300,7 +300,7 @@ $inv->total_ht = 500.00;
 $inv->total_tva = 0.00;
 $inv->total_ttc = 500.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysocFranchise, $w);
+$xml = dolizugferd_build_xml($inv, $mysocFranchise, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('E', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax/ram:CategoryCode'), 'catégorie E');
@@ -324,7 +324,7 @@ $inv->total_ht = 16.50;
 $inv->total_tva = 3.30;
 $inv->total_ttc = 19.80;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('3.30', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax/ram:CalculatedAmount'), 'TVA réconciliée (BR-CO-17)');
@@ -349,7 +349,7 @@ $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
 $inv->sumDepositsUsed = 240.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('240.00', lfx_xp_str($xp, '//ram:TotalPrepaidAmount'), 'BT-113 acompte imputé');
@@ -359,7 +359,7 @@ echo "U09 OK\n";
 
 // ---------------------------------------------------------------------------
 $currentTest = 'U10 virement sans IBAN -> PaymentMeans omis (BR-61)';
-lfx_reset(['AUVOZUGFERD_BANK_ACCOUNT' => 0], null);
+lfx_reset(['DOLIZUGFERD_BANK_ACCOUNT' => 0], null);
 $inv = new LfxFakeInvoice();
 $inv->ref = 'FA2606-0009';
 $inv->thirdparty = lfx_make_party();
@@ -368,7 +368,7 @@ $inv->total_ht = 100.00;
 $inv->total_tva = 20.00;
 $inv->total_ttc = 120.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq(0, $xp->query('//ram:SpecifiedTradeSettlementPaymentMeans')->length, 'bloc PaymentMeans omis');
@@ -378,7 +378,7 @@ echo "U10 OK\n";
 // ---------------------------------------------------------------------------
 $currentTest = 'U11 prélèvement SEPA 59 (ICS/RUM/IBAN débiteur)';
 lfx_reset([
-	'AUVOZUGFERD_PAYMENT_MEANS' => '59',
+	'DOLIZUGFERD_PAYMENT_MEANS' => '59',
 	'PRELEVEMENT_ICS' => 'FR12ZZZ123456',
 ], ['iban' => 'FR7630006000011234567890189', 'bic' => 'AGRIFRPP'], [
 	'societe_rib' => [(object) ['rum' => 'RUM-2026-001', 'iban_prefix' => 'FR7611111111111111111111111']],
@@ -391,7 +391,7 @@ $inv->total_ht = 100.00;
 $inv->total_tva = 20.00;
 $inv->total_ttc = 120.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('FR12ZZZ123456', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeSettlement/ram:CreditorReferenceID'), 'BT-90 ICS');
@@ -413,7 +413,7 @@ $inv->total_ht = 112.50;
 $inv->total_tva = 22.50;
 $inv->total_ttc = 135.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('0.125', lfx_xp_str($xp, '(//ram:BilledQuantity)[1]'), 'quantité 4 décimales sans zéros traînants');
@@ -435,7 +435,7 @@ $inv->total_ht = 1500.00;
 $inv->total_tva = 0.00;
 $inv->total_ttc = 1500.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq(2, $xp->query('//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax')->length, 'deux blocs de ventilation (clé catégorie|taux)');
@@ -458,7 +458,7 @@ $inv->total_ht = 1000.00;
 $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 // BT-23 (BR-FR-08) : cadre socle émis en profil PDP — B1 = dépôt fournisseur de biens
@@ -483,7 +483,7 @@ $inv->total_ht = 1000.00;
 $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('384', lfx_xp_str($xp, '//rsm:ExchangedDocument/ram:TypeCode'), 'TypeCode 384 rectificative');
@@ -492,7 +492,7 @@ lfx_assert_eq('FA2605-0007', lfx_xp_str($xp, '//ram:InvoiceReferencedDocument/ra
 $inv->type = 5; // TYPE_SITUATION
 $inv->fk_facture_source = null;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('380', lfx_xp_str($xp, '//rsm:ExchangedDocument/ram:TypeCode'), 'situation en 380');
 lfx_assert(!empty($w), 'warning situation émis');
@@ -503,10 +503,10 @@ $currentTest = 'U16 multidevise refusée + BG-14 période';
 lfx_reset();
 $inv = new LfxFakeInvoice();
 $inv->multicurrency_code = 'USD';
-$err = auvozugferd_check_supported($inv);
+$err = dolizugferd_check_supported($inv);
 lfx_assert($err !== null, 'multidevise détectée comme non supportée');
 $inv->multicurrency_code = 'EUR';
-lfx_assert(auvozugferd_check_supported($inv) === null, 'EUR = devise société acceptée');
+lfx_assert(dolizugferd_check_supported($inv) === null, 'EUR = devise société acceptée');
 
 $inv2 = new LfxFakeInvoice();
 $inv2->ref = 'FA2606-0015';
@@ -519,7 +519,7 @@ $inv2->total_ht = 1000.00;
 $inv2->total_tva = 200.00;
 $inv2->total_ttc = 1200.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv2, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv2, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('20260501', lfx_xp_str($xp, '//ram:BillingSpecifiedPeriod/ram:StartDateTime/udt:DateTimeString'), 'BG-14 début');
@@ -541,8 +541,8 @@ $inv->total_ht = -75.00;
 $inv->total_tva = -15.00;
 $inv->total_ttc = -90.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w); // 380 entièrement négatif : lignes ré-émises brutes
-$violations = auvozugferd_validate_business_rules($xml);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w); // 380 entièrement négatif : lignes ré-émises brutes
+$violations = dolizugferd_validate_business_rules($xml);
 lfx_assert(!empty($violations), 'violations détectées sur facture entièrement négative');
 $hasBr27 = false;
 foreach ($violations as $v) {
@@ -566,7 +566,7 @@ $inv->total_ht = 1000.00;
 $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysocFranchise2, $w);
+$xml = dolizugferd_build_xml($inv, $mysocFranchise2, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('S', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax/ram:CategoryCode'), 'ligne avec TVA réelle reste en S (BR-E-05)');
@@ -583,7 +583,7 @@ $inv->total_ht = 2000.00;
 $inv->total_tva = 0.00;
 $inv->total_ttc = 2000.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq(0, $xp->query('//ram:BuyerTradeParty/ram:SpecifiedLegalOrganization')->length, 'pas de SpecifiedLegalOrganization avec un identifiant local étranger');
@@ -595,21 +595,21 @@ $currentTest = 'U21 taxes locales refusées proprement';
 lfx_reset();
 $inv = new LfxFakeInvoice();
 $inv->total_localtax1 = 12.50;
-lfx_assert(auvozugferd_check_supported($inv) !== null, 'localtax détectée comme non supportée');
+lfx_assert(dolizugferd_check_supported($inv) !== null, 'localtax détectée comme non supportée');
 $inv->total_localtax1 = 0.0;
-lfx_assert(auvozugferd_check_supported($inv) === null, 'sans localtax : supporté');
+lfx_assert(dolizugferd_check_supported($inv) === null, 'sans localtax : supporté');
 echo "U21 OK\n";
 
 // ---------------------------------------------------------------------------
 $currentTest = 'U18 fonctions de formatage';
-lfx_assert_eq('10', auvozugferd_format_qty(10.0), 'qty entière');
-lfx_assert_eq('0.125', auvozugferd_format_qty(0.125), 'qty 3 décimales');
-lfx_assert_eq('2.5', auvozugferd_format_qty(2.50), 'qty zéros retirés');
-lfx_assert_eq('100.00', auvozugferd_format_unit_price(100.0), 'prix 2 décimales');
-lfx_assert_eq('33.3333', auvozugferd_format_unit_price(100 / 3), 'prix 4 décimales');
-lfx_assert_eq('1234.50', auvozugferd_format_amount(1234.5), 'montant');
-lfx_assert_eq('a &amp; b &lt;c&gt;', auvozugferd_xml_encode('a & b <c>'), 'échappement XML');
-lfx_assert_eq('123456789', auvozugferd_extract_siren('12345678900011'), 'SIREN depuis SIRET');
+lfx_assert_eq('10', dolizugferd_format_qty(10.0), 'qty entière');
+lfx_assert_eq('0.125', dolizugferd_format_qty(0.125), 'qty 3 décimales');
+lfx_assert_eq('2.5', dolizugferd_format_qty(2.50), 'qty zéros retirés');
+lfx_assert_eq('100.00', dolizugferd_format_unit_price(100.0), 'prix 2 décimales');
+lfx_assert_eq('33.3333', dolizugferd_format_unit_price(100 / 3), 'prix 4 décimales');
+lfx_assert_eq('1234.50', dolizugferd_format_amount(1234.5), 'montant');
+lfx_assert_eq('a &amp; b &lt;c&gt;', dolizugferd_xml_encode('a & b <c>'), 'échappement XML');
+lfx_assert_eq('123456789', dolizugferd_extract_siren('12345678900011'), 'SIREN depuis SIRET');
 echo "U18 OK\n";
 
 // ---------------------------------------------------------------------------
@@ -623,20 +623,20 @@ $inv->total_ht = 100.00;
 $inv->total_tva = 20.00;
 $inv->total_ttc = 120.00;
 $w = [];
-$violations = auvozugferd_validate_business_rules(auvozugferd_build_xml($inv, $mysoc, $w));
+$violations = dolizugferd_validate_business_rules(dolizugferd_build_xml($inv, $mysoc, $w));
 lfx_assert(lfx_contains($violations, 'BR-FR-01'), 'BR-FR-01 détectée (BT-1 > 35 caractères)');
 lfx_assert(!lfx_contains($violations, 'BR-FR-02'), 'pas de BR-FR-02 (charset valide)');
-lfx_assert(lfx_contains(auvozugferd_check_mandatory($inv, $mysoc), 'AuvoZugferdWarnRefTooLong'), 'warning amont BT-1 trop long (check_mandatory)');
+lfx_assert(lfx_contains(dolizugferd_check_mandatory($inv, $mysoc), 'DoliZugferdWarnRefTooLong'), 'warning amont BT-1 trop long (check_mandatory)');
 
 $inv->ref = 'FA 2606 (BIS)'; // espace et parenthèses interdits
 $w = [];
-$violations = auvozugferd_validate_business_rules(auvozugferd_build_xml($inv, $mysoc, $w));
+$violations = dolizugferd_validate_business_rules(dolizugferd_build_xml($inv, $mysoc, $w));
 lfx_assert(lfx_contains($violations, 'BR-FR-02'), 'BR-FR-02 détectée (espace/parenthèses dans BT-1)');
-lfx_assert(lfx_contains(auvozugferd_check_mandatory($inv, $mysoc), 'AuvoZugferdWarnRefCharset'), 'warning amont charset BT-1 (check_mandatory)');
+lfx_assert(lfx_contains(dolizugferd_check_mandatory($inv, $mysoc), 'DoliZugferdWarnRefCharset'), 'warning amont charset BT-1 (check_mandatory)');
 
 $inv->ref = 'FA/2606+01_A'; // - + _ / admis par BR-FR-02
 $w = [];
-$violations = auvozugferd_validate_business_rules(auvozugferd_build_xml($inv, $mysoc, $w));
+$violations = dolizugferd_validate_business_rules(dolizugferd_build_xml($inv, $mysoc, $w));
 lfx_assert(!lfx_contains($violations, 'BR-FR-01') && !lfx_contains($violations, 'BR-FR-02'), 'référence avec - + _ / acceptée');
 echo "U22 OK\n";
 
@@ -653,19 +653,19 @@ $inv->total_ttc = 120.00;
 // Vendeur : SIREN saisi (idprof1) sans rapport avec le SIRET (idprof2)
 $socBad = lfx_make_party(['name' => 'INCOHERENT SARL', 'idprof1' => '111222333', 'idprof2' => '99988877700012', 'tva_intra' => 'FR00111222333']);
 $w = [];
-$violations = auvozugferd_validate_business_rules(auvozugferd_build_xml($inv, $socBad, $w));
+$violations = dolizugferd_validate_business_rules(dolizugferd_build_xml($inv, $socBad, $w));
 lfx_assert(lfx_contains($violations, 'BR-FR-09'), 'BR-FR-09 détectée (SIRET vendeur ≠ SIREN)');
-lfx_assert(lfx_contains(auvozugferd_check_mandatory($inv, $socBad), 'AuvoZugferdWarnSellerSirenSiretMismatch'), 'warning amont vendeur (check_mandatory)');
+lfx_assert(lfx_contains(dolizugferd_check_mandatory($inv, $socBad), 'DoliZugferdWarnSellerSirenSiretMismatch'), 'warning amont vendeur (check_mandatory)');
 // Acheteur : même incohérence côté tiers
 $inv->thirdparty = lfx_make_party(['idprof1' => '555666777', 'idprof2' => '12345678900011']);
 $w = [];
-$violations = auvozugferd_validate_business_rules(auvozugferd_build_xml($inv, $mysoc, $w));
+$violations = dolizugferd_validate_business_rules(dolizugferd_build_xml($inv, $mysoc, $w));
 lfx_assert(lfx_contains($violations, 'BR-FR-09'), 'BR-FR-09 détectée (SIRET acheteur ≠ SIREN)');
-lfx_assert(lfx_contains(auvozugferd_check_mandatory($inv, $mysoc), 'AuvoZugferdWarnBuyerSirenSiretMismatch'), 'warning amont acheteur (check_mandatory)');
+lfx_assert(lfx_contains(dolizugferd_check_mandatory($inv, $mysoc), 'DoliZugferdWarnBuyerSirenSiretMismatch'), 'warning amont acheteur (check_mandatory)');
 // Cohérent : aucune violation BR-FR-09
 $inv->thirdparty = lfx_make_party();
 $w = [];
-$violations = auvozugferd_validate_business_rules(auvozugferd_build_xml($inv, $mysoc, $w));
+$violations = dolizugferd_validate_business_rules(dolizugferd_build_xml($inv, $mysoc, $w));
 lfx_assert(!lfx_contains($violations, 'BR-FR-09'), 'pas de BR-FR-09 quand SIREN et SIRET concordent');
 echo "U23 OK\n";
 
@@ -681,9 +681,9 @@ $inv->total_ht = -500.00;
 $inv->total_tva = -100.00;
 $inv->total_ttc = -600.00;
 $w = [];
-$violations = auvozugferd_validate_business_rules(auvozugferd_build_xml($inv, $mysoc, $w));
+$violations = dolizugferd_validate_business_rules(dolizugferd_build_xml($inv, $mysoc, $w));
 lfx_assert(lfx_contains($violations, 'BR-FR-CO-05'), 'BR-FR-CO-05 : avoir sans référence BT-25 bloqué');
-lfx_assert(lfx_contains($w, 'AuvoZugferdWarnCreditNoteNoSource'), 'warning avoir sans origine conservé');
+lfx_assert(lfx_contains($w, 'DoliZugferdWarnCreditNoteNoSource'), 'warning avoir sans origine conservé');
 
 $inv2 = new LfxFakeInvoice();
 $inv2->ref = 'FA2606-0021';
@@ -694,9 +694,9 @@ $inv2->total_ht = 500.00;
 $inv2->total_tva = 100.00;
 $inv2->total_ttc = 600.00;
 $w2 = [];
-$violations = auvozugferd_validate_business_rules(auvozugferd_build_xml($inv2, $mysoc, $w2));
+$violations = dolizugferd_validate_business_rules(dolizugferd_build_xml($inv2, $mysoc, $w2));
 lfx_assert(lfx_contains($violations, 'BR-FR-CO-04'), 'BR-FR-CO-04 : rectificative sans référence BT-25 bloquée');
-lfx_assert(lfx_contains($w2, 'AuvoZugferdWarnCorrectiveNoSource'), 'warning rectificative sans origine émis');
+lfx_assert(lfx_contains($w2, 'DoliZugferdWarnCorrectiveNoSource'), 'warning rectificative sans origine émis');
 echo "U24 OK\n";
 
 // ---------------------------------------------------------------------------
@@ -718,7 +718,7 @@ $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
 $inv->sumDepositsUsed = 240.00; // acompte consommé via remise exceptionnelle
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 $violations = lfx_std_validate($xml, $xsdPath);
 lfx_assert(!lfx_contains($violations, 'BR-FR-CO-04'), 'pas de fausse violation BR-FR-CO-04 sur une 384 avec acompte imputé');
 $xp = lfx_xpath($xml);
@@ -743,7 +743,7 @@ $inv->total_ht = 1000.00;
 $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 lfx_assert_eq('S1', lfx_xp_str(lfx_xpath($xml), $bt23Query), 'BT-23 = S1 (services)');
 // Biens + services → M1
@@ -752,16 +752,16 @@ $inv->lines = [
 	lfx_make_line(400.00, 20.0, 80.00, 1.0, 'Installation', 1),
 ];
 $w = [];
-lfx_assert_eq('M1', lfx_xp_str(lfx_xpath(auvozugferd_build_xml($inv, $mysoc, $w)), $bt23Query), 'BT-23 = M1 (double)');
+lfx_assert_eq('M1', lfx_xp_str(lfx_xpath(dolizugferd_build_xml($inv, $mysoc, $w)), $bt23Query), 'BT-23 = M1 (double)');
 // Facture définitive après acompte → B4
 $inv->lines = [lfx_make_line(1000.00, 20.0, 200.00, 1.0, 'Marchandise', 0)];
 $inv->sumDepositsUsed = 240.00;
 $w = [];
-lfx_assert_eq('B4', lfx_xp_str(lfx_xpath(auvozugferd_build_xml($inv, $mysoc, $w)), $bt23Query), 'BT-23 = B4 (définitive après acompte)');
+lfx_assert_eq('B4', lfx_xp_str(lfx_xpath(dolizugferd_build_xml($inv, $mysoc, $w)), $bt23Query), 'BT-23 = B4 (définitive après acompte)');
 // Facture d'acompte (386) : jamais de cadre x4 (BR-FR-CO-08)
 $inv->type = 3; // TYPE_DEPOSIT
 $w = [];
-lfx_assert_eq('B1', lfx_xp_str(lfx_xpath(auvozugferd_build_xml($inv, $mysoc, $w)), $bt23Query), 'BT-23 = B1 sur une facture d\'acompte (garde BR-FR-CO-08)');
+lfx_assert_eq('B1', lfx_xp_str(lfx_xpath(dolizugferd_build_xml($inv, $mysoc, $w)), $bt23Query), 'BT-23 = B1 sur une facture d\'acompte (garde BR-FR-CO-08)');
 echo "U25 OK\n";
 
 // ---------------------------------------------------------------------------
@@ -776,7 +776,7 @@ $inv->total_ht = 1000.00;
 $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('B2B', lfx_xp_str($xp, $barQuery), 'note BAR = B2B (acheteur assujetti FR)');
@@ -788,30 +788,30 @@ $inv->total_tva = 0.00;
 $inv->total_ttc = 1000.00;
 $inv->total_ht = 1000.00;
 $w = [];
-lfx_assert_eq('B2BINT', lfx_xp_str(lfx_xpath(auvozugferd_build_xml($inv, $mysoc, $w)), $barQuery), 'note BAR = B2BINT (acheteur UE)');
+lfx_assert_eq('B2BINT', lfx_xp_str(lfx_xpath(dolizugferd_build_xml($inv, $mysoc, $w)), $barQuery), 'note BAR = B2BINT (acheteur UE)');
 // Particulier → B2C (e-reporting B2C)
 $inv->thirdparty = lfx_make_party(['typent_code' => 'TE_PRIVATE', 'idprof2' => '', 'tva_intra' => '']);
 $inv->lines = [lfx_make_line(1000.00, 20.0, 200.00)];
 $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
 $w = [];
-lfx_assert_eq('B2C', lfx_xp_str(lfx_xpath(auvozugferd_build_xml($inv, $mysoc, $w)), $barQuery), 'note BAR = B2C (particulier)');
+lfx_assert_eq('B2C', lfx_xp_str(lfx_xpath(dolizugferd_build_xml($inv, $mysoc, $w)), $barQuery), 'note BAR = B2C (particulier)');
 // Particulier étranger → B2C aussi : choix assumé, la liste fermée BR-FR-20
 // (révision juillet 2025) ne comporte pas de valeur « B2C international »
-// (cf. docblock de auvozugferd_resolve_bar_code)
+// (cf. docblock de dolizugferd_resolve_bar_code)
 $inv->thirdparty = lfx_make_party(['typent_code' => 'TE_PRIVATE', 'country_code' => 'DE', 'idprof2' => '', 'tva_intra' => '']);
 $w = [];
-lfx_assert_eq('B2C', lfx_xp_str(lfx_xpath(auvozugferd_build_xml($inv, $mysoc, $w)), $barQuery), 'note BAR = B2C (particulier étranger — pas de B2CINT dans la liste fermée BR-FR-20)');
+lfx_assert_eq('B2C', lfx_xp_str(lfx_xpath(dolizugferd_build_xml($inv, $mysoc, $w)), $barQuery), 'note BAR = B2C (particulier étranger — pas de B2CINT dans la liste fermée BR-FR-20)');
 // Profil Chorus B2G : pas de note BAR (marquage B2G distinct, chemin inchangé)
 $inv->thirdparty = lfx_make_party();
 $w = [];
-$xmlChorus = auvozugferd_build_xml($inv, $mysoc, $w, ['profile' => 'choruspro']);
+$xmlChorus = dolizugferd_build_xml($inv, $mysoc, $w, ['profile' => 'choruspro']);
 lfx_assert_eq(0, lfx_xpath($xmlChorus)->query('//ram:IncludedNote[ram:SubjectCode="BAR"]')->length, 'pas de note BAR en profil Chorus');
 echo "U26 OK\n";
 
 // ---------------------------------------------------------------------------
 $currentTest = 'U27 suffixe endpoint vendeur sanitisé (BR-FR-23)';
-lfx_reset(['AUVOZUGFERD_ENDPOINT_SUFFIX_SELLER' => '_Status!*']);
+lfx_reset(['DOLIZUGFERD_ENDPOINT_SUFFIX_SELLER' => '_Status!*']);
 $inv = new LfxFakeInvoice();
 $inv->ref = 'FA2606-0024';
 $inv->thirdparty = lfx_make_party();
@@ -820,15 +820,15 @@ $inv->total_ht = 100.00;
 $inv->total_tva = 20.00;
 $inv->total_ttc = 120.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 lfx_assert_eq('909458306_Status', lfx_xp_str(lfx_xpath($xml), '//ram:SellerTradeParty/ram:URIUniversalCommunication/ram:URIID'), 'suffixe sanitisé : « !* » retirés (BR-FR-23)');
-lfx_assert(lfx_contains(auvozugferd_check_mandatory($inv, $mysoc), 'AuvoZugferdWarnEndpointSuffixCharset'), 'warning charset du suffixe (check_mandatory)');
+lfx_assert(lfx_contains(dolizugferd_check_mandatory($inv, $mysoc), 'DoliZugferdWarnEndpointSuffixCharset'), 'warning charset du suffixe (check_mandatory)');
 // Suffixe déjà conforme : conservé tel quel, aucun warning charset
-lfx_reset(['AUVOZUGFERD_ENDPOINT_SUFFIX_SELLER' => '_Status']);
+lfx_reset(['DOLIZUGFERD_ENDPOINT_SUFFIX_SELLER' => '_Status']);
 $w = [];
-lfx_assert_eq('909458306_Status', lfx_xp_str(lfx_xpath(auvozugferd_build_xml($inv, $mysoc, $w)), '//ram:SellerTradeParty/ram:URIUniversalCommunication/ram:URIID'), 'suffixe conforme conservé');
-lfx_assert(!lfx_contains(auvozugferd_check_mandatory($inv, $mysoc), 'AuvoZugferdWarnEndpointSuffixCharset'), 'pas de warning sur suffixe conforme');
+lfx_assert_eq('909458306_Status', lfx_xp_str(lfx_xpath(dolizugferd_build_xml($inv, $mysoc, $w)), '//ram:SellerTradeParty/ram:URIUniversalCommunication/ram:URIID'), 'suffixe conforme conservé');
+lfx_assert(!lfx_contains(dolizugferd_check_mandatory($inv, $mysoc), 'DoliZugferdWarnEndpointSuffixCharset'), 'pas de warning sur suffixe conforme');
 echo "U27 OK\n";
 
 // ---------------------------------------------------------------------------
@@ -842,11 +842,11 @@ $inv->total_ht = 100.00;
 $inv->total_tva = 20.00;
 $inv->total_ttc = 120.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
-lfx_assert(!lfx_contains(auvozugferd_validate_business_rules($xml), 'BR-FR-04'), '380 admis par BR-FR-04');
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
+lfx_assert(!lfx_contains(dolizugferd_validate_business_rules($xml), 'BR-FR-04'), '380 admis par BR-FR-04');
 // XML altéré : 751 (facture d'information, UNTDID 1001) est proscrit en France
 $xmlBad = str_replace('<ram:TypeCode>380</ram:TypeCode>', '<ram:TypeCode>751</ram:TypeCode>', $xml);
-lfx_assert(lfx_contains(auvozugferd_validate_business_rules($xmlBad), 'BR-FR-04'), 'BR-FR-04 détectée (TypeCode 751 hors liste)');
+lfx_assert(lfx_contains(dolizugferd_validate_business_rules($xmlBad), 'BR-FR-04'), 'BR-FR-04 détectée (TypeCode 751 hors liste)');
 echo "U28 OK\n";
 
 // ---------------------------------------------------------------------------
@@ -859,14 +859,14 @@ $inv->lines = [lfx_make_line(100.00, 19.0, 19.00)]; // 19 % : pas un taux franç
 $inv->total_ht = 100.00;
 $inv->total_tva = 19.00;
 $inv->total_ttc = 119.00;
-lfx_assert(lfx_contains(auvozugferd_check_mandatory($inv, $mysoc), 'AuvoZugferdWarnVatRateNotFR'), 'warning BR-FR-16 sur un taux à 19 %');
+lfx_assert(lfx_contains(dolizugferd_check_mandatory($inv, $mysoc), 'DoliZugferdWarnVatRateNotFR'), 'warning BR-FR-16 sur un taux à 19 %');
 $inv->lines = [lfx_make_line(100.00, 8.5, 8.50)]; // 8,5 % : taux DOM légitime
 $inv->total_tva = 8.50;
 $inv->total_ttc = 108.50;
-lfx_assert(!lfx_contains(auvozugferd_check_mandatory($inv, $mysoc), 'AuvoZugferdWarnVatRateNotFR'), 'pas de warning sur le taux DOM 8,5 %');
+lfx_assert(!lfx_contains(dolizugferd_check_mandatory($inv, $mysoc), 'DoliZugferdWarnVatRateNotFR'), 'pas de warning sur le taux DOM 8,5 %');
 // Jamais bloquant : le validateur ne porte aucune violation BR-FR-16
 $w = [];
-lfx_assert(!lfx_contains(auvozugferd_validate_business_rules(auvozugferd_build_xml($inv, $mysoc, $w)), 'BR-FR-16'), 'BR-FR-16 non bloquante (warning uniquement)');
+lfx_assert(!lfx_contains(dolizugferd_validate_business_rules(dolizugferd_build_xml($inv, $mysoc, $w)), 'BR-FR-16'), 'BR-FR-16 non bloquante (warning uniquement)');
 echo "U29 OK\n";
 
 // ---------------------------------------------------------------------------
@@ -882,11 +882,11 @@ $inv->total_ht = 100.00;
 $inv->total_tva = 20.00;
 $inv->total_ttc = 120.00;
 $w = [];
-$violations = auvozugferd_validate_business_rules(auvozugferd_build_xml($inv, $mysocDE, $w));
+$violations = dolizugferd_validate_business_rules(dolizugferd_build_xml($inv, $mysocDE, $w));
 lfx_assert(!lfx_contains($violations, 'BR-FR'), 'aucune violation BR-FR pour un vendeur DE ('.implode(' ; ', $violations).')');
 // Contre-épreuve : même facture avec vendeur FR → le bloc BR-FR s'applique
 $w = [];
-$violations = auvozugferd_validate_business_rules(auvozugferd_build_xml($inv, $mysoc, $w));
+$violations = dolizugferd_validate_business_rules(dolizugferd_build_xml($inv, $mysoc, $w));
 lfx_assert(lfx_contains($violations, 'BR-FR-02'), 'contre-épreuve vendeur FR : BR-FR-02 détectée');
 lfx_assert(lfx_contains($violations, 'BR-FR-CO-04'), 'contre-épreuve vendeur FR : BR-FR-CO-04 détectée');
 echo "U30 OK\n";
@@ -910,7 +910,7 @@ $inv->total_ht = 1000.00;
 $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq(1, $xp->query('//ram:IncludedSupplyChainTradeLineItem')->length, 'seule la ligne facturable réelle est exportée (titre et sous-total exclus)');
@@ -923,12 +923,12 @@ echo "U31 OK\n";
 // ---------------------------------------------------------------------------
 $currentTest = 'U32 vendeur allemand Kleinunternehmer (§ 19 UStG) — profil ZUGFeRD/EN16931';
 lfx_reset([], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
-// Conventions Dolibarr DE : idprof1 = USt-IdNr, idprof2 = USt-Nr (Steuernummer).
-// Un Kleinunternehmer n'a pas d'USt-IdNr : tva_intra et idprof1 sont vides.
+// Conventions Dolibarr DE : idprof1 = Steuernummer, idprof2 = Amtsgericht.
+// Un Kleinunternehmer n'a pas d'USt-IdNr : tva_intra est vide.
 $deSoc = lfx_make_party([
 	'name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '10115', 'town' => 'Berlin',
 	'address' => 'Chausseestr. 1', 'email' => 'rechnung@muster.example',
-	'tva_intra' => '', 'idprof1' => '', 'idprof2' => '151/815/08154', 'tva_assuj' => 0,
+	'tva_intra' => '', 'idprof1' => '151/815/08154', 'idprof2' => 'Amtsgericht Berlin', 'tva_assuj' => 0,
 ]);
 $deBuyer = lfx_make_party([
 	'name' => 'KUNDE AG', 'country_code' => 'DE', 'zip' => '80331', 'town' => 'München',
@@ -942,11 +942,11 @@ $inv->total_ht = 1000.00;
 $inv->total_tva = 0.00;
 $inv->total_ttc = 1000.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $deSoc, $w);
+$xml = dolizugferd_build_xml($inv, $deSoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
-// BT-32 : la Steuernummer vient de idprof2, pas de idprof1 (= USt-IdNr côté Dolibarr).
-lfx_assert_eq('151/815/08154', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="FC"]'), 'BT-32 = Steuernummer (idprof2) sous schemeID FC');
+// BT-32 : la Steuernummer vient de idprof1 (ProfId1DE), jamais l'Amtsgericht d'idprof2.
+lfx_assert_eq('151/815/08154', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="FC"]'), 'BT-32 = Steuernummer (idprof1) sous schemeID FC');
 lfx_assert_eq(0, $xp->query('//ram:SellerTradeParty/ram:SpecifiedLegalOrganization')->length, 'pas de SIREN/BT-30 pour un vendeur allemand');
 // Motif d'exonération § 19 UStG, sans code VATEX (aucun code CEF ne correspond).
 lfx_assert_eq('E', lfx_xp_str($xp, '//ram:ApplicableTradeTax/ram:CategoryCode'), 'catégorie TVA E (exonéré)');
@@ -955,13 +955,13 @@ lfx_assert_eq(0, $xp->query('//ram:ApplicableTradeTax/ram:ExemptionReasonCode')-
 // Aucun élément du socle réforme FR ne doit fuiter dans une facture allemande.
 lfx_assert_eq(0, $xp->query('//ram:BusinessProcessSpecifiedDocumentContextParameter')->length, 'BT-23 (cadre XP Z12-012) non émis hors vendeur FR');
 lfx_assert_eq(0, $xp->query('//ram:IncludedNote')->length, 'aucune mention légale française (PMD/PMT/AAB/BAR) hors vendeur FR');
-lfx_assert(!lfx_contains(auvozugferd_check_mandatory($inv, $deSoc), 'AuvoZugferdWarnSellerSIRET'), 'pas de warning SIRET pour un vendeur allemand');
+lfx_assert(!lfx_contains(dolizugferd_check_mandatory($inv, $deSoc), 'DoliZugferdWarnSellerSIRET'), 'pas de warning SIRET pour un vendeur allemand');
 echo "U32 OK\n";
 
 // ---------------------------------------------------------------------------
 $currentTest = 'U33 mentions légales configurées explicitement par un vendeur allemand';
 lfx_reset([
-	'AUVOZUGFERD_NOTE_PMD' => 'Bei Zahlungsverzug werden Verzugszinsen gemäß § 288 BGB berechnet.',
+	'DOLIZUGFERD_NOTE_PMD' => 'Bei Zahlungsverzug werden Verzugszinsen gemäß § 288 BGB berechnet.',
 ], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
 $inv = new LfxFakeInvoice();
 $inv->ref = 'RE2026-0043';
@@ -971,7 +971,7 @@ $inv->total_ht = 1000.00;
 $inv->total_tva = 0.00;
 $inv->total_ttc = 1000.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $deSoc, $w);
+$xml = dolizugferd_build_xml($inv, $deSoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq(1, $xp->query('//ram:IncludedNote')->length, 'seule la mention explicitement configurée est émise');
@@ -990,7 +990,7 @@ $inv->total_ht = 1000.00;
 $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
 $w = [];
-$xml = auvozugferd_build_xml($inv, $mysoc, $w);
+$xml = dolizugferd_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('B1', lfx_xp_str($xp, '//ram:BusinessProcessSpecifiedDocumentContextParameter/ram:ID'), 'BT-23 toujours émis pour un vendeur FR');
@@ -1020,12 +1020,12 @@ $inv->total_ht = 1000.00;
 $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
 $w = [];
-$xp = lfx_xpath(auvozugferd_build_xml($inv, $mysoc, $w));
+$xp = lfx_xpath(dolizugferd_build_xml($inv, $mysoc, $w));
 lfx_assert_eq('04011000-1234512345-06', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeAgreement/ram:BuyerReference'), 'BT-10 = Leitweg-ID, prioritaire sur ref_client');
 
 // (b) Leitweg-ID gagne aussi sur le code service Chorus.
 $w = [];
-$xp = lfx_xpath(auvozugferd_build_xml($inv, $mysoc, $w, ['profile' => 'choruspro', 'service_code' => 'SVC1']));
+$xp = lfx_xpath(dolizugferd_build_xml($inv, $mysoc, $w, ['profile' => 'choruspro', 'service_code' => 'SVC1']));
 lfx_assert_eq('04011000-1234512345-06', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeAgreement/ram:BuyerReference'), 'BT-10 = Leitweg-ID, prioritaire sur le code service Chorus');
 
 // (c) Non-régression : acheteur allemand SANS Leitweg-ID -> ref_client toujours utilisé.
@@ -1038,7 +1038,7 @@ $inv2->total_ht = 1000.00;
 $inv2->total_tva = 200.00;
 $inv2->total_ttc = 1200.00;
 $w = [];
-$xp = lfx_xpath(auvozugferd_build_xml($inv2, $mysoc, $w));
+$xp = lfx_xpath(dolizugferd_build_xml($inv2, $mysoc, $w));
 lfx_assert_eq('PO-8888', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeAgreement/ram:BuyerReference'), 'BT-10 = ref_client quand aucune Leitweg-ID (le filtre DE ne casse pas le repli existant)');
 
 // (d) Garde-fou pays : une Leitweg-ID posée par erreur sur un acheteur non-allemand est ignorée.
@@ -1051,9 +1051,96 @@ $inv3->total_ht = 1000.00;
 $inv3->total_tva = 200.00;
 $inv3->total_ttc = 1200.00;
 $w = [];
-$xp = lfx_xpath(auvozugferd_build_xml($inv3, $mysoc, $w));
+$xp = lfx_xpath(dolizugferd_build_xml($inv3, $mysoc, $w));
 lfx_assert_eq('PO-7777', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeAgreement/ram:BuyerReference'), 'BT-10 = ref_client, Leitweg-ID ignorée hors acheteur allemand');
 echo "U35 OK\n";
+
+// ---------------------------------------------------------------------------
+$currentTest = 'U36 motifs d\'exonération pour un vendeur allemand assujetti';
+$deSeller = lfx_make_party(['name' => 'MUSTER GMBH', 'country_code' => 'DE', 'tva_intra' => 'DE811111111', 'tva_assuj' => 1]);
+$frSeller = lfx_make_party(['name' => 'VENDEUR SAS', 'country_code' => 'FR', 'tva_intra' => 'FR38909458306', 'tva_assuj' => 1]);
+$buyerDE  = lfx_make_party(['name' => 'KUNDE AG', 'country_code' => 'DE', 'tva_intra' => 'DE123456789']);
+$buyerAT  = lfx_make_party(['name' => 'KUNDE GMBH', 'country_code' => 'AT', 'tva_intra' => 'ATU12345678']);
+$buyerCH  = lfx_make_party(['name' => 'KUNDE SA', 'country_code' => 'CH', 'tva_intra' => '']);
+$goods    = lfx_make_line(100.00, 0.0, 0.00, 1.0, 'Ware', 0);
+$service  = lfx_make_line(100.00, 0.0, 0.00, 1.0, 'Beratung', 1);
+$inv = new LfxFakeInvoice();
+
+$r = dolizugferd_resolve_tax_category($goods, $inv, $buyerAT, $deSeller);
+lfx_assert_eq('K', $r['code'], 'DE → AT, biens : catégorie K');
+lfx_assert(strpos($r['exemption'], '§ 4 Nr. 1b') !== false, 'DE → AT, biens : motif allemand (§ 4 Nr. 1b UStG)');
+$r = dolizugferd_resolve_tax_category($service, $inv, $buyerAT, $deSeller);
+lfx_assert_eq('AE', $r['code'], 'DE → AT, services : catégorie AE');
+lfx_assert(strpos($r['exemption'], 'Steuerschuldnerschaft') !== false, 'DE → AT, services : motif allemand (Reverse Charge)');
+$r = dolizugferd_resolve_tax_category($goods, $inv, $buyerCH, $deSeller);
+lfx_assert_eq('G', $r['code'], 'DE → CH : catégorie G');
+lfx_assert(strpos($r['exemption'], 'Ausfuhrlieferung') !== false, 'DE → CH, biens : motif allemand (Ausfuhr)');
+// Acheteur du même pays que le vendeur avec n° TVA : pas d'intracommunautaire.
+$r = dolizugferd_resolve_tax_category($goods, $inv, $buyerDE, $deSeller);
+lfx_assert_eq('E', $r['code'], 'DE → DE à taux 0 : catégorie E, pas K');
+lfx_assert_eq('Umsatzsteuerfrei', $r['exemption'], 'DE → DE à taux 0 : motif allemand');
+// Contre-épreuve vendeur FR : comportement inchangé.
+$r = dolizugferd_resolve_tax_category($goods, $inv, $buyerDE, $frSeller);
+lfx_assert_eq('K', $r['code'], 'FR → DE, biens : catégorie K');
+lfx_assert(strpos($r['exemption'], 'Livraison intracommunautaire') !== false, 'FR → DE : motif français conservé');
+echo "U36 OK\n";
+
+// ---------------------------------------------------------------------------
+$currentTest = 'U37 Steuernummer et n° TVA mal saisis (vendeur allemand)';
+lfx_reset([], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+// Lecture de la Steuernummer : idprof1, repli idprof2 (anciennes fiches), repli
+// tva_intra sans préfixe pays ; jamais un nom de tribunal ni une USt-IdNr.
+lfx_assert_eq('22/180/80394', dolizugferd_party_steuernummer(lfx_make_party(['idprof1' => '22/180/80394', 'idprof2' => 'Amtsgericht Koblenz'])), 'Steuernummer lue dans idprof1');
+lfx_assert_eq('151/815/08154', dolizugferd_party_steuernummer(lfx_make_party(['idprof1' => '', 'idprof2' => '151/815/08154'])), 'repli idprof2 (anciennes fiches)');
+lfx_assert_eq('', dolizugferd_party_steuernummer(lfx_make_party(['idprof1' => '', 'idprof2' => 'Amtsgericht Koblenz', 'tva_intra' => 'DE811111111'])), 'ni Amtsgericht ni USt-IdNr comme Steuernummer');
+lfx_assert(dolizugferd_is_vat_id('DE 811 111 111') && dolizugferd_is_vat_id('ATU12345678') && !dolizugferd_is_vat_id('22/180/80394'), 'reconnaissance du préfixe pays (BR-CO-09)');
+// Cas réel : Kleinunternehmer ayant saisi sa Steuernummer dans le champ TVA intra.
+$deSoc2 = lfx_make_party([
+	'name' => 'MUSTER DESIGN', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen',
+	'address' => 'Hauptstr. 1', 'email' => 'info@muster.example',
+	'tva_intra' => '22/180/80394', 'idprof1' => '22/180/80394', 'idprof2' => '', 'tva_assuj' => 0,
+]);
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-0099';
+$inv->thirdparty = $deBuyer;
+$inv->lines = [lfx_make_line(100.00, 0.0, 0.00, 1.0, 'Gestaltung', 1)];
+$inv->total_ht = 100.00;
+$inv->total_tva = 0.00;
+$inv->total_ttc = 100.00;
+$w = [];
+$xml = dolizugferd_build_xml($inv, $deSoc2, $w);
+lfx_std_validate($xml, $xsdPath);
+$xp = lfx_xpath($xml);
+lfx_assert_eq(0, $xp->query('//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="VA"]')->length, 'Steuernummer non publiée comme USt-IdNr (VA)');
+lfx_assert_eq('22/180/80394', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="FC"]'), 'Steuernummer publiée en BT-32 (FC)');
+lfx_assert(lfx_contains(dolizugferd_check_mandatory($inv, $deSoc2), 'DoliZugferdWarnSellerVATInvalid'), 'warning champ TVA intra sans préfixe pays');
+// Le validateur détecte un VA sans préfixe (filet de sécurité BR-CO-09).
+$xmlBad = str_replace('<ram:ID schemeID="FC">22/180/80394</ram:ID>', '<ram:ID schemeID="VA">22/180/80394</ram:ID>', $xml);
+lfx_assert(lfx_contains(dolizugferd_validate_business_rules($xmlBad), 'BR-CO-09'), 'BR-CO-09 détectée');
+lfx_assert(!lfx_contains(dolizugferd_validate_business_rules($xml), 'BR-CO-09'), 'pas de BR-CO-09 sur le XML corrigé');
+echo "U37 OK\n";
+
+// ---------------------------------------------------------------------------
+$currentTest = 'U38 adresses électroniques BT-34/BT-49 : règles FR seulement pour un vendeur FR';
+lfx_reset([], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+$deSeller = lfx_make_party(['name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '10115', 'town' => 'Berlin', 'address' => 'Str. 1', 'email' => '', 'tva_intra' => 'DE811111111', 'tva_assuj' => 1]);
+$buyerNoMail = lfx_make_party(['name' => 'KUNDE GMBH', 'country_code' => 'DE', 'zip' => '56355', 'town' => 'Nastätten', 'address' => 'Weg 4', 'email' => '']);
+$buyerFrNoSiren = lfx_make_party(['name' => 'CLIENT SARL', 'country_code' => 'FR', 'zip' => '75001', 'town' => 'Paris', 'address' => '1 rue', 'email' => 'a@b.fr', 'idprof1' => '', 'idprof2' => '', 'tva_assuj' => 1]);
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-0100';
+$inv->lines = [lfx_make_line(100.00, 19.0, 19.00)];
+$inv->thirdparty = $buyerNoMail;
+$warn = dolizugferd_check_mandatory($inv, $deSeller);
+lfx_assert(!lfx_contains($warn, 'DoliZugferdWarnBuyerEndpoint'), 'vendeur DE : pas de warning BT-49 (BR-FR-12) pour un acheteur sans email');
+lfx_assert(!lfx_contains($warn, 'DoliZugferdWarnSellerEndpoint'), 'vendeur DE : pas de warning BT-34 (BR-FR-13) sans email vendeur');
+$inv->thirdparty = $buyerFrNoSiren;
+lfx_assert(!lfx_contains(dolizugferd_check_mandatory($inv, $deSeller), 'DoliZugferdWarnBuyerSIRENRouting'), 'vendeur DE : pas de warning de routage SIREN pour un acheteur FR');
+// Contre-épreuve vendeur FR : les warnings restent.
+$inv->thirdparty = $buyerNoMail;
+$frNoMail = clone $mysoc;
+$frNoMail->email = '';
+lfx_assert(lfx_contains(dolizugferd_check_mandatory($inv, $frNoMail), 'DoliZugferdWarnBuyerEndpoint'), 'vendeur FR : warning BT-49 conservé');
+echo "U38 OK\n";
 
 // ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";

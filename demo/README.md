@@ -1,68 +1,44 @@
-# Dolibarr de démo — AuvoZugferd
+# Demo-Daten — DoliZUGFeRD
 
-Environnement de test isolé pour valider le module sans toucher à un Dolibarr de production.
+`fixtures.php` legt in einer Dolibarr-**Testinstanz** einen festen Satz an Stammdaten und Rechnungen an. Die Integrationstests (`tests/run-tests.php`) bauen darauf auf.
 
-## Accès
+> **Achtung** — Das Skript schreibt direkt in die Datenbank (Firmendaten, Bankkonto, Geschäftspartner, Rechnungen) und überschreibt die Firmenangaben. **Niemals auf einer Produktivinstanz ausführen.**
 
-| Service | URL | Credentials |
-|---|---|---|
-| Dolibarr | http://ard.hellolemon.dev | axel / 0000 (ou admin / admin) |
-| Mailpit (SMTP sink) | http://192.168.1.224:8025 | aucun |
+Der Ordner `demo/` ist nicht im Release-ZIP enthalten (`.gitattributes` → `export-ignore`).
 
-Aucun mail n'est envoyé à l'extérieur : Postfix est désactivé et Dolibarr envoie vers mailpit (127.0.0.1:1025).
+## Verwendung
 
-## Infra
+```bash
+# In einer frisch installierten Dolibarr-Testinstanz mit aktiviertem Modul
+php htdocs/custom/dolizugferd/demo/fixtures.php
 
-| | |
-|---|---|
-| LXC | 115 (alias SSH `dolibarr-ard`, IP 192.168.1.224) |
-| Dolibarr | 22.0.4 dans `/var/www/dolibarr/htdocs/` |
-| Module | `/var/www/dolibarr/htdocs/custom/auvozugferd/` |
-| DB | `dolibarr_ard` (MariaDB) |
-| Snapshot | `/root/dolibarr-demo-snapshot.sql.gz` |
-
-## Fixtures générées
-
-- 1 société émettrice : LEMON DEMO SASU, SIREN 732829320 (exemple Factur-X), TVA FR44732829320, IBAN FR7630001007941234567890185 (IBAN de test Banque de France)
-- 6 tiers couvrant tous les cas métier
-- 10 factures couvrant tous les cas du backlog Factur-X :
-
-| Ref | Tiers | Cas métier testé |
-|---|---|---|
-| F001 | FR standard | Facture simple TVA 20% |
-| F002 | FR standard | Multi-TVA (20% + 5,5%) |
-| F003 | FR standard | TVA 0% (franchise) |
-| F004 | FR standard | Avoir (`TYPE_CREDIT_NOTE`) |
-| F005 | FR standard | Ligne en heures (10h × 80€) |
-| F006 | FR standard | Ligne en jours (5j × 450€) |
-| F007 | FR sans email | Cas BR-FR-13 : buyer sans email |
-| F008 | DE GmbH | Autoliquidation UE, TVA 0% avec TVA intra |
-| F009 | FR standard | Facture d'acompte (`TYPE_DEPOSIT`) 240€ TTC |
-| F010 | FR standard | Facture finale avec F009 imputée (test `getSumDepositsUsed()`) |
-
-## Scripts
-
-### `reset-demo.sh`
-Reset rapide (~5s) : drop DB + réimport du snapshot. À utiliser entre deux tests pour revenir à l'état propre.
-
-### `rebuild-demo.sh`
-Reconstruction complète (~1 min) : drop DB, réinstall Dolibarr, activation modules, constantes, fixtures, regénère le snapshot. À utiliser après toute modification de `fixtures.php`.
-
-### `fixtures.php`
-Script PHP invoqué par `rebuild-demo.sh`. Crée user/société/tiers/factures. Idempotent sur le user admin `axel`.
-
-## Workflow de test d'un patch module
-
-```
-# sur le poste de dev
-cd ~/Claude/Modules\ Dolibarr/module-dolibarr-auvozugferd
-# ... modifier le code ...
-tar czf /tmp/lmx.tgz --exclude='.git' .
-scp /tmp/lmx.tgz proxmox:/tmp/
-
-# sur proxmox
-pct push 115 /tmp/lmx.tgz /tmp/lmx.tgz
-pct exec 115 -- bash -c 'rm -rf /var/www/dolibarr/htdocs/custom/auvozugferd && mkdir /var/www/dolibarr/htdocs/custom/auvozugferd && tar xzf /tmp/lmx.tgz -C /var/www/dolibarr/htdocs/custom/auvozugferd && chown -R www-data:www-data /var/www/dolibarr/htdocs/custom/auvozugferd && bash /var/www/dolibarr/htdocs/custom/auvozugferd/demo/reset-demo.sh'
+# Danach die PDFs der Rechnungen F001–F010 in Dolibarr erzeugen und prüfen:
+php htdocs/custom/dolizugferd/tests/run-tests.php
 ```
 
-Puis ouvrir http://ard.hellolemon.dev, générer les PDF des 10 factures, valider manuellement ou via un script de test.
+Die Integrationstests erwarten die Rechnungen unter den IDs 1 bis 10, also eine leere Datenbank vor dem Lauf.
+
+## Angelegte Daten
+
+- 1 ausstellende Firma: DEMO SASU (Frankreich), SIREN 732829320 (Beispiel aus der Factur-X-Spezifikation), USt-IdNr. FR44732829320, IBAN FR7630001007941234567890185 (Test-IBAN der Banque de France)
+- 6 Geschäftspartner für die verschiedenen Fälle
+- 10 Rechnungen:
+
+| Ref | Geschäftspartner | Getesteter Fall |
+|---|---|---|
+| F001 | FR Standard | Einfache Rechnung, 20 % USt |
+| F002 | FR Standard | Mehrere Steuersätze (20 % + 5,5 %) |
+| F003 | FR Standard | 0 % USt (Kleinunternehmer-Regelung) |
+| F004 | FR Standard | Gutschrift (`TYPE_CREDIT_NOTE`) |
+| F005 | FR Standard | Position in Stunden (10 h × 80 €) |
+| F006 | FR Standard | Position in Tagen (5 Tage × 450 €) |
+| F007 | FR ohne E-Mail | Fall BR-FR-13: Käufer ohne E-Mail |
+| F008 | DE GmbH | Reverse Charge EU, 0 % USt mit USt-IdNr. |
+| F009 | FR Standard | Anzahlungsrechnung (`TYPE_DEPOSIT`) 240 € brutto |
+| F010 | FR Standard | Schlussrechnung mit verrechneter F009 (Test `getSumDepositsUsed()`) |
+
+Die Demo-Firma sitzt in Frankreich, damit auch die französischen BR-FR-Regeln abgedeckt sind. Die deutschen Fälle (§ 19 UStG, Reverse Charge, Leitweg-ID, Befreiungsgründe) prüfen die Unit-Tests in `tests/unit-tests.php`. Diese laufen ohne Dolibarr-Datenbank:
+
+```bash
+php tests/unit-tests.php
+```

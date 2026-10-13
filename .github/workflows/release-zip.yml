@@ -22,13 +22,13 @@ jobs:
       - name: Run standalone unit tests
         run: php tests/unit-tests.php
 
-      - name: Build clean ZIP (dossier racine = auvozugferd/, nom Dolistore module_<nom>-x.y.z.zip)
+      - name: Build clean ZIP (dossier racine = dolizugferd/, nom Dolistore module_<nom>-x.y.z.zip)
         run: |
           # Dolistore exige le format de makepack : module_<nom>-x.y(.z).zip
           # (préfixe module_, version SANS le « v » du tag). Cf. regex du shop
           # (module|moduleXxx|theme|website)_mypackagename-x.y(.z).zip
           VERSION="${GITHUB_REF_NAME#v}"
-          mkdir -p /tmp/build/auvozugferd
+          mkdir -p /tmp/build/dolizugferd
           rsync -a \
             --exclude='.git' \
             --exclude='.github' \
@@ -37,13 +37,13 @@ jobs:
             --exclude='*.md.bak' \
             --exclude='/tests' \
             --exclude='/demo' \
-            ./ /tmp/build/auvozugferd/
-          cd /tmp/build && zip -r "/tmp/module_auvozugferd-${VERSION}.zip" auvozugferd/
-          unzip -l "/tmp/module_auvozugferd-${VERSION}.zip" | head -20
+            ./ /tmp/build/dolizugferd/
+          cd /tmp/build && zip -r "/tmp/module_dolizugferd-${VERSION}.zip" dolizugferd/
+          unzip -l "/tmp/module_dolizugferd-${VERSION}.zip" | head -20
 
       - name: Attach ZIP to release
         # softprops/action-gh-release v2.6.2 épinglée par SHA
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
-          files: /tmp/module_auvozugferd-*.zip
+          files: /tmp/module_dolizugferd-*.zip
           fail_on_unmatched_files: true

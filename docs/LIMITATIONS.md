@@ -1,159 +1,177 @@
-# Limitations et cas non traités
+# Einschränkungen und nicht behandelte Fälle
 
-Ce document liste les cas que AuvoZugferd **ne traite pas** (ou ne traite que
-partiellement), le comportement observé, et la raison du choix. Il fait foi en
-cas de doute sur le périmètre du module.
+Dieses Dokument listet die Fälle, die DoliZUGFeRD **nicht** (oder nur
+teilweise) behandelt, das beobachtete Verhalten und den Grund für diese
+Entscheidung. Im Zweifel über den Funktionsumfang des Moduls ist es maßgeblich.
 
-Légende comportement :
-- **Refus propre** : la facture n'est pas convertie, le PDF classique est conservé, un message explique pourquoi (bloquant en mode strict).
-- **Warning** : la facture est convertie, mais un avertissement signale la limite.
-- **Silencieux** : le cas est traité avec une approximation documentée ici.
+Legende Verhalten:
+- **Saubere Ablehnung**: Die Rechnung wird nicht umgewandelt, die normale PDF bleibt erhalten, eine Meldung erklärt den Grund (im Strikt-Modus blockierend).
+- **Warnung**: Die Rechnung wird umgewandelt, eine Warnung weist aber auf die Einschränkung hin.
+- **Still**: Der Fall wird mit einer hier dokumentierten Näherung behandelt.
 
-## Cas métier
+## Fachliche Fälle
 
-### Multidevise (BT-5 ≠ devise société)
-**Comportement : refus propre.**
-Dolibarr ne stocke la ventilation TVA qu'en devise société. Émettre le XML en
-devise société alors que le PDF visible est en devise étrangère violerait le
-principe hybride Factur-X (le lisible doit refléter le structuré). Un support
-complet exigerait les montants `multicurrency_total_*` par ligne, le
-`TaxCurrencyCode` (BT-6) et le double `TaxTotalAmount` — la fiabilité des
-montants multidevise ligne à ligne dans Dolibarr (arrondis de conversion)
-ne permet pas de garantir les règles BR-CO-* aujourd'hui. Le diagnostic admin
-affiche une note si le module Multidevise est actif.
+### Fremdwährung (BT-5 ≠ Firmenwährung)
+**Verhalten: saubere Ablehnung.**
+Dolibarr speichert die Aufschlüsselung der Umsatzsteuer nur in Firmenwährung.
+Das XML in Firmenwährung auszugeben, während die sichtbare PDF in
+Fremdwährung ist, würde das hybride Prinzip von ZUGFeRD/Factur-X verletzen
+(der lesbare Teil muss dem strukturierten entsprechen). Eine vollständige
+Unterstützung bräuchte die Beträge `multicurrency_total_*` je Position, den
+`TaxCurrencyCode` (BT-6) und einen doppelten `TaxTotalAmount`. Die
+Zuverlässigkeit der Fremdwährungsbeträge je Position in Dolibarr
+(Umrechnungsrundungen) erlaubt es derzeit nicht, die Regeln BR-CO-*
+zu garantieren. Die Diagnose zeigt einen Hinweis, wenn das Modul
+Multiwährung aktiv ist.
 
-### Taxes locales (localtax1/localtax2)
-**Comportement : refus propre.**
-EN16931 ne représente que la TVA. Les taxes parafiscales locales (IRPF
-espagnol, RECARGO, etc.) ne sont pas mappables : le total du XML divergerait
-du TTC visible sur le PDF — même principe de refus que le multidevise. Hors
-périmètre France métropolitaine, qui est la cible du module.
+### Lokale Steuern (localtax1/localtax2)
+**Verhalten: saubere Ablehnung.**
+EN16931 bildet nur die Umsatzsteuer ab. Lokale Zusatzsteuern (spanische IRPF,
+RECARGO usw.) lassen sich nicht abbilden: Der Gesamtbetrag im XML würde vom
+Bruttobetrag auf der PDF abweichen — gleiches Ablehnungsprinzip wie bei
+Fremdwährung. In Deutschland und Frankreich werden diese Felder nicht genutzt.
 
-### Factures de situation (BTP)
-**Comportement : warning, émission en TypeCode 380.**
-Les lignes Dolibarr de situation portent des pourcentages cumulés et des
-retenues de garantie dont le mapping EN16931 (BG-14 par situation, chaînage
-BG-3 vers les situations précédentes, retenue en BT-115 vs charge) n'est pas
-normalisé de façon stable dans les spécifications externes actuelles. Les
-montants émis sont ceux de la facture Dolibarr (delta de la situation), ce qui
-est généralement correct, mais la conformité n'est pas garantie — d'où le
-warning. Support complet prévu quand le cas d'usage « facture de travaux »
-des spécifications PPF/PDP sera figé.
+### Abschlagsrechnungen im Bau (Situationsrechnungen)
+**Verhalten: Warnung, Ausgabe als TypeCode 380.**
+Die Situations-Positionen in Dolibarr tragen kumulierte Prozentsätze und
+Sicherheitseinbehalte, deren Abbildung in EN16931 (BG-14 je Situation,
+Verkettung BG-3 zu den vorherigen Situationen, Einbehalt als BT-115 oder als
+Zuschlag) in den aktuellen Spezifikationen nicht stabil geregelt ist. Die
+ausgegebenen Beträge sind die der Dolibarr-Rechnung (Differenz der Situation),
+was in der Regel korrekt ist, die Konformität ist aber nicht garantiert —
+daher die Warnung.
 
-### Autofacturation (TypeCode 389)
-**Comportement : non traité (émis comme une facture normale).**
-Dolibarr ne porte pas de notion d'autofacturation sur les factures clients.
-Le cas exige l'inversion des rôles vendeur/acheteur et un cadre de
-facturation dédié — sans donnée source fiable, toute déduction serait fausse.
+### Gutschriftsverfahren (TypeCode 389)
+**Verhalten: nicht behandelt (Ausgabe als normale Rechnung).**
+Dolibarr kennt bei Kundenrechnungen kein Gutschriftsverfahren
+(Selbstfakturierung). Der Fall erfordert das Vertauschen der Rollen
+Verkäufer/Käufer und einen eigenen Rechnungsrahmen — ohne verlässliche
+Quelldaten wäre jede Ableitung falsch.
 
-### Acomptes : TVA de l'acompte sur la facture finale
-**Comportement : déduction TTC uniquement (BT-113), warning absent.**
-La facture finale déduit l'acompte via `TotalPrepaidAmount` (BT-113) et
-référence la facture d'acompte (BG-3). La ventilation TVA de la finale reste
-celle de la facture complète : la TVA déjà acquittée sur l'acompte n'est pas
-isolée (le schéma « lignes négatives par taux » préconisé par certaines
-plateformes n'est pas généralisable depuis les données Dolibarr). C'est le
-comportement de la majorité des implémentations Factur-X actuelles ; voir
-`docs/spec-acomptes.md`.
+### Anzahlungen: Umsatzsteuer der Anzahlung in der Schlussrechnung
+**Verhalten: nur Abzug des Bruttobetrags (BT-113), keine Warnung.**
+Die Schlussrechnung zieht die Anzahlung über `TotalPrepaidAmount` (BT-113) ab
+und verweist auf die Anzahlungsrechnung (BG-3). Die Steueraufschlüsselung der
+Schlussrechnung bleibt die der vollständigen Rechnung: Die bereits auf die
+Anzahlung entrichtete Umsatzsteuer wird nicht gesondert ausgewiesen (das von
+manchen Plattformen empfohlene Schema „negative Positionen je Steuersatz“ ist
+aus den Dolibarr-Daten nicht allgemein ableitbar). Das entspricht dem
+Verhalten der meisten aktuellen ZUGFeRD/Factur-X-Implementierungen.
 
-### Exonérations françaises spécifiques (BT-121)
-**Comportement : partiel.**
-Codes VATEX émis : `VATEX-FR-FRANCHISE` (franchise 293 B), `VATEX-EU-IC`
-(livraison intracom), `VATEX-EU-AE` (autoliquidation services), `VATEX-EU-G`
-(export). Pour une ligne FR à TVA 0 hors franchise (formation 261-4, presse,
-DOM 296ter...), le module émet `E` avec le motif générique « Exonéré de TVA »
-**sans** code VATEX : la base légale ne peut pas être devinée depuis les
-données Dolibarr. Préciser le motif réel dans la description de ligne, ou
-demander l'ajout d'un mapping par produit si le besoin est récurrent.
+### Steuerbefreiungen (BT-120/BT-121)
+**Verhalten: teilweise.**
+Der Befreiungsgrund wird je nach Land des Verkäufers auf Deutsch (Verkäufer
+in Deutschland) oder Französisch ausgegeben. Ausgegebene Fälle:
 
-### Autoliquidation domestique (sous-traitance BTP, art. 283-2 nonies CGI)
-**Comportement : non détecté automatiquement.**
-Une ligne FR→FR à TVA 0 tombe en catégorie `E` générique. La qualification AE
-domestique exigerait un flag par ligne ou par tiers (extrafield) que le module
-ne crée pas pour éviter de modifier le schéma de données. L'AE est en revanche
-correctement émis pour les **services intracommunautaires** (détection par
-`product_type` + TVA intra acheteur).
+| Fall | Kategorie | VATEX-Code | Text bei deutschem Verkäufer |
+|---|---|---|---|
+| Kleinunternehmer | E | — | Kein Ausweis von Umsatzsteuer, da Kleinunternehmer gemäß § 19 UStG |
+| Innergemeinschaftliche Lieferung (Ware, Käufer mit USt-IdNr. in anderem EU-Land) | K | VATEX-EU-IC | Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1b i. V. m. § 6a UStG) |
+| Sonstige Leistung an Unternehmer in anderem EU-Land | AE | VATEX-EU-AE | Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge, Art. 196 MwStSystRL) |
+| Ausfuhr Ware ins Drittland | G | VATEX-EU-G | Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1a i. V. m. § 6 UStG) |
+| Leistung ins Drittland | G | VATEX-EU-G | Nicht im Inland steuerbare Leistung (§ 3a Abs. 2 UStG) |
+| Sonstige Positionen mit 0 % | E | — | Umsatzsteuerfrei |
 
-### Catégories O, Z, L, M
-**Comportement : non émises.**
-`O` (hors champ) : jamais produit — la franchise 293 B est une exonération
-(`E`), pas un hors-champ. `Z` (taux zéro) : sans objet en droit français.
-`L`/`M` (Canaries/Ceuta) : hors périmètre France.
+Für eine inländische Position mit 0 % (z. B. § 4 Nr. 14 oder Nr. 21 UStG)
+gibt das Modul den allgemeinen Grund „Umsatzsteuerfrei“ **ohne** VATEX-Code
+aus: Die Rechtsgrundlage lässt sich aus den Dolibarr-Daten nicht ableiten.
+Den tatsächlichen Grund in der Positionsbeschreibung angeben oder bei
+wiederkehrendem Bedarf eine Zuordnung je Produkt anfragen.
 
-### Retenue de garantie, escompte conditionnel structuré (BT-20/SKONTO)
-**Comportement : texte libre uniquement.**
-Les conditions d'escompte sont portées par la note AAB (BR-FR-05). La
-structuration SKONTO est une convention EXTENDED/allemande, hors profil
-EN16931 strict.
+### Inländisches Reverse Charge (§ 13b UStG, Bauleistungen)
+**Verhalten: nicht automatisch erkannt.**
+Eine Inlandsposition mit 0 % fällt in die allgemeine Kategorie `E`. Die
+Einstufung als inländisches AE bräuchte ein Kennzeichen je Position oder je
+Geschäftspartner (Extrafield), das das Modul nicht anlegt, um das Datenmodell
+nicht zu verändern. AE wird dagegen für **innergemeinschaftliche Leistungen**
+korrekt ausgegeben (Erkennung über `product_type` + USt-IdNr. des Käufers).
 
-## Transmission et réforme 2026-2027
+### Kategorien O, Z, L, M
+**Verhalten: nicht ausgegeben.**
+`O` (nicht steuerbar): wird nie erzeugt — die Kleinunternehmerregelung ist
+eine Befreiung (`E`), kein nicht steuerbarer Umsatz. `Z` (Nullsatz): im
+deutschen Recht nur für Sonderfälle (z. B. § 12 Abs. 3 UStG Photovoltaik);
+derzeit nicht abgebildet. `L`/`M` (Kanaren/Ceuta): außerhalb des
+Anwendungsbereichs.
 
-### Connecteur PDP/PPF (dépôt, statuts de cycle de vie)
-**Non traité.** Le module produit le **format** (Factur-X EN16931 + données
-socle BT-23/BT-8/SIREN 0225). La **transmission** (API de dépôt, accusés,
-statuts rejetée/refusée/encaissée) est spécifique à chaque Plateforme Agréée
-et exige des credentials — c'est un module compagnon à part entière, pas une
-évolution de celui-ci. Contact : r.vogel@auvo-design.de (raccordement PA/PDP).
+### Sicherheitseinbehalt, strukturiertes Skonto (BT-20/SKONTO)
+**Verhalten: nur Freitext.**
+Skontobedingungen werden über die Notiz AAB geführt (in Deutschland
+optional, in den Moduleinstellungen hinterlegbar). Die strukturierte
+SKONTO-Syntax ist eine Konvention des ZUGFeRD-Profils EXTENDED bzw. von
+XRechnung und gehört nicht zum hier erzeugten Profil EN16931.
 
-### Annuaire (vérification du SIREN destinataire)
-**Non traité.** L'API de l'annuaire n'est accessible qu'aux plateformes
-immatriculées. Le module vérifie en revanche la présence et la longueur du
-SIREN/SIRET acheteur (warnings + diagnostic).
+## Übermittlung
 
-### Type d'opération (livraison de biens / prestation / mixte)
-**Non traité.** Donnée du socle réforme sans BT dédié dans le profil EN16931
-(portée par les flux PPF, pas par le XML CII). Sera ajoutée quand le cadre
-de facturation B2B (BT-23) deviendra obligatoire avec une sémantique figée.
+### XRechnung
+**Nicht erzeugt.** Das Modul gibt ZUGFeRD im Profil EN16931 (COMFORT) aus.
+Viele öffentliche Auftraggeber in Deutschland (Rechnungen mit Leitweg-ID)
+verlangen XRechnung. Ob ZUGFeRD EN16931 akzeptiert wird, hängt vom
+jeweiligen Rechnungseingangsportal ab — vorher beim Auftraggeber klären.
 
-### Code routage / service destinataire infra-SIREN
-**Partiel.** Le routage par service (Chorus Pro, grands comptes) passe par
-**BT-10 BuyerReference**, mappé depuis le champ standard « Référence client »
-(`ref_client`) de la facture — par facture, sans extrafield côté France :
-choix assumé de ne pas créer d'extrafields pour ce cas. L'adressage
-électronique BT-34/BT-49 est en revanche figé sur le SIREN (`schemeID="0225"`,
-annuaire PPF) : pas de routage infra-SIREN par SIRET d'établissement.
+### Anbindung an Plattformen (Frankreich: PDP/PPF; Deutschland: Portale)
+**Nicht behandelt.** Das Modul erzeugt das **Format**. Die **Übermittlung**
+(Upload-API, Empfangsbestätigungen, Statusmeldungen) ist je Plattform
+verschieden und erfordert Zugangsdaten — das wäre ein eigenes Begleitmodul.
 
-Côté Allemagne, le routage administratif est traité différemment : la
-**Leitweg-ID** (acheteurs secteur public, portails ZRE/OZG-RE) dispose d'un
-extrafield tiers dédié (`lfxleitwegid`, sur la fiche société) et prime sur
-`ref_client` en BT-10 pour un acheteur allemand — un champ par tiers a du sens
-ici car la Leitweg-ID est une donnée de routage stable du client, contrairement
-au code service Chorus qui varie par facture.
+### Verzeichnis (Prüfung der SIREN des Empfängers, nur Frankreich)
+**Nicht behandelt.** Die API des französischen Verzeichnisses ist nur für
+zugelassene Plattformen zugänglich. Das Modul prüft aber Vorhandensein und
+Länge von SIREN/SIRET des Käufers (Warnungen + Diagnose).
 
-## Technique
+### Art des Umsatzes (Lieferung / Leistung / gemischt, nur Frankreich)
+**Nicht behandelt.** Angabe der französischen Reform ohne eigenes BT im Profil
+EN16931 (wird über die PPF-Flüsse transportiert, nicht über das CII-XML).
 
-### Validation Schematron officielle
-**Partiel (par conception).** Le Schematron EN16931 officiel est du XSLT 2.0,
-inexécutable avec l'extension XSL de PHP (XSLT 1.0). Le module embarque à la
-place un validateur PHP couvrant les règles de calcul et de cohérence les plus
-contrôlées (BR-CO-10..17, BR-27, BR-61, BR-16, BR-IC-02/11/12, BR-AE-02,
-BR-*-08/10, BR-CO-25/26, BR-09/11). Pour une validation exhaustive ponctuelle,
-utiliser un validateur externe (B2Brouter, FNFE, Mustang) — le XML s'exporte
-via l'API ou `scripts/export_facturx_batch.php`. Attention aux validateurs en
-ligne basés sur des artefacts périmés (~2021) : faux positifs connus sur le
-BG-3 multiple et l'endpoint `0225` — voir « Validateurs en ligne : faux
-positifs connus » dans le README.
+### Routing an Dienststellen des Empfängers
+**Teilweise.** In Deutschland verfügt die **Leitweg-ID** (öffentliche
+Auftraggeber, Portale ZRE/OZG-RE) über ein eigenes Extrafield am
+Geschäftspartner (`lfxleitwegid`, auf der Firmenkarte) und hat bei einem
+deutschen Käufer in BT-10 Vorrang vor `ref_client` — ein Feld je
+Geschäftspartner ist hier sinnvoll, weil die Leitweg-ID eine stabile
+Routing-Angabe des Kunden ist.
 
-### PDF/A-3 garanti
-**Partiel.** Le module force ce qu'il contrôle (XMP, AFRelationship
-`Alternative`, ICC sRGB, `/F 4`) et **vérifie** désormais `MAIN_PDF_FORCE_FONT`
-(diagnostic + warning). Mais un modèle PDF custom (images CMJN, polices non
-embarquées d'un module tiers) peut casser la conformité : la post-validation
-optionnelle veraPDF (`AUVOZUGFERD_VERAPDF_PATH`) est là pour le détecter.
+In Frankreich läuft das Routing an Dienststellen (Chorus Pro, Großkunden)
+über **BT-10 BuyerReference**, befüllt aus dem Standardfeld
+„Kundenreferenz“ (`ref_client`) der Rechnung. Die elektronische Adresse
+BT-34/BT-49 ist dort fest auf die SIREN gesetzt (`schemeID="0225"`,
+PPF-Verzeichnis).
 
-### Mode strict ≠ suppression du PDF
-Le hook `afterPDFCreation` intervient **après** la création du PDF classique
-par Dolibarr. En mode strict, une erreur bloque le retour utilisateur mais le
-PDF (sans Factur-X) reste sur le disque et pourrait être envoyé manuellement.
-Supprimer le fichier serait destructif (c'est le document de l'utilisateur) ;
-le bouton « Vérifier Factur-X » permet de contrôler avant envoi.
+## Technik
 
-### Badge Factur-X dans la liste des factures
-**Non traité.** L'ajout d'une colonne dans les listes Dolibarr nécessite des
-hooks de liste intrusifs (`printFieldListTitle`/`Value`) coûteux (ouverture de
-chaque PDF pour vérifier l'attachement). La vérification est disponible à la
-demande : bouton fiche facture, API `/status`, export batch (rapport NO_XML).
+### Offizielle Schematron-Prüfung
+**Teilweise (bewusst).** Das offizielle EN16931-Schematron ist XSLT 2.0 und
+mit der XSL-Erweiterung von PHP (XSLT 1.0) nicht ausführbar. Das Modul bringt
+stattdessen einen PHP-Validator mit, der die am häufigsten geprüften Rechen-
+und Konsistenzregeln abdeckt (BR-CO-10..17, BR-27, BR-61, BR-16,
+BR-IC-02/11/12, BR-AE-02, BR-*-08/10, BR-CO-25/26, BR-09/11). Für eine
+vollständige Prüfung im Einzelfall einen externen Validator nutzen (z. B.
+Mustang, KoSIT-Validator, B2Brouter) — das XML lässt sich über die API oder
+`scripts/export_facturx_batch.php` exportieren. Vorsicht bei Online-Validatoren
+mit veralteten Artefakten (~2021): bekannte Fehlalarme bei mehrfachem BG-3 und
+beim Endpoint `0225` — siehe „Online-Validatoren: bekannte Fehlalarme“ im
+README.
 
-### Order-X (devis / commandes)
-**Non traité.** Order-X est une norme distincte (profils et XSD différents).
-Hors périmètre facturation électronique 2026.
+### Garantiertes PDF/A-3
+**Teilweise.** Das Modul erzwingt, was es kontrolliert (XMP, AFRelationship
+`Alternative`, ICC sRGB, `/F 4`) und **prüft** `MAIN_PDF_FORCE_FONT`
+(Diagnose + Warnung). Ein eigenes PDF-Template (CMYK-Bilder, nicht
+eingebettete Schriften eines Fremdmoduls) kann die Konformität aber brechen:
+Die optionale Nachprüfung mit veraPDF (`DOLIZUGFERD_VERAPDF_PATH`) erkennt das.
+
+### Strikt-Modus ≠ Löschen der PDF
+Der Hook `afterPDFCreation` greift **nach** der Erzeugung der normalen PDF
+durch Dolibarr. Im Strikt-Modus blockiert ein Fehler die Rückmeldung an den
+Nutzer, die PDF (ohne ZUGFeRD) bleibt aber auf der Platte und könnte manuell
+verschickt werden. Die Datei zu löschen wäre destruktiv (es ist das Dokument
+des Nutzers); mit dem Button „ZUGFeRD prüfen“ lässt sich vor dem Versand
+kontrollieren.
+
+### ZUGFeRD-Kennzeichen in der Rechnungsliste
+**Nicht behandelt.** Eine zusätzliche Spalte in den Dolibarr-Listen bräuchte
+aufwendige Listen-Hooks (`printFieldListTitle`/`Value`), die jede PDF öffnen
+müssten. Die Prüfung ist auf Anforderung verfügbar: Button auf der
+Rechnungsseite, API `/status`, Stapelexport (Bericht NO_XML).
+
+### Order-X (Angebote / Aufträge)
+**Nicht behandelt.** Order-X ist ein eigener Standard (andere Profile und XSD).

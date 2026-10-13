@@ -1,7 +1,7 @@
 <?php
 /*
  * Copyright (C) 2026 SASU LEMON <https://hellolemon.fr>
- * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — renamed/modified for private use as AuvoZugferd
+ * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — fork, renamed and modified as DoliZUGFeRD
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,9 +17,25 @@
  * exécutable avec l'extension XSL de PHP, limitée à XSLT 1.0) : c'est un
  * filet de sécurité couvrant les rejets les plus courants.
  *
- * Dépend de auvozugferd.lib.php (constante AUVOZUGFERD_FR_OVERSEAS_COUNTRIES),
+ * Dépend de dolizugferd.lib.php (constante DOLIZUGFERD_FR_OVERSEAS_COUNTRIES),
  * toujours incluse avant ce fichier par le hook, l'API et les tests.
  */
+
+/**
+ * Message de règle traduit, préfixé par le code de la règle (« BR-XX : … »).
+ * Le code reste en tête et non traduit : il sert de clé stable aux tests et
+ * aux recherches dans le syslog.
+ *
+ * @param string $rule  Code de la règle (ex. 'BR-CO-10'), '' pour aucun préfixe
+ * @param string $key   Clé de traduction (fichier dolizugferd.lang)
+ * @param mixed  ...$args Paramètres %s de la traduction (4 au maximum)
+ * @return string
+ */
+function dolizugferd_rule_msg($rule, $key, ...$args)
+{
+	$msg = dolizugferd_trans_raw($key, ...$args);
+	return $rule !== '' ? $rule.' : '.$msg : $msg;
+}
 
 /**
  * Valide un XML contre le XSD Factur-X EN16931 embarqué.
@@ -31,10 +47,10 @@
  * @return string|null        Message d'erreur si invalide, null si OK
  *                            (ou si le XSD est absent : well-formed seul)
  */
-function auvozugferd_validate_xsd($xml, $modulePath)
+function dolizugferd_validate_xsd($xml, $modulePath)
 {
 	if (empty($xml)) {
-		return 'XML vide';
+		return dolizugferd_rule_msg('', 'DoliZugferdXsdEmpty');
 	}
 
 	$prevUseErrors = libxml_use_internal_errors(true);
@@ -49,7 +65,7 @@ function auvozugferd_validate_xsd($xml, $modulePath)
 
 	$dom = new DOMDocument();
 	if (!$dom->loadXML($xml)) {
-		return 'XML mal formé : '.$firstError('XML mal formé');
+		return dolizugferd_rule_msg('', 'DoliZugferdXsdMalformed', $firstError('-'));
 	}
 
 	$xsdPath = $modulePath.'/vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.09.2_EN16931.xsd';
@@ -61,7 +77,7 @@ function auvozugferd_validate_xsd($xml, $modulePath)
 	}
 
 	if (!$dom->schemaValidate($xsdPath)) {
-		return 'non conforme XSD EN16931 : '.$firstError('violation de contrainte inconnue');
+		return dolizugferd_rule_msg('', 'DoliZugferdXsdInvalid', $firstError('-'));
 	}
 
 	libxml_clear_errors();
@@ -76,7 +92,7 @@ function auvozugferd_validate_xsd($xml, $modulePath)
  * @param string $xml XML CrossIndustryInvoice généré
  * @return array      Liste de violations ("BR-XX : message"), vide si conforme
  */
-function auvozugferd_validate_business_rules($xml)
+function dolizugferd_validate_business_rules($xml)
 {
 	$violations = [];
 
@@ -111,7 +127,7 @@ function auvozugferd_validate_business_rules($xml)
 	// === BR-16 : au moins une ligne ===
 	$lines = $xp->query('//ram:IncludedSupplyChainTradeLineItem');
 	if ($lines->length === 0) {
-		$violations[] = 'BR-16 : la facture doit comporter au moins une ligne';
+		$violations[] = dolizugferd_rule_msg('BR-16', 'DoliZugferdRuleBR16');
 	}
 
 	// === Lignes : BR-27 (prix net >= 0) + collecte pour BR-CO-10 et bases ===
@@ -121,7 +137,7 @@ function auvozugferd_validate_business_rules($xml)
 		$n = $i + 1;
 		$price = $num('.//ram:NetPriceProductTradePrice/ram:ChargeAmount', $line);
 		if ($price !== null && $price < 0) {
-			$violations[] = 'BR-27 : ligne '.$n.' — le prix net unitaire ne doit pas être négatif ('.$price.')';
+			$violations[] = dolizugferd_rule_msg('BR-27', 'DoliZugferdRuleBR27', $n, $price);
 		}
 		$lineTotal = $num('.//ram:SpecifiedTradeSettlementLineMonetarySummation/ram:LineTotalAmount', $line);
 		if ($lineTotal !== null) {
@@ -134,10 +150,10 @@ function auvozugferd_validate_business_rules($xml)
 
 		// Cohérence catégorie/taux au niveau ligne
 		if ($cat === 'S' && $rate !== null && $rate <= 0) {
-			$violations[] = 'BR-S-05 : ligne '.$n.' — catégorie S avec taux nul';
+			$violations[] = dolizugferd_rule_msg('BR-S-05', 'DoliZugferdRuleS05', $n);
 		}
 		if (in_array($cat, ['E', 'K', 'G', 'AE', 'Z'], true) && $rate !== null && $rate != 0) {
-			$violations[] = 'BR-'.$cat.'-05 : ligne '.$n.' — catégorie '.$cat.' avec taux non nul ('.$rate.')';
+			$violations[] = dolizugferd_rule_msg('BR-'.$cat.'-05', 'DoliZugferdRuleCat05', $n, $cat, $rate);
 		}
 	}
 
@@ -184,22 +200,22 @@ function auvozugferd_validate_business_rules($xml)
 	$btDuePayable  = $num($ms.'ram:DuePayableAmount');
 
 	if ($btLineTotal !== null && !$eq($btLineTotal, $sumLines)) {
-		$violations[] = sprintf('BR-CO-10 : LineTotalAmount (%.2f) != somme des lignes (%.2f)', $btLineTotal, $sumLines);
+		$violations[] = dolizugferd_rule_msg('BR-CO-10', 'DoliZugferdRuleCO10', sprintf('%.2f', $btLineTotal), sprintf('%.2f', $sumLines));
 	}
 	if (!$eq($btAllowance, $sumAllowances)) {
-		$violations[] = sprintf('BR-CO-11 : AllowanceTotalAmount (%.2f) != somme des remises (%.2f)', $btAllowance, $sumAllowances);
+		$violations[] = dolizugferd_rule_msg('BR-CO-11', 'DoliZugferdRuleCO11', sprintf('%.2f', $btAllowance), sprintf('%.2f', $sumAllowances));
 	}
 	if (!$eq($btCharge, $sumCharges)) {
-		$violations[] = sprintf('BR-CO-12 : ChargeTotalAmount (%.2f) != somme des frais (%.2f)', $btCharge, $sumCharges);
+		$violations[] = dolizugferd_rule_msg('BR-CO-12', 'DoliZugferdRuleCO12', sprintf('%.2f', $btCharge), sprintf('%.2f', $sumCharges));
 	}
 	if ($btTaxBasis !== null && $btLineTotal !== null && !$eq($btTaxBasis, $btLineTotal - $btAllowance + $btCharge)) {
-		$violations[] = sprintf('BR-CO-13 : TaxBasisTotalAmount (%.2f) != lignes - remises + frais (%.2f)', $btTaxBasis, $btLineTotal - $btAllowance + $btCharge);
+		$violations[] = dolizugferd_rule_msg('BR-CO-13', 'DoliZugferdRuleCO13', sprintf('%.2f', $btTaxBasis), sprintf('%.2f', $btLineTotal - $btAllowance + $btCharge));
 	}
 	if ($btGrandTotal !== null && $btTaxBasis !== null && !$eq($btGrandTotal, $btTaxBasis + $btTaxTotal)) {
-		$violations[] = sprintf('BR-CO-15 : GrandTotalAmount (%.2f) != base (%.2f) + TVA (%.2f)', $btGrandTotal, $btTaxBasis, $btTaxTotal);
+		$violations[] = dolizugferd_rule_msg('BR-CO-15', 'DoliZugferdRuleCO15', sprintf('%.2f', $btGrandTotal), sprintf('%.2f', $btTaxBasis), sprintf('%.2f', $btTaxTotal));
 	}
 	if ($btDuePayable !== null && $btGrandTotal !== null && !$eq($btDuePayable, $btGrandTotal - $btPrepaid)) {
-		$violations[] = sprintf('BR-CO-16 : DuePayableAmount (%.2f) != GrandTotal (%.2f) - Prepaid (%.2f)', $btDuePayable, $btGrandTotal, $btPrepaid);
+		$violations[] = dolizugferd_rule_msg('BR-CO-16', 'DoliZugferdRuleCO16', sprintf('%.2f', $btDuePayable), sprintf('%.2f', $btGrandTotal), sprintf('%.2f', $btPrepaid));
 	}
 
 	// === Ventilation TVA (BG-23) : BR-CO-14, BR-CO-17, bases par catégorie ===
@@ -217,24 +233,24 @@ function auvozugferd_validate_business_rules($xml)
 
 		// BR-CO-17 : montant TVA = base x taux, arrondi à 2 décimales (+/- 0.01)
 		if ($rate !== null && abs($calc - round($basis * $rate / 100, 2)) > 0.0105) {
-			$violations[] = sprintf('BR-CO-17 : TVA calculée (%.2f) != base (%.2f) x taux (%.2f%%) = %.2f', $calc, $basis, $rate, round($basis * $rate / 100, 2));
+			$violations[] = dolizugferd_rule_msg('BR-CO-17', 'DoliZugferdRuleCO17', sprintf('%.2f', $calc), sprintf('%.2f', $basis), sprintf('%.2f', $rate), sprintf('%.2f', round($basis * $rate / 100, 2)));
 		}
 		// Base par (catégorie, taux) = somme lignes - remises + frais de la catégorie
 		$key = $cat.'|'.(float) $rate;
 		if (isset($lineBasis[$key]) && !$eq($basis, $lineBasis[$key])) {
-			$violations[] = sprintf('BR-%s-08 : base de la catégorie %s @ %s%% (%.2f) != somme des lignes/remises (%.2f)', $cat, $cat, (float) $rate, $basis, $lineBasis[$key]);
+			$violations[] = dolizugferd_rule_msg('BR-'.$cat.'-08', 'DoliZugferdRuleCat08', $cat, (float) $rate, sprintf('%.2f', $basis), sprintf('%.2f', $lineBasis[$key]));
 		}
 		// Exonérations : motif obligatoire (BR-E-10, BR-K-10, BR-G-10, BR-AE-10)
 		if (in_array($cat, ['E', 'K', 'G', 'AE'], true)) {
 			$reason = $str('ram:ExemptionReason', $tax);
 			$reasonCode = $str('ram:ExemptionReasonCode', $tax);
 			if (empty($reason) && empty($reasonCode)) {
-				$violations[] = 'BR-'.$cat.'-10 : motif d\'exonération manquant pour la catégorie '.$cat;
+				$violations[] = dolizugferd_rule_msg('BR-'.$cat.'-10', 'DoliZugferdRuleCat10', $cat);
 			}
 		}
 	}
 	if (!$eq($btTaxTotal, $sumCalculated)) {
-		$violations[] = sprintf('BR-CO-14 : TaxTotalAmount (%.2f) != somme des TVA par catégorie (%.2f)', $btTaxTotal, $sumCalculated);
+		$violations[] = dolizugferd_rule_msg('BR-CO-14', 'DoliZugferdRuleCO14', sprintf('%.2f', $btTaxTotal), sprintf('%.2f', $sumCalculated));
 	}
 
 	// === BR-61 : virement (30/58) => IBAN obligatoire ===
@@ -243,7 +259,7 @@ function auvozugferd_validate_business_rules($xml)
 		if (in_array($typeCode, ['30', '58'], true)) {
 			$iban = $str('ram:PayeePartyCreditorFinancialAccount/ram:IBANID', $pm);
 			if (empty($iban)) {
-				$violations[] = 'BR-61 : moyen de paiement '.$typeCode.' (virement) sans IBAN du bénéficiaire';
+				$violations[] = dolizugferd_rule_msg('BR-61', 'DoliZugferdRuleBR61', $typeCode);
 			}
 		}
 	}
@@ -253,16 +269,16 @@ function auvozugferd_validate_business_rules($xml)
 		$deliveryDate = $str('//ram:ApplicableHeaderTradeDelivery/ram:ActualDeliverySupplyChainEvent/ram:OccurrenceDateTime/udt:DateTimeString');
 		$period = $xp->query('//ram:ApplicableHeaderTradeSettlement/ram:BillingSpecifiedPeriod');
 		if (empty($deliveryDate) && $period->length === 0) {
-			$violations[] = 'BR-IC-11 : catégorie K sans date de livraison ni période de facturation';
+			$violations[] = dolizugferd_rule_msg('BR-IC-11', 'DoliZugferdRuleIC11');
 		}
 		$shipToCountry = $str('//ram:ApplicableHeaderTradeDelivery/ram:ShipToTradeParty/ram:PostalTradeAddress/ram:CountryID');
 		if (empty($shipToCountry)) {
-			$violations[] = 'BR-IC-12 : catégorie K sans pays de livraison (BT-80)';
+			$violations[] = dolizugferd_rule_msg('BR-IC-12', 'DoliZugferdRuleIC12');
 		}
 		// BR-IC-02 : K => TVA intra vendeur obligatoire
 		$sellerVat = $str('//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="VA"]');
 		if (empty($sellerVat)) {
-			$violations[] = 'BR-IC-02 : catégorie K sans numéro de TVA du vendeur (BT-31)';
+			$violations[] = dolizugferd_rule_msg('BR-IC-02', 'DoliZugferdRuleIC02');
 		}
 	}
 
@@ -272,7 +288,7 @@ function auvozugferd_validate_business_rules($xml)
 		$sellerVat = $str('//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="VA"]');
 		$buyerVat = $str('//ram:BuyerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="VA"]');
 		if (empty($sellerVat) || empty($buyerVat)) {
-			$violations[] = 'BR-AE-02 : catégorie AE — les numéros de TVA du vendeur (BT-31) et de l\'acheteur (BT-48) sont obligatoires';
+			$violations[] = dolizugferd_rule_msg('BR-AE-02', 'DoliZugferdRuleAE02');
 		}
 	}
 
@@ -280,15 +296,23 @@ function auvozugferd_validate_business_rules($xml)
 	$sellerLegal = $str('//ram:SellerTradeParty/ram:SpecifiedLegalOrganization/ram:ID');
 	$sellerTax = $str('//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID');
 	if (empty($sellerLegal) && empty($sellerTax)) {
-		$violations[] = 'BR-CO-26 : le vendeur doit porter un identifiant légal (BT-30) ou fiscal (BT-31/BT-32)';
+		$violations[] = dolizugferd_rule_msg('BR-CO-26', 'DoliZugferdRuleCO26');
+	}
+
+	// === BR-CO-09 : n° de TVA (schemeID VA) préfixé par le code pays ISO 3166 ===
+	foreach ($xp->query('//ram:SpecifiedTaxRegistration/ram:ID[@schemeID="VA"]') as $vaNode) {
+		$vaVal = trim($vaNode->textContent);
+		if (!preg_match('/^[A-Z]{2}/', $vaVal)) {
+			$violations[] = dolizugferd_rule_msg('BR-CO-09', 'DoliZugferdRuleCO09', $vaVal);
+		}
 	}
 
 	// === BR-09 / BR-11 : pays vendeur et acheteur obligatoires ===
 	if (empty($str('//ram:SellerTradeParty/ram:PostalTradeAddress/ram:CountryID'))) {
-		$violations[] = 'BR-09 : pays de l\'adresse du vendeur manquant (BT-40)';
+		$violations[] = dolizugferd_rule_msg('BR-09', 'DoliZugferdRuleBR09');
 	}
 	if (empty($str('//ram:BuyerTradeParty/ram:PostalTradeAddress/ram:CountryID'))) {
-		$violations[] = 'BR-11 : pays de l\'adresse de l\'acheteur manquant (BT-55)';
+		$violations[] = dolizugferd_rule_msg('BR-11', 'DoliZugferdRuleBR11');
 	}
 
 	// === BR-CO-25 : montant dû > 0 => date d'échéance ou conditions de paiement ===
@@ -296,7 +320,7 @@ function auvozugferd_validate_business_rules($xml)
 		$dueDate = $str('//ram:SpecifiedTradePaymentTerms/ram:DueDateDateTime/udt:DateTimeString');
 		$terms = $str('//ram:SpecifiedTradePaymentTerms/ram:Description');
 		if (empty($dueDate) && empty($terms)) {
-			$violations[] = 'BR-CO-25 : montant à payer positif sans date d\'échéance (BT-9) ni conditions de paiement (BT-20)';
+			$violations[] = dolizugferd_rule_msg('BR-CO-25', 'DoliZugferdRuleCO25');
 		}
 	}
 
@@ -310,19 +334,19 @@ function auvozugferd_validate_business_rules($xml)
 	// les règles EN16931 ci-dessus restent, elles, universelles.
 	// =========================================================================
 	$sellerCountry = $str('//ram:SellerTradeParty/ram:PostalTradeAddress/ram:CountryID');
-	if ($sellerCountry === 'FR' || in_array($sellerCountry, AUVOZUGFERD_FR_OVERSEAS_COUNTRIES, true)) {
+	if ($sellerCountry === 'FR' || in_array($sellerCountry, DOLIZUGFERD_FR_OVERSEAS_COUNTRIES, true)) {
 
 		// === BR-FR-01 / BR-FR-02 : identifiant de facture (BT-1) ===
 		$bt1 = $str('//rsm:ExchangedDocument/ram:ID');
 		if ($bt1 !== null && $bt1 !== '') {
 			$bt1Len = function_exists('mb_strlen') ? mb_strlen($bt1) : strlen($bt1);
 			if ($bt1Len > 35) {
-				$violations[] = 'BR-FR-01 : identifiant de facture (BT-1) limité à 35 caractères ('.$bt1Len.' émis)';
+				$violations[] = dolizugferd_rule_msg('BR-FR-01', 'DoliZugferdRuleFR01', $bt1Len);
 			}
 			// Charset fermé : alphanumériques + tiret, signe plus, tiret bas, barre
 			// oblique. L'espace n'est pas admis (retiré de la liste en V1.1).
 			if (!preg_match('/^[A-Za-z0-9+_\/-]+$/', $bt1)) {
-				$violations[] = 'BR-FR-02 : identifiant de facture (BT-1) « '.$bt1.' » — seuls les alphanumériques et - + _ / sont admis (espace interdit)';
+				$violations[] = dolizugferd_rule_msg('BR-FR-02', 'DoliZugferdRuleFR02', $bt1);
 			}
 		}
 
@@ -332,13 +356,14 @@ function auvozugferd_validate_business_rules($xml)
 		$bt3 = $str('//rsm:ExchangedDocument/ram:TypeCode');
 		$frTypeCodes = ['380', '389', '393', '501', '386', '500', '384', '471', '472', '473', '261', '262', '381', '396', '502', '503'];
 		if ($bt3 !== null && $bt3 !== '' && !in_array($bt3, $frTypeCodes, true)) {
-			$violations[] = 'BR-FR-04 : type de document (BT-3) « '.$bt3.' » hors de la liste fermée admise en France';
+			$violations[] = dolizugferd_rule_msg('BR-FR-04', 'DoliZugferdRuleFR04', $bt3);
 		}
 
 		// === BR-FR-09 : cohérence SIRET / SIREN par partie ===
 		// Le SIRET (schemeID 0009) doit faire 14 chiffres et ses 9 premiers chiffres
 		// doivent correspondre au SIREN (schemeID 0002) quand les deux sont présents.
-		foreach (['Seller' => 'vendeur', 'Buyer' => 'acheteur'] as $partyTag => $partyLabel) {
+		foreach (['Seller' => 'DoliZugferdRulePartySeller', 'Buyer' => 'DoliZugferdRulePartyBuyer'] as $partyTag => $partyKey) {
+			$partyLabel = dolizugferd_rule_msg('', $partyKey);
 			$base = '//ram:'.$partyTag.'TradeParty';
 			$siret = $str($base.'/ram:GlobalID[@schemeID="0009"]');
 			if ($siret === null || $siret === '') {
@@ -348,9 +373,9 @@ function auvozugferd_validate_business_rules($xml)
 			$siren = $str($base.'/ram:SpecifiedLegalOrganization/ram:ID[@schemeID="0002"]');
 			if ($siret !== null && $siret !== '') {
 				if (!preg_match('/^\d{14}$/', $siret)) {
-					$violations[] = 'BR-FR-09 : le SIRET du '.$partyLabel.' doit comporter 14 chiffres ('.$siret.')';
+					$violations[] = dolizugferd_rule_msg('BR-FR-09', 'DoliZugferdRuleFR09Length', $partyLabel, $siret);
 				} elseif ($siren !== null && $siren !== '' && strncmp($siret, $siren, 9) !== 0) {
-					$violations[] = 'BR-FR-09 : SIRET du '.$partyLabel.' ('.$siret.') incohérent avec son SIREN ('.$siren.') — les 9 premiers chiffres doivent correspondre';
+					$violations[] = dolizugferd_rule_msg('BR-FR-09', 'DoliZugferdRuleFR09Mismatch', $partyLabel, $siret, $siren);
 				}
 			}
 		}
@@ -358,7 +383,7 @@ function auvozugferd_validate_business_rules($xml)
 		// === BR-FR-CO-04 / BR-FR-CO-05 : référence à la facture antérieure (BG-3) ===
 		// Rectificatives : exactement UNE référence (BT-25) avec sa date (BT-26) —
 		// le générateur ne référence QUE la facture remplacée dans ce cas (les
-		// acomptes imputés restent en BT-113, cf. auvozugferd_get_preceding_invoices).
+		// acomptes imputés restent en BT-113, cf. dolizugferd_get_preceding_invoices).
 		// Avoirs : au moins une référence avec sa date. (La variante « référence en
 		// ligne » EXT-FR-FE-136 relève du profil EXTENDED-CTC-FR, non émis ici.)
 		$precedingDocs = $xp->query('//ram:ApplicableHeaderTradeSettlement/ram:InvoiceReferencedDocument');
@@ -371,16 +396,16 @@ function auvozugferd_validate_business_rules($xml)
 		}
 		if (in_array($bt3, ['384', '471', '472', '473'], true)) {
 			if ($precedingDocs->length !== 1) {
-				$violations[] = 'BR-FR-CO-04 : facture rectificative ('.$bt3.') — une et une seule référence à la facture antérieure (BT-25) est exigée ('.$precedingDocs->length.' émise(s))';
+				$violations[] = dolizugferd_rule_msg('BR-FR-CO-04', 'DoliZugferdRuleFRCO04Count', $bt3, $precedingDocs->length);
 			} elseif (!$hasDatedRef) {
-				$violations[] = 'BR-FR-CO-04 : facture rectificative ('.$bt3.') — la date de la facture antérieure (BT-26) est exigée';
+				$violations[] = dolizugferd_rule_msg('BR-FR-CO-04', 'DoliZugferdRuleFRCO04Date', $bt3);
 			}
 		}
 		if (in_array($bt3, ['261', '381', '396', '502', '503'], true)) {
 			if ($precedingDocs->length === 0) {
-				$violations[] = 'BR-FR-CO-05 : avoir ('.$bt3.') — au moins une référence à la facture antérieure (BT-25) est exigée (créer l\'avoir depuis la facture d\'origine)';
+				$violations[] = dolizugferd_rule_msg('BR-FR-CO-05', 'DoliZugferdRuleFRCO05Missing', $bt3);
 			} elseif (!$hasDatedRef) {
-				$violations[] = 'BR-FR-CO-05 : avoir ('.$bt3.') — la date de la facture antérieure (BT-26) est exigée sur la référence';
+				$violations[] = dolizugferd_rule_msg('BR-FR-CO-05', 'DoliZugferdRuleFRCO05Date', $bt3);
 			}
 		}
 
@@ -390,7 +415,7 @@ function auvozugferd_validate_business_rules($xml)
 		foreach ($xp->query('//ram:URIUniversalCommunication/ram:URIID[@schemeID="0225"]') as $uriNode) {
 			$uriVal = trim($uriNode->textContent);
 			if ($uriVal !== '' && !preg_match('/^[A-Za-z0-9._-]+$/', $uriVal)) {
-				$violations[] = 'BR-FR-23 : adresse électronique 0225 « '.$uriVal.' » — seuls les alphanumériques et - _ . sont admis';
+				$violations[] = dolizugferd_rule_msg('BR-FR-23', 'DoliZugferdRuleFR23', $uriVal);
 			}
 		}
 	}

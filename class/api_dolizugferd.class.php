@@ -1,26 +1,26 @@
 <?php
 /*
  * Copyright (C) 2026 SASU LEMON <https://hellolemon.fr>
- * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — renamed/modified for private use as AuvoZugferd
+ * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — fork, renamed and modified as DoliZUGFeRD
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * API REST AuvoZugferd — exposée via l'API Dolibarr standard
+ * API REST DoliZUGFeRD — exposée via l'API Dolibarr standard
  * (module API REST activé + clé API utilisateur).
  *
  * Endpoints :
- *  GET /auvozugferd/invoice/{id}/xml     XML Factur-X regénéré depuis la facture
- *  GET /auvozugferd/invoice/{id}/status  Présence/validité du XML embarqué dans le PDF
+ *  GET /dolizugferd/invoice/{id}/xml     XML Factur-X regénéré depuis la facture
+ *  GET /dolizugferd/invoice/{id}/status  Présence/validité du XML embarqué dans le PDF
  */
 
 use Luracast\Restler\RestException;
 
 require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 
-class AuvozugferdApi extends DolibarrApi
+class DolizugferdApi extends DolibarrApi
 {
 	public function __construct()
 	{
@@ -47,18 +47,18 @@ class AuvozugferdApi extends DolibarrApi
 		$invoice = $this->loadInvoice($id);
 
 		$modulePath = dirname(__DIR__);
-		require_once $modulePath.'/core/lib/auvozugferd.lib.php';
-		require_once $modulePath.'/core/lib/auvozugferd_rules.php';
+		require_once $modulePath.'/core/lib/dolizugferd.lib.php';
+		require_once $modulePath.'/core/lib/dolizugferd_rules.php';
 
-		$unsupported = auvozugferd_check_supported($invoice);
+		$unsupported = dolizugferd_check_supported($invoice);
 		if ($unsupported !== null) {
 			throw new RestException(422, 'Unsupported invoice: '.$unsupported);
 		}
 
-		$warnings = auvozugferd_check_mandatory($invoice, $mysoc);
+		$warnings = dolizugferd_check_mandatory($invoice, $mysoc);
 		$buildWarnings = [];
-		$xml = auvozugferd_build_xml($invoice, $mysoc, $buildWarnings);
-		$violations = auvozugferd_validate_business_rules($xml);
+		$xml = dolizugferd_build_xml($invoice, $mysoc, $buildWarnings);
+		$violations = dolizugferd_validate_business_rules($xml);
 
 		return [
 			'ref'        => $invoice->ref,
@@ -83,10 +83,10 @@ class AuvozugferdApi extends DolibarrApi
 		$invoice = $this->loadInvoice($id);
 
 		$modulePath = dirname(__DIR__);
-		require_once $modulePath.'/core/lib/auvozugferd.lib.php';
-		require_once $modulePath.'/core/lib/auvozugferd_rules.php';
+		require_once $modulePath.'/core/lib/dolizugferd.lib.php';
+		require_once $modulePath.'/core/lib/dolizugferd_rules.php';
 
-		$pdfPath = auvozugferd_invoice_pdf_path($invoice->ref, $invoice->entity ?? $conf->entity, (string) ($invoice->last_main_doc ?? ''));
+		$pdfPath = dolizugferd_invoice_pdf_path($invoice->ref, $invoice->entity ?? $conf->entity, (string) ($invoice->last_main_doc ?? ''));
 
 		$result = [
 			'ref'            => $invoice->ref,
@@ -99,12 +99,12 @@ class AuvozugferdApi extends DolibarrApi
 		}
 		$result['pdf_exists'] = true;
 
-		$xml = auvozugferd_extract_xml_from_pdf($pdfPath);
+		$xml = dolizugferd_extract_xml_from_pdf($pdfPath);
 		if ($xml === null) {
 			return $result;
 		}
 		$result['facturx_found'] = true;
-		$result['br_violations'] = auvozugferd_validate_business_rules($xml);
+		$result['br_violations'] = dolizugferd_validate_business_rules($xml);
 
 		return $result;
 	}

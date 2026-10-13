@@ -1,6 +1,6 @@
 {
-    "name": "auvo-design/auvozugferd",
-    "description": "Vendor dependency lock for the AuvoZugferd Dolibarr module",
+    "name": "auvo-design/dolizugferd",
+    "description": "Vendor dependency lock for the DoliZUGFeRD Dolibarr module",
     "type": "project",
     "license": "GPL-3.0-or-later",
     "require": {

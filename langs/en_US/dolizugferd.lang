@@ -1,0 +1,261 @@
+Module486213Name = DoliZUGFeRD
+Module486213Desc = Automatic Factur-X EN16931 e-invoice generation
+
+DoliZugferdSetup = DoliZUGFeRD setup
+DoliZugferdBankAccount = Bank account (IBAN/BIC)
+DoliZugferdPaymentMeans = Default payment means
+DoliZugferdPaymentMeansHint = UNTDID 4461 code. 30/58 (credit transfer) require an IBAN: without a configured bank account, the payment means block is omitted from the XML (BR-61). 59 (SEPA direct debit) publishes the creditor ICS (Dolibarr constant PRELEVEMENT_ICS), the mandate reference and the IBAN of the third party's default bank account.
+PaymentMeans30 = Credit transfer
+PaymentMeans58 = SEPA credit transfer
+PaymentMeans59 = SEPA direct debit
+PaymentMeans49 = Direct debit (national)
+DoliZugferdBrCheck = EN16931 business rules check
+DoliZugferdBrCheckHint = Checks a subset of the EN16931 Schematron rules before injection (BR-CO-10..17, BR-27, BR-61, BR-IC-11/12, VAT category consistency...). Violations block in strict mode, otherwise they are added to the warnings.
+DoliZugferdVeraPdfPath = PDF/A-3 validation with veraPDF (optional, external tool)
+DoliZugferdVeraPdfPathHint = Empty by default = disabled, and that's fine: the EN16931 XSD check and internal BR rules already run. veraPDF is NOT shipped with the module — it's a third-party tool you install yourself (https://verapdf.org), then point to here. If set, every PDF is re-validated as PDF/A-3b after injection: non blocking (a failure just adds a warning), slows generation by a few seconds.
+DoliZugferdVeraPdfPlaceholder = e.g. /usr/local/bin/verapdf — empty = disabled
+DoliZugferdInfo = Generated PDF invoices will automatically be converted to Factur-X EN16931 (PDF/A-3 with embedded CrossIndustryInvoice XML). IBAN and BIC are read from the selected bank account.
+DoliZugferdDiagTitle = Mandatory information diagnostic
+DoliZugferdDiagResults = Factur-X EN16931 + BR-FR rules check
+DoliZugferdDiagSellerName = Seller company name
+DoliZugferdDiagSellerAddress = Seller address
+DoliZugferdDiagSellerVAT = Intra-community VAT number
+DoliZugferdDiagSellerVATFranchise = not required (French VAT franchise, art. 293 B CGI) — the SIREN is published as tax identifier
+DoliZugferdDiagSellerSIRET = SIRET / SIREN
+DoliZugferdDiagSellerSteuernummer = Seller tax number (BT-32)
+DoliZugferdDiagSellerSteuernummerNotNeeded = not set — not required, VAT ID present
+DoliZugferdDiagSellerTaxIdMissing = Seller tax number or VAT ID missing — one of them is mandatory (BR-CO-26)
+DoliZugferdDiagSellerEmail = Seller email
+DoliZugferdDiagIBAN = Bank account IBAN
+DoliZugferdDiagBIC = Bank account BIC
+DoliZugferdDiagBankNotFound = Bank account not found
+DoliZugferdDiagBankNotSet = No bank account selected
+DoliZugferdDiagModuleBankEnabled = Bank module enabled
+DoliZugferdDiagModuleBankDisabled = Bank module disabled (required to manage the bank account)
+DoliZugferdDiagModuleInvoiceEnabled = Invoice module enabled
+DoliZugferdDiagModuleInvoiceDisabled = Invoice module disabled (required to generate invoices)
+DoliZugferdDiagForceFontOk = Embedded PDF font forced (MAIN_PDF_FORCE_FONT)
+DoliZugferdDiagForceFontMissing = MAIN_PDF_FORCE_FONT not set — without embedded fonts, the PDF is not PDF/A-3 compliant
+DoliZugferdDiagInjInProcess = In-process injection (no exec) forced — works on servers where exec() is disabled
+DoliZugferdDiagInjAuto = Automatic mode: subprocess injection (exec available) — isolated PHP process, the safest path
+DoliZugferdDiagInjAutoNoExec = Automatic mode: in-process injection (exec disabled on this server — no alternative available)
+DoliZugferdDiagInjSubprocess = Subprocess injection (exec) — legacy mode forced
+DoliZugferdDiagExecRequiredSub = "Subprocess" mode selected but exec() is disabled on this server — switch to "Automatic" or "In-process" in the configuration
+DoliZugferdDiagTcpdiConflict = In-process injection will fail: Dolibarr loads its "tcpdi" PDF engine on every generation (a TCPDF-based FPDF, incompatible with the Factur-X injection library). Two solutions: enable the exec() function on the server (the module then uses an isolated subprocess, recommended), OR set the constant MAIN_DISABLE_TCPDI = 1 (unblocks in-process, but disables Dolibarr's PDF merge features — page backgrounds, concatenation).
+DoliZugferdErrTcpdiConflict = FPDF/TCPDF conflict: Dolibarr loaded its tcpdi engine (%s), incompatible with in-process injection. Enable exec() (subprocess mode) or set the MAIN_DISABLE_TCPDI=1 constant (disables Dolibarr PDF merging).
+DoliZugferdDiagPhpCliOk = PHP CLI binary
+DoliZugferdDiagPhpCliNotFound = The configured PHP CLI binary cannot be found or is not executable: %s
+DoliZugferdDiagMulticurrencyNote = Multicurrency module enabled: invoices in a foreign currency are NOT converted to Factur-X (documented limitation, the classic PDF is kept)
+DoliZugferdDiagFixLink = Fix
+DoliZugferdDiagFixForceFont = Fix automatically (sets "pdfahelvetica")
+DoliZugferdForceFontSet = MAIN_PDF_FORCE_FONT set to "pdfahelvetica": generated PDFs now embed fonts (PDF/A-3). Global setting, applied to every PDF document in Dolibarr.
+DoliZugferdDiagAllOk = All mandatory information is filled in!
+DoliZugferdDiagNoBlocker = No blocker: Factur-X compliance is ensured. A few recommended items remain (in orange) you may address for an optimal result.
+
+DoliZugferdStrictMode = Error handling mode
+DoliZugferdStrictModeHint = Best-effort: if Factur-X generation fails, the classic PDF is delivered with a warning. Strict: blocks generation with a visible error if the XML is invalid or the PDF injection fails. Note: even in strict mode, the classic PDF already generated by Dolibarr remains on disk.
+DoliZugferdStrictModeBestEffort = Best-effort (default, non blocking)
+DoliZugferdStrictModeStrict = Strict (blocks if Factur-X fails)
+DoliZugferdInjectionMode = XML injection mode
+DoliZugferdInjectionModeHint = "Automatic" (recommended): subprocess if exec() is available (the safest, isolated path), and in-process only if exec() is disabled (hardened shared hosting). "In-process only" forces injection without exec() — reserve it for servers without exec(), since a PDF library conflict with another module can then prevent injection. "Subprocess" forces the legacy behaviour (requires exec()).
+DoliZugferdInjectionModeAuto = Automatic (subprocess if exec, otherwise in-process)
+DoliZugferdInjectionModeInProcess = In-process only (no exec)
+DoliZugferdInjectionModeSubprocess = Subprocess (exec, legacy)
+DoliZugferdPhpCliPath = PHP CLI binary path
+DoliZugferdPhpCliPathHint = Used only by the "subprocess" mode. Leave empty: the module auto-detects the right PHP CLI binary. Set a path only to force a specific binary (exotic setup).
+DoliZugferdLegalNotes = Mandatory French legal mentions (BR-FR-05)
+DoliZugferdNotePMD = Late payment penalties (PMD)
+DoliZugferdNotePMT = Recovery indemnity (PMT)
+DoliZugferdNoteAAB = Early payment discount (AAB)
+DoliZugferdLegalNotesForeignHint = Seller established outside France: no default mention is applied (the default texts come from the French Commercial Code). Fields left empty produce no note in the XML — enter your own mentions here if your national law requires them.
+
+DoliZugferdUpdateAvailable = New version available
+DoliZugferdUpdateAvailableMsg = A newer version of the module is published on GitHub (%s, current: %s).
+DoliZugferdUpdateSeeRelease = See the release and upgrade instructions
+
+DoliZugferdBtnVerify = Verify Factur-X
+DoliZugferdBtnRegenerate = Regenerate Factur-X
+DoliZugferdMsgNoPdf = No PDF found for this invoice — generate the document first.
+DoliZugferdMsgNoFacturX = No Factur-X XML embedded in %s — use "Regenerate Factur-X".
+DoliZugferdMsgVerifyOk = %s: embedded Factur-X XML found, EN16931 XSD valid and business rules checked.
+DoliZugferdMsgVerifyKo = %s: embedded Factur-X XML found but not compliant:
+DoliZugferdMsgRegenerateFailed = PDF regeneration failed
+DoliZugferdMsgSuccess = Factur-X EN16931 e-invoice embedded in PDF %s.
+DoliZugferdMsgSuccessWithWarnings = Factur-X EN16931 e-invoice embedded in PDF %s. %s non blocking warning(s) to fix for full compliance:
+
+# ODT template support (experimental, v3.8.0) — afterODTCreation hook
+DoliZugferdOdtErrNoPdfConv = ODT template without PDF conversion: Factur-X requires a PDF, but only the .odt file was produced
+DoliZugferdOdtHintEnable = set MAIN_ODT_AS_PDF = libreoffice (and install LibreOffice on the server) to convert the ODT to PDF before injection
+DoliZugferdOdtErrNoPdfa = the PDF produced from the ODT template is not PDF/A: LibreOffice then outputs a PDF >= 1.5 (compressed xref table) that the Factur-X injection library cannot read
+DoliZugferdOdtHintEnablePdfa = set MAIN_ODT_AS_PDF = libreoffice + MAIN_ODT_AS_PDFA = 1 to produce a readable, injectable PDF/A-1
+DoliZugferdOdtErrPdfMissing = expected PDF not found next to the ODT template (%s): the LibreOffice conversion probably failed (soffice binary missing or not in PATH)
+
+DoliZugferdErrMulticurrency = invoice in a foreign currency (%s ≠ company currency %s) — unsupported: the XML would diverge from the visible PDF (documented limitation)
+DoliZugferdErrLocalTax = invoice with local taxes (localtax1/2) — unsupported: EN16931 only represents VAT, the XML total would diverge from the visible PDF total (documented limitation)
+DoliZugferdErrNoDate = invoice has no issue date
+DoliZugferdErrNoThirdparty = buyer third party not found (fetch_thirdparty failed)
+DoliZugferdErrNoMysoc = issuing company ($mysoc) not initialised
+DoliZugferdErrInvalidXml = invalid XML
+DoliZugferdErrBrViolations = EN16931 business rules violated
+DoliZugferdErrTempDir = unable to create a temporary file in %s
+DoliZugferdErrTempWrite = unable to write the temporary XML in %s
+DoliZugferdErrNoExec = the exec() function is disabled on this server
+DoliZugferdErrPhpCliChars = DOLIZUGFERD_PHP_CLI_PATH contains forbidden characters (expected: alphanumeric path, "/ . _ - : ( ) \" and space)
+DoliZugferdErrPhpCliNotFound = the configured PHP binary cannot be found or is not executable: %s
+DoliZugferdErrInjectFailed = PDF injection failed
+DoliZugferdHintPdfKept = classic PDF kept without Factur-X
+DoliZugferdHintPdfKeptShort = classic PDF kept
+DoliZugferdHintBestEffort = best-effort mode
+
+DoliZugferdWarnSellerName = seller company name missing
+DoliZugferdWarnSellerAddress = seller company address missing
+DoliZugferdWarnSellerZip = seller company zip code missing
+DoliZugferdWarnSellerTown = seller company town missing
+DoliZugferdWarnSellerVAT = intra-community VAT number missing (company)
+DoliZugferdWarnSellerVATInvalid = The company VAT ID field contains "%s", which is not a VAT ID (it must start with the country code, e.g. DE123456789). It is not output as VAT ID (BR-CO-09).
+DoliZugferdWarnSellerSIRET = SIRET/SIREN missing (company) — mandatory BR-FR-10
+DoliZugferdWarnSellerEndpoint = seller electronic address missing (no SIREN/SIRET, no email) — mandatory BR-FR-13 (BT-34)
+DoliZugferdWarnSellerSIRETLen = the seller SIRET must contain exactly 14 digits (BT-30), %s entered — a 9-digit SIREN is rejected by Chorus Pro
+DoliZugferdWarnBuyerName = buyer name missing
+DoliZugferdWarnBuyerAddress = buyer address missing
+DoliZugferdWarnBuyerZip = buyer zip code missing
+DoliZugferdWarnBuyerTown = buyer town missing
+DoliZugferdWarnBuyerEndpoint = buyer electronic address missing (no SIREN/SIRET, no email) — mandatory BR-FR-12 (BT-49)
+DoliZugferdWarnBuyerSIRENRouting = buyer SIREN/SIRET missing — required for routing on the Plateformes Agréées network (endpoint BT-49 schemeID 0225); an email alone is not routable
+DoliZugferdWarnBuyerSIRETLen = the buyer SIRET must contain exactly 14 digits (BT-47), %s entered
+DoliZugferdWarnNoBank = no bank account configured in the module
+DoliZugferdWarnNoForceFont = MAIN_PDF_FORCE_FONT not set — the generated PDF is not guaranteed PDF/A-3 (fonts not embedded); fixable in one click from the DoliZUGFeRD module setup (diagnostic)
+DoliZugferdWarnPaymentMeansOmitted = payment means %s (credit transfer) omitted from XML: no IBAN configured (BR-61 — configure a bank account in the module)
+DoliZugferdWarnDirectDebitNoICS = SEPA direct debit: creditor ICS missing (BT-90) — set the Dolibarr constant PRELEVEMENT_ICS
+DoliZugferdWarnDirectDebitNoRUM = SEPA direct debit: mandate reference (RUM) missing (BT-89) — fill in the third party's default bank account with its mandate reference
+DoliZugferdWarnCreditNoteNoSource = credit note without a linked source invoice: the reference to the original invoice (BG-3, mandatory French mention) cannot be emitted — create the credit note from the original invoice
+DoliZugferdWarnAllNegativeLines = fully negative invoice that is not a credit note: lines emitted as-is, the XML violates BR-27 (use a Dolibarr credit note)
+DoliZugferdWarnSituationInvoice = situation (progress billing) invoice: emitted as TypeCode 380, but the mapping of cumulative amounts/retentions is not guaranteed compliant (documented limitation)
+DoliZugferdWarnRoundingAdjusted = VAT rounding gap of %s spread on the main category to guarantee BR-CO-14 (check the totals)
+DoliZugferdWarnTaxMismatch = gap of %s between line VAT and the invoice VAT total, not attributable (no taxed category)
+DoliZugferdWarnTaxRecomputed = VAT of category %s recomputed from its basis (%s instead of %s) to satisfy BR-CO-17 — the gap with the Dolibarr total comes from per-line rounding (check the rounding mode)
+DoliZugferdWarnTotalsMismatch = XML grand total (%s) differs from the Dolibarr total (%s) — local taxes or inconsistent lines; the XML favours EN16931 internal consistency (BR-CO-15)
+DoliZugferdWarnVeraPdfNotFound = veraPDF not found or not executable: %s (DOLIZUGFERD_VERAPDF_PATH)
+DoliZugferdWarnVeraPdfFailed = veraPDF: the generated PDF is not PDF/A-3b compliant (details in syslog) — check MAIN_PDF_FORCE_FONT and the PDF template images
+DoliZugferdWarnBrPrefix = EN16931 business rule:
+DoliZugferdWarnCorrectiveNoSource = corrective invoice without a linked source invoice: the reference to the replaced invoice (BT-25, required by rule BR-FR-CO-04) cannot be emitted — create the replacement invoice from the original invoice
+DoliZugferdWarnRefTooLong = invoice reference (BT-1) too long: %s characters, maximum 35 (rule BR-FR-01)
+DoliZugferdWarnRefCharset = invoice reference (BT-1) "%s" contains characters that are not allowed — allowed: letters, digits and - + _ / , no space (rule BR-FR-02)
+DoliZugferdWarnSellerSirenSiretMismatch = seller SIREN (%s) and SIRET (%s) are inconsistent: the first 9 digits of the SIRET must match the SIREN (rule BR-FR-09) — fix the company card
+DoliZugferdWarnBuyerSirenSiretMismatch = buyer SIREN (%s) and SIRET (%s) are inconsistent: the first 9 digits of the SIRET must match the SIREN (rule BR-FR-09) — fix the third-party card
+DoliZugferdWarnVatRateNotFR = VAT rate %s %% is not in the list of allowed French rates, mainland and overseas departments (rule BR-FR-16) — check the input if this rate is not intentional
+DoliZugferdWarnEndpointSuffixCharset = the seller electronic address suffix (DOLIZUGFERD_ENDPOINT_SUFFIX_SELLER) contains characters that are not allowed — only letters, digits and - _ . are kept when emitting (rule BR-FR-23)
+DoliZugferdWarnEndpointTooLong = seller electronic address is %s characters long: maximum 125 (rule BR-FR-25) — shorten the configured suffix
+
+DoliZugferdAboutTitle = Maintained by auvo-design
+DoliZugferdAboutIntro = DoliZUGFeRD is a free fork of LemonFacturX (Lemon), maintained by auvo-design and adapted for use in Germany (GPLv3).
+DoliZugferdAboutLocation = Contact: r.vogel@auvo-design.de
+
+# v3.1 — BR-FR-05 mentions bridge to the invoice footer (FACTURE_FREE_TEXT)
+DoliZugferdCopyNotesDone = %s mention(s) added to the Dolibarr invoice footer ("Complementary mention on invoices")
+DoliZugferdDiagFreeTextMissing = Dolibarr invoice footer empty ("Complementary mention on invoices") — the BR-FR-05 mentions are in the XML, but do not appear in plain text on the printed PDF. Recommended, not blocking: enable "Copy the mentions into the invoice footer" in Legal notes.
+DoliZugferdDiagFreeTextOk = Dolibarr invoice footer filled (mentions visible on the PDF)
+
+# v3.4.0 — Chorus Pro profile (B2G): 2nd PDF + extrafields
+DoliZugferdEfChorus = Chorus Pro invoice (public sector)
+DoliZugferdEfServiceCode = Service code (Chorus, BT-10)
+DoliZugferdEfEngagement = Legal commitment number (Chorus, BT-13)
+DoliZugferdEfMarche = Contract/market number (Chorus, BT-12)
+DoliZugferdEfLeitwegId = Leitweg-ID (public sector, BT-10)
+DoliZugferdChorusGenerated = Chorus Pro PDF generated alongside: %s
+DoliZugferdChorusErr = The Chorus Pro PDF could not be generated (the standard Factur-X PDF remains valid)
+
+# Factur-X dropdown menu (v3.4.1)
+DoliZugferdMenuLabel = Factur-X
+DoliZugferdBtnGenerateChorus = Generate Chorus PDF
+
+# Chorus Pro tab (v3.4.0)
+DoliZugferdChorusTab = Chorus Pro
+DoliZugferdChorusTabHelp = Public-sector profile settings. When this invoice falls under Chorus Pro, a second "{ref}-CHORUS.pdf" file is generated in the format Chorus expects (SIRET in the legal id + references below), in addition to the standard Factur-X.
+DoliZugferdChorusDetected = Chorus Pro profile detected for this invoice
+DoliZugferdEfCadre = Invoicing framework (Chorus, BT-23)
+DoliZugferdEfChorusHint = Force the Chorus PDF generation even without auto-detection
+DoliZugferdChorusTabGenerateHint = The -CHORUS.pdf is (re)generated when the invoice PDF is regenerated, or via the "Factur-X › Generate Chorus PDF" menu.
+
+# Chorus Pro opt-in toggle
+DoliZugferdChorusEnabled = Chorus Pro features (public sector)
+DoliZugferdChorusEnabledHint = Shows the Chorus Pro tab on invoices and the Chorus PDF generation. Enable only if you invoice the public sector.
+DoliZugferdChorusSuggested = This invoice seems addressed to the public sector (State SIRET). Enable the Chorus Pro features in the module setup if you need to submit it to Chorus Pro.
+
+# Setup reorganised into blocks (v3.4.0)
+DoliZugferdSecBilling = Invoicing
+DoliZugferdSecPublic = Public sector (Chorus Pro)
+DoliZugferdSecValidation = Validation and compliance
+DoliZugferdSecTech = Technical (advanced)
+DoliZugferdNotesInFooter = Copy the mentions into the invoice footer
+DoliZugferdNotesInFooterHint = If Yes, appends the mentions above to "Additional text on invoices" (footer of each PDF), without touching existing text. Applied on save.
+DoliZugferdPhpCliAutoPlaceholder = auto (detected)
+DoliZugferdDiagPhpCliAuto = auto-detected
+DoliZugferdSecPA = Approved Platform (PA) addressing
+DoliZugferdEndpointSuffixSeller = Seller endpoint suffix (BT-34)
+DoliZugferdEndpointSuffixSellerHint = Suffix appended to the issuer SIREN in the seller electronic address. Some Approved Platforms (e.g. Hubtimize/Esalink) require this address NOT to be the bare SIREN but a suffixed Peppol endpoint — "SIREN_Status" (lifecycle-status return address), as configured when registering the entity. Must match, byte for byte, the address registered on the PA. Empty = bare SIREN (legacy PPF directory). Does NOT affect the buyer address (BT-49), always kept as bare SIREN.
+DoliZugferdEndpointSuffixSellerPlaceholder = e.g. _Status — empty = bare SIREN
+DoliZugferdNotesOverwrite = Overwrite the existing Dolibarr mention
+DoliZugferdNotesOverwriteHint = If No, our mentions are appended after the existing "Additional text on invoices". If Yes, they replace it entirely. Either way, an empty field is filled with our mentions.
+DoliZugferdNotesAppend = append
+DoliZugferdNotesReplace = replace
+DoliZugferdChorusToNote = Copy the Chorus references to the public note
+DoliZugferdChorusToNoteHint = Adds the filled Chorus fields (framework, service code, engagement no., contract no.) to the invoice public note, which is printed on the PDF. Empty fields ignored, no duplicates.
+DoliZugferdChorusToNoteDone = %s Chorus reference(s) added to the public note
+DoliZugferdChorusToNoteAlready = The Chorus references are already in the public note
+DoliZugferdChorusToNoteEmpty = No filled Chorus field to copy
+DoliZugferdPdfFont = Generated PDF font
+DoliZugferdPdfFontHint = Font forced for all Dolibarr PDFs. For Factur-X compliance (PDF/A-3), the font must be embedded (✓). Non-compliant fonts (⚠, base-14) break PDF/A-3 validity even if the rendering looks fine. "Default font" removes the forcing.
+DoliZugferdPdfFontDefault = — Dolibarr default font (no forcing) —
+DoliZugferdPdfFontOk = ✓ Factur-X compliant (embedded)
+DoliZugferdPdfFontKo = ⚠ not PDF/A-3 compliant (not embedded)
+
+# Internal business-rule check (dolizugferd_rules.php) — the rule code is prepended
+DoliZugferdXsdEmpty = Empty XML
+DoliZugferdXsdMalformed = Malformed XML: %s
+DoliZugferdXsdInvalid = not compliant with the EN16931 XSD: %s
+DoliZugferdRulePartySeller = seller
+DoliZugferdRulePartyBuyer = buyer
+DoliZugferdRuleBR16 = The invoice must contain at least one line
+DoliZugferdRuleBR27 = line %s — the net unit price must not be negative (%s)
+DoliZugferdRuleS05 = line %s — category S with a zero rate
+DoliZugferdRuleCat05 = line %s — category %s with a non-zero rate (%s)
+DoliZugferdRuleCO10 = LineTotalAmount (%s) != sum of lines (%s)
+DoliZugferdRuleCO11 = AllowanceTotalAmount (%s) != sum of allowances (%s)
+DoliZugferdRuleCO12 = ChargeTotalAmount (%s) != sum of charges (%s)
+DoliZugferdRuleCO13 = TaxBasisTotalAmount (%s) != lines - allowances + charges (%s)
+DoliZugferdRuleCO15 = GrandTotalAmount (%s) != tax basis (%s) + VAT (%s)
+DoliZugferdRuleCO16 = DuePayableAmount (%s) != GrandTotal (%s) - Prepaid (%s)
+DoliZugferdRuleCO17 = calculated VAT (%s) != basis (%s) x rate (%s %%) = %s
+DoliZugferdRuleCat08 = basis of category %s at %s %% (%s) != sum of lines/allowances (%s)
+DoliZugferdRuleCat10 = exemption reason missing for category %s
+DoliZugferdRuleCO14 = TaxTotalAmount (%s) != sum of VAT per category (%s)
+DoliZugferdRuleBR61 = payment means %s (credit transfer) without payee IBAN
+DoliZugferdRuleIC11 = category K without delivery date or invoicing period
+DoliZugferdRuleIC12 = category K without deliver-to country (BT-80)
+DoliZugferdRuleIC02 = category K without seller VAT identifier (BT-31)
+DoliZugferdRuleAE02 = category AE — seller (BT-31) and buyer (BT-48) VAT identifiers are mandatory
+DoliZugferdRuleCO09 = VAT ID "%s" does not start with a country code
+DoliZugferdRuleCO26 = the seller must carry a legal registration identifier (BT-30) or a tax identifier (BT-31/BT-32)
+DoliZugferdRuleBR09 = seller address country missing (BT-40)
+DoliZugferdRuleBR11 = buyer address country missing (BT-55)
+DoliZugferdRuleCO25 = positive amount due without payment due date (BT-9) or payment terms (BT-20)
+DoliZugferdRuleFR01 = invoice number (BT-1) limited to 35 characters (%s issued)
+DoliZugferdRuleFR02 = invoice number (BT-1) "%s" — only alphanumerics and - + _ / are allowed (no spaces)
+DoliZugferdRuleFR04 = document type (BT-3) "%s" is not in the closed list allowed in France
+DoliZugferdRuleFR09Length = the %s SIRET must have 14 digits (%s)
+DoliZugferdRuleFR09Mismatch = %s SIRET (%s) inconsistent with its SIREN (%s) — the first 9 digits must match
+DoliZugferdRuleFRCO04Count = corrective invoice (%s) — exactly one reference to the preceding invoice (BT-25) is required (%s issued)
+DoliZugferdRuleFRCO04Date = corrective invoice (%s) — the preceding invoice date (BT-26) is required
+DoliZugferdRuleFRCO05Missing = credit note (%s) — at least one reference to the preceding invoice (BT-25) is required (create the credit note from the original invoice)
+DoliZugferdRuleFRCO05Date = credit note (%s) — the preceding invoice date (BT-26) is required on the reference
+DoliZugferdRuleFR23 = electronic address 0225 "%s" — only alphanumerics and - _ . are allowed
+
+# Errors while embedding the XML into the PDF
+DoliZugferdErrInjReadSource = unable to read the source files (PDF/XML)
+DoliZugferdErrInjLibMissing = embedding library not found (vendor/ missing?)
+DoliZugferdErrInjEmptyOutput = embedding returned an empty output
+DoliZugferdErrInjWriteOutput = unable to write the output PDF
+DoliZugferdErrInjReplacePdf = unable to replace the original PDF
+DoliZugferdErrInjNoPhpCli = PHP CLI binary not found
+DoliZugferdErrInjFpdiConflict = %s already loaded outside the module vendor (%s): FPDI conflict, in-process embedding impossible
