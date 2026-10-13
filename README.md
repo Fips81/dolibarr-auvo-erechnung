@@ -97,7 +97,7 @@ Dolibarr benachrichtigt nicht automatisch über Updates eines Custom-Moduls; die
 
 ```
 dolizugferd/
-├── core/modules/modDoliZugferd.class.php   # Modul-Deskriptor (Nr. 486213)
+├── core/modules/modDoliZugferd.class.php   # Modul-Deskriptor (Nr. 194202)
 ├── core/lib/
 │   ├── dolizugferd.lib.php                 # XML-Generator EN16931
 │   └── dolizugferd_rules.php               # Validator für Geschäftsregeln (BR-*)
@@ -450,6 +450,10 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 ```
 
 ## Changelog
+
+### 4.0.1 — Offizielle Modulnummer (Oktober 2026)
+
+- Modulnummer von 486213 auf **194202** geändert, die erste Nummer des im Dolibarr-Wiki (*List of modules id*) für AuVo Design reservierten Blocks 194202–194211. Damit sind Kollisionen mit Modulen anderer Anbieter ausgeschlossen. Dolibarr speichert die Aktivierung über den Modulnamen, deshalb bleibt das Modul nach dem Update aktiv, und Einstellungen sowie Daten bleiben erhalten. Eine erneute Aktivierung ist nicht nötig.
 
 ### 4.0.0 — Umbenennung in DoliZUGFeRD (Oktober 2026)
 

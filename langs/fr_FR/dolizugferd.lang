@@ -1,5 +1,5 @@
-Module486213Name = DoliZUGFeRD
-Module486213Desc = Génération automatique de factures Factur-X EN16931
+Module194202Name = DoliZUGFeRD
+Module194202Desc = Génération automatique de factures Factur-X EN16931
 
 DoliZugferdSetup = Configuration DoliZUGFeRD
 DoliZugferdBankAccount = Compte bancaire (IBAN/BIC)

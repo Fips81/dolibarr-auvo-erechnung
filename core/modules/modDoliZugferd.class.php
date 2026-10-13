@@ -20,7 +20,7 @@ class modDoliZugferd extends DolibarrModules
 		global $conf, $langs;
 
 		$this->db = $db;
-		$this->numero = 486213;
+		$this->numero = 194202; // Bloc 194202-194211 réservé à AuVo Design (wiki.dolibarr.org, List of modules id)
 		$this->rights_class = 'dolizugferd';
 		$this->family = "financial";
 		$this->module_position = 90;
@@ -33,7 +33,7 @@ class modDoliZugferd extends DolibarrModules
 			$this->description = "Automatische Erzeugung von ZUGFeRD-EN16931-E-Rechnungen";
 			$this->descriptionlong = "Injiziert ein CrossIndustryInvoice-XML (EN16931) in jede erzeugte Kunden-Rechnungs-PDF, für ZUGFeRD-Konformität.";
 		}
-		$this->version = '4.0.0';
+		$this->version = '4.0.1';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'bill';
 		$this->editor_name = 'auvo-design';

@@ -8,7 +8,7 @@
   "license": "GPL-3.0-or-later",
   "repository": "Fips81/dolibarr_zugferd",
   "branch": "main",
-  "dolibarr_module_id": 486213,
+  "dolibarr_module_id": 194202,
   "compatibility": {
     "4.x": {
       "dolibarr_min": "19.0.0",

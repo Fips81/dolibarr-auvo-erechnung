@@ -1,5 +1,5 @@
-Module486213Name = DoliZUGFeRD
-Module486213Desc = Automatische Erzeugung von ZUGFeRD-EN16931-E-Rechnungen
+Module194202Name = DoliZUGFeRD
+Module194202Desc = Automatische Erzeugung von ZUGFeRD-EN16931-E-Rechnungen
 
 DoliZugferdSetup = DoliZUGFeRD-Einstellungen
 DoliZugferdBankAccount = Bankkonto (IBAN/BIC)
