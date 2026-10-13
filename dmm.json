@@ -1,16 +1,16 @@
 {
   "schema_version": "1",
-  "module_id": "dolizugferd",
-  "name": "DoliZUGFeRD",
-  "description": "Automatische Erzeugung von ZUGFeRD-EN16931-E-Rechnungen (Factur-X): bettet ein CrossIndustryInvoice-XML in jede erzeugte Kundenrechnungs-PDF ein.",
+  "module_id": "auvoerechnung",
+  "name": "AuVo E-Rechnung",
+  "description": "E-Rechnungen für Dolibarr: erzeugt ZUGFeRD-Rechnungen (EN16931, Factur-X) als PDF/A-3 mit eingebettetem CrossIndustryInvoice-XML.",
   "author": "auvo-design",
   "url": "https://auvo-design.de",
   "license": "GPL-3.0-or-later",
-  "repository": "Fips81/dolibarr_zugferd",
+  "repository": "Fips81/dolibarr-auvo-erechnung",
   "branch": "main",
   "dolibarr_module_id": 194202,
   "compatibility": {
-    "4.x": {
+    "5.x": {
       "dolibarr_min": "19.0.0",
       "dolibarr_max": "24.*",
       "php_min": "8.1"

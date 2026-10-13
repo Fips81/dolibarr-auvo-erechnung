@@ -1,0 +1,261 @@
+Module194202Name = AuVo E-Rechnung
+Module194202Desc = E-invoices for Dolibarr (ZUGFeRD / Factur-X EN16931)
+
+AuvoERechnungSetup = AuVo E-Rechnung setup
+AuvoERechnungBankAccount = Bank account (IBAN/BIC)
+AuvoERechnungPaymentMeans = Default payment means
+AuvoERechnungPaymentMeansHint = UNTDID 4461 code. 30/58 (credit transfer) require an IBAN: without a configured bank account, the payment means block is omitted from the XML (BR-61). 59 (SEPA direct debit) publishes the creditor ICS (Dolibarr constant PRELEVEMENT_ICS), the mandate reference and the IBAN of the third party's default bank account.
+PaymentMeans30 = Credit transfer
+PaymentMeans58 = SEPA credit transfer
+PaymentMeans59 = SEPA direct debit
+PaymentMeans49 = Direct debit (national)
+AuvoERechnungBrCheck = EN16931 business rules check
+AuvoERechnungBrCheckHint = Checks a subset of the EN16931 Schematron rules before injection (BR-CO-10..17, BR-27, BR-61, BR-IC-11/12, VAT category consistency...). Violations block in strict mode, otherwise they are added to the warnings.
+AuvoERechnungVeraPdfPath = PDF/A-3 validation with veraPDF (optional, external tool)
+AuvoERechnungVeraPdfPathHint = Empty by default = disabled, and that's fine: the EN16931 XSD check and internal BR rules already run. veraPDF is NOT shipped with the module — it's a third-party tool you install yourself (https://verapdf.org), then point to here. If set, every PDF is re-validated as PDF/A-3b after injection: non blocking (a failure just adds a warning), slows generation by a few seconds.
+AuvoERechnungVeraPdfPlaceholder = e.g. /usr/local/bin/verapdf — empty = disabled
+AuvoERechnungInfo = Generated PDF invoices will automatically be converted to Factur-X EN16931 (PDF/A-3 with embedded CrossIndustryInvoice XML). IBAN and BIC are read from the selected bank account.
+AuvoERechnungDiagTitle = Mandatory information diagnostic
+AuvoERechnungDiagResults = Factur-X EN16931 + BR-FR rules check
+AuvoERechnungDiagSellerName = Seller company name
+AuvoERechnungDiagSellerAddress = Seller address
+AuvoERechnungDiagSellerVAT = Intra-community VAT number
+AuvoERechnungDiagSellerVATFranchise = not required (French VAT franchise, art. 293 B CGI) — the SIREN is published as tax identifier
+AuvoERechnungDiagSellerSIRET = SIRET / SIREN
+AuvoERechnungDiagSellerSteuernummer = Seller tax number (BT-32)
+AuvoERechnungDiagSellerSteuernummerNotNeeded = not set — not required, VAT ID present
+AuvoERechnungDiagSellerTaxIdMissing = Seller tax number or VAT ID missing — one of them is mandatory (BR-CO-26)
+AuvoERechnungDiagSellerEmail = Seller email
+AuvoERechnungDiagIBAN = Bank account IBAN
+AuvoERechnungDiagBIC = Bank account BIC
+AuvoERechnungDiagBankNotFound = Bank account not found
+AuvoERechnungDiagBankNotSet = No bank account selected
+AuvoERechnungDiagModuleBankEnabled = Bank module enabled
+AuvoERechnungDiagModuleBankDisabled = Bank module disabled (required to manage the bank account)
+AuvoERechnungDiagModuleInvoiceEnabled = Invoice module enabled
+AuvoERechnungDiagModuleInvoiceDisabled = Invoice module disabled (required to generate invoices)
+AuvoERechnungDiagForceFontOk = Embedded PDF font forced (MAIN_PDF_FORCE_FONT)
+AuvoERechnungDiagForceFontMissing = MAIN_PDF_FORCE_FONT not set — without embedded fonts, the PDF is not PDF/A-3 compliant
+AuvoERechnungDiagInjInProcess = In-process injection (no exec) forced — works on servers where exec() is disabled
+AuvoERechnungDiagInjAuto = Automatic mode: subprocess injection (exec available) — isolated PHP process, the safest path
+AuvoERechnungDiagInjAutoNoExec = Automatic mode: in-process injection (exec disabled on this server — no alternative available)
+AuvoERechnungDiagInjSubprocess = Subprocess injection (exec) — legacy mode forced
+AuvoERechnungDiagExecRequiredSub = "Subprocess" mode selected but exec() is disabled on this server — switch to "Automatic" or "In-process" in the configuration
+AuvoERechnungDiagTcpdiConflict = In-process injection will fail: Dolibarr loads its "tcpdi" PDF engine on every generation (a TCPDF-based FPDF, incompatible with the Factur-X injection library). Two solutions: enable the exec() function on the server (the module then uses an isolated subprocess, recommended), OR set the constant MAIN_DISABLE_TCPDI = 1 (unblocks in-process, but disables Dolibarr's PDF merge features — page backgrounds, concatenation).
+AuvoERechnungErrTcpdiConflict = FPDF/TCPDF conflict: Dolibarr loaded its tcpdi engine (%s), incompatible with in-process injection. Enable exec() (subprocess mode) or set the MAIN_DISABLE_TCPDI=1 constant (disables Dolibarr PDF merging).
+AuvoERechnungDiagPhpCliOk = PHP CLI binary
+AuvoERechnungDiagPhpCliNotFound = The configured PHP CLI binary cannot be found or is not executable: %s
+AuvoERechnungDiagMulticurrencyNote = Multicurrency module enabled: invoices in a foreign currency are NOT converted to Factur-X (documented limitation, the classic PDF is kept)
+AuvoERechnungDiagFixLink = Fix
+AuvoERechnungDiagFixForceFont = Fix automatically (sets "pdfahelvetica")
+AuvoERechnungForceFontSet = MAIN_PDF_FORCE_FONT set to "pdfahelvetica": generated PDFs now embed fonts (PDF/A-3). Global setting, applied to every PDF document in Dolibarr.
+AuvoERechnungDiagAllOk = All mandatory information is filled in!
+AuvoERechnungDiagNoBlocker = No blocker: Factur-X compliance is ensured. A few recommended items remain (in orange) you may address for an optimal result.
+
+AuvoERechnungStrictMode = Error handling mode
+AuvoERechnungStrictModeHint = Best-effort: if Factur-X generation fails, the classic PDF is delivered with a warning. Strict: blocks generation with a visible error if the XML is invalid or the PDF injection fails. Note: even in strict mode, the classic PDF already generated by Dolibarr remains on disk.
+AuvoERechnungStrictModeBestEffort = Best-effort (default, non blocking)
+AuvoERechnungStrictModeStrict = Strict (blocks if Factur-X fails)
+AuvoERechnungInjectionMode = XML injection mode
+AuvoERechnungInjectionModeHint = "Automatic" (recommended): subprocess if exec() is available (the safest, isolated path), and in-process only if exec() is disabled (hardened shared hosting). "In-process only" forces injection without exec() — reserve it for servers without exec(), since a PDF library conflict with another module can then prevent injection. "Subprocess" forces the legacy behaviour (requires exec()).
+AuvoERechnungInjectionModeAuto = Automatic (subprocess if exec, otherwise in-process)
+AuvoERechnungInjectionModeInProcess = In-process only (no exec)
+AuvoERechnungInjectionModeSubprocess = Subprocess (exec, legacy)
+AuvoERechnungPhpCliPath = PHP CLI binary path
+AuvoERechnungPhpCliPathHint = Used only by the "subprocess" mode. Leave empty: the module auto-detects the right PHP CLI binary. Set a path only to force a specific binary (exotic setup).
+AuvoERechnungLegalNotes = Mandatory French legal mentions (BR-FR-05)
+AuvoERechnungNotePMD = Late payment penalties (PMD)
+AuvoERechnungNotePMT = Recovery indemnity (PMT)
+AuvoERechnungNoteAAB = Early payment discount (AAB)
+AuvoERechnungLegalNotesForeignHint = Seller established outside France: no default mention is applied (the default texts come from the French Commercial Code). Fields left empty produce no note in the XML — enter your own mentions here if your national law requires them.
+
+AuvoERechnungUpdateAvailable = New version available
+AuvoERechnungUpdateAvailableMsg = A newer version of the module is published on GitHub (%s, current: %s).
+AuvoERechnungUpdateSeeRelease = See the release and upgrade instructions
+
+AuvoERechnungBtnVerify = Verify Factur-X
+AuvoERechnungBtnRegenerate = Regenerate Factur-X
+AuvoERechnungMsgNoPdf = No PDF found for this invoice — generate the document first.
+AuvoERechnungMsgNoFacturX = No Factur-X XML embedded in %s — use "Regenerate Factur-X".
+AuvoERechnungMsgVerifyOk = %s: embedded Factur-X XML found, EN16931 XSD valid and business rules checked.
+AuvoERechnungMsgVerifyKo = %s: embedded Factur-X XML found but not compliant:
+AuvoERechnungMsgRegenerateFailed = PDF regeneration failed
+AuvoERechnungMsgSuccess = Factur-X EN16931 e-invoice embedded in PDF %s.
+AuvoERechnungMsgSuccessWithWarnings = Factur-X EN16931 e-invoice embedded in PDF %s. %s non blocking warning(s) to fix for full compliance:
+
+# ODT template support (experimental, v3.8.0) — afterODTCreation hook
+AuvoERechnungOdtErrNoPdfConv = ODT template without PDF conversion: Factur-X requires a PDF, but only the .odt file was produced
+AuvoERechnungOdtHintEnable = set MAIN_ODT_AS_PDF = libreoffice (and install LibreOffice on the server) to convert the ODT to PDF before injection
+AuvoERechnungOdtErrNoPdfa = the PDF produced from the ODT template is not PDF/A: LibreOffice then outputs a PDF >= 1.5 (compressed xref table) that the Factur-X injection library cannot read
+AuvoERechnungOdtHintEnablePdfa = set MAIN_ODT_AS_PDF = libreoffice + MAIN_ODT_AS_PDFA = 1 to produce a readable, injectable PDF/A-1
+AuvoERechnungOdtErrPdfMissing = expected PDF not found next to the ODT template (%s): the LibreOffice conversion probably failed (soffice binary missing or not in PATH)
+
+AuvoERechnungErrMulticurrency = invoice in a foreign currency (%s ≠ company currency %s) — unsupported: the XML would diverge from the visible PDF (documented limitation)
+AuvoERechnungErrLocalTax = invoice with local taxes (localtax1/2) — unsupported: EN16931 only represents VAT, the XML total would diverge from the visible PDF total (documented limitation)
+AuvoERechnungErrNoDate = invoice has no issue date
+AuvoERechnungErrNoThirdparty = buyer third party not found (fetch_thirdparty failed)
+AuvoERechnungErrNoMysoc = issuing company ($mysoc) not initialised
+AuvoERechnungErrInvalidXml = invalid XML
+AuvoERechnungErrBrViolations = EN16931 business rules violated
+AuvoERechnungErrTempDir = unable to create a temporary file in %s
+AuvoERechnungErrTempWrite = unable to write the temporary XML in %s
+AuvoERechnungErrNoExec = the exec() function is disabled on this server
+AuvoERechnungErrPhpCliChars = AUVOERECHNUNG_PHP_CLI_PATH contains forbidden characters (expected: alphanumeric path, "/ . _ - : ( ) \" and space)
+AuvoERechnungErrPhpCliNotFound = the configured PHP binary cannot be found or is not executable: %s
+AuvoERechnungErrInjectFailed = PDF injection failed
+AuvoERechnungHintPdfKept = classic PDF kept without Factur-X
+AuvoERechnungHintPdfKeptShort = classic PDF kept
+AuvoERechnungHintBestEffort = best-effort mode
+
+AuvoERechnungWarnSellerName = seller company name missing
+AuvoERechnungWarnSellerAddress = seller company address missing
+AuvoERechnungWarnSellerZip = seller company zip code missing
+AuvoERechnungWarnSellerTown = seller company town missing
+AuvoERechnungWarnSellerVAT = intra-community VAT number missing (company)
+AuvoERechnungWarnSellerVATInvalid = The company VAT ID field contains "%s", which is not a VAT ID (it must start with the country code, e.g. DE123456789). It is not output as VAT ID (BR-CO-09).
+AuvoERechnungWarnSellerSIRET = SIRET/SIREN missing (company) — mandatory BR-FR-10
+AuvoERechnungWarnSellerEndpoint = seller electronic address missing (no SIREN/SIRET, no email) — mandatory BR-FR-13 (BT-34)
+AuvoERechnungWarnSellerSIRETLen = the seller SIRET must contain exactly 14 digits (BT-30), %s entered — a 9-digit SIREN is rejected by Chorus Pro
+AuvoERechnungWarnBuyerName = buyer name missing
+AuvoERechnungWarnBuyerAddress = buyer address missing
+AuvoERechnungWarnBuyerZip = buyer zip code missing
+AuvoERechnungWarnBuyerTown = buyer town missing
+AuvoERechnungWarnBuyerEndpoint = buyer electronic address missing (no SIREN/SIRET, no email) — mandatory BR-FR-12 (BT-49)
+AuvoERechnungWarnBuyerSIRENRouting = buyer SIREN/SIRET missing — required for routing on the Plateformes Agréées network (endpoint BT-49 schemeID 0225); an email alone is not routable
+AuvoERechnungWarnBuyerSIRETLen = the buyer SIRET must contain exactly 14 digits (BT-47), %s entered
+AuvoERechnungWarnNoBank = no bank account configured in the module
+AuvoERechnungWarnNoForceFont = MAIN_PDF_FORCE_FONT not set — the generated PDF is not guaranteed PDF/A-3 (fonts not embedded); fixable in one click from the AuVo E-Rechnung module setup (diagnostic)
+AuvoERechnungWarnPaymentMeansOmitted = payment means %s (credit transfer) omitted from XML: no IBAN configured (BR-61 — configure a bank account in the module)
+AuvoERechnungWarnDirectDebitNoICS = SEPA direct debit: creditor ICS missing (BT-90) — set the Dolibarr constant PRELEVEMENT_ICS
+AuvoERechnungWarnDirectDebitNoRUM = SEPA direct debit: mandate reference (RUM) missing (BT-89) — fill in the third party's default bank account with its mandate reference
+AuvoERechnungWarnCreditNoteNoSource = credit note without a linked source invoice: the reference to the original invoice (BG-3, mandatory French mention) cannot be emitted — create the credit note from the original invoice
+AuvoERechnungWarnAllNegativeLines = fully negative invoice that is not a credit note: lines emitted as-is, the XML violates BR-27 (use a Dolibarr credit note)
+AuvoERechnungWarnSituationInvoice = situation (progress billing) invoice: emitted as TypeCode 380, but the mapping of cumulative amounts/retentions is not guaranteed compliant (documented limitation)
+AuvoERechnungWarnRoundingAdjusted = VAT rounding gap of %s spread on the main category to guarantee BR-CO-14 (check the totals)
+AuvoERechnungWarnTaxMismatch = gap of %s between line VAT and the invoice VAT total, not attributable (no taxed category)
+AuvoERechnungWarnTaxRecomputed = VAT of category %s recomputed from its basis (%s instead of %s) to satisfy BR-CO-17 — the gap with the Dolibarr total comes from per-line rounding (check the rounding mode)
+AuvoERechnungWarnTotalsMismatch = XML grand total (%s) differs from the Dolibarr total (%s) — local taxes or inconsistent lines; the XML favours EN16931 internal consistency (BR-CO-15)
+AuvoERechnungWarnVeraPdfNotFound = veraPDF not found or not executable: %s (AUVOERECHNUNG_VERAPDF_PATH)
+AuvoERechnungWarnVeraPdfFailed = veraPDF: the generated PDF is not PDF/A-3b compliant (details in syslog) — check MAIN_PDF_FORCE_FONT and the PDF template images
+AuvoERechnungWarnBrPrefix = EN16931 business rule:
+AuvoERechnungWarnCorrectiveNoSource = corrective invoice without a linked source invoice: the reference to the replaced invoice (BT-25, required by rule BR-FR-CO-04) cannot be emitted — create the replacement invoice from the original invoice
+AuvoERechnungWarnRefTooLong = invoice reference (BT-1) too long: %s characters, maximum 35 (rule BR-FR-01)
+AuvoERechnungWarnRefCharset = invoice reference (BT-1) "%s" contains characters that are not allowed — allowed: letters, digits and - + _ / , no space (rule BR-FR-02)
+AuvoERechnungWarnSellerSirenSiretMismatch = seller SIREN (%s) and SIRET (%s) are inconsistent: the first 9 digits of the SIRET must match the SIREN (rule BR-FR-09) — fix the company card
+AuvoERechnungWarnBuyerSirenSiretMismatch = buyer SIREN (%s) and SIRET (%s) are inconsistent: the first 9 digits of the SIRET must match the SIREN (rule BR-FR-09) — fix the third-party card
+AuvoERechnungWarnVatRateNotFR = VAT rate %s %% is not in the list of allowed French rates, mainland and overseas departments (rule BR-FR-16) — check the input if this rate is not intentional
+AuvoERechnungWarnEndpointSuffixCharset = the seller electronic address suffix (AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER) contains characters that are not allowed — only letters, digits and - _ . are kept when emitting (rule BR-FR-23)
+AuvoERechnungWarnEndpointTooLong = seller electronic address is %s characters long: maximum 125 (rule BR-FR-25) — shorten the configured suffix
+
+AuvoERechnungAboutTitle = Maintained by auvo-design
+AuvoERechnungAboutIntro = AuVo E-Rechnung is a free fork of LemonFacturX (Lemon), maintained by auvo-design and adapted for use in Germany (GPLv3).
+AuvoERechnungAboutLocation = Contact: r.vogel@auvo-design.de
+
+# v3.1 — BR-FR-05 mentions bridge to the invoice footer (FACTURE_FREE_TEXT)
+AuvoERechnungCopyNotesDone = %s mention(s) added to the Dolibarr invoice footer ("Complementary mention on invoices")
+AuvoERechnungDiagFreeTextMissing = Dolibarr invoice footer empty ("Complementary mention on invoices") — the BR-FR-05 mentions are in the XML, but do not appear in plain text on the printed PDF. Recommended, not blocking: enable "Copy the mentions into the invoice footer" in Legal notes.
+AuvoERechnungDiagFreeTextOk = Dolibarr invoice footer filled (mentions visible on the PDF)
+
+# v3.4.0 — Chorus Pro profile (B2G): 2nd PDF + extrafields
+AuvoERechnungEfChorus = Chorus Pro invoice (public sector)
+AuvoERechnungEfServiceCode = Service code (Chorus, BT-10)
+AuvoERechnungEfEngagement = Legal commitment number (Chorus, BT-13)
+AuvoERechnungEfMarche = Contract/market number (Chorus, BT-12)
+AuvoERechnungEfLeitwegId = Leitweg-ID (public sector, BT-10)
+AuvoERechnungChorusGenerated = Chorus Pro PDF generated alongside: %s
+AuvoERechnungChorusErr = The Chorus Pro PDF could not be generated (the standard Factur-X PDF remains valid)
+
+# Factur-X dropdown menu (v3.4.1)
+AuvoERechnungMenuLabel = Factur-X
+AuvoERechnungBtnGenerateChorus = Generate Chorus PDF
+
+# Chorus Pro tab (v3.4.0)
+AuvoERechnungChorusTab = Chorus Pro
+AuvoERechnungChorusTabHelp = Public-sector profile settings. When this invoice falls under Chorus Pro, a second "{ref}-CHORUS.pdf" file is generated in the format Chorus expects (SIRET in the legal id + references below), in addition to the standard Factur-X.
+AuvoERechnungChorusDetected = Chorus Pro profile detected for this invoice
+AuvoERechnungEfCadre = Invoicing framework (Chorus, BT-23)
+AuvoERechnungEfChorusHint = Force the Chorus PDF generation even without auto-detection
+AuvoERechnungChorusTabGenerateHint = The -CHORUS.pdf is (re)generated when the invoice PDF is regenerated, or via the "Factur-X › Generate Chorus PDF" menu.
+
+# Chorus Pro opt-in toggle
+AuvoERechnungChorusEnabled = Chorus Pro features (public sector)
+AuvoERechnungChorusEnabledHint = Shows the Chorus Pro tab on invoices and the Chorus PDF generation. Enable only if you invoice the public sector.
+AuvoERechnungChorusSuggested = This invoice seems addressed to the public sector (State SIRET). Enable the Chorus Pro features in the module setup if you need to submit it to Chorus Pro.
+
+# Setup reorganised into blocks (v3.4.0)
+AuvoERechnungSecBilling = Invoicing
+AuvoERechnungSecPublic = Public sector (Chorus Pro)
+AuvoERechnungSecValidation = Validation and compliance
+AuvoERechnungSecTech = Technical (advanced)
+AuvoERechnungNotesInFooter = Copy the mentions into the invoice footer
+AuvoERechnungNotesInFooterHint = If Yes, appends the mentions above to "Additional text on invoices" (footer of each PDF), without touching existing text. Applied on save.
+AuvoERechnungPhpCliAutoPlaceholder = auto (detected)
+AuvoERechnungDiagPhpCliAuto = auto-detected
+AuvoERechnungSecPA = Approved Platform (PA) addressing
+AuvoERechnungEndpointSuffixSeller = Seller endpoint suffix (BT-34)
+AuvoERechnungEndpointSuffixSellerHint = Suffix appended to the issuer SIREN in the seller electronic address. Some Approved Platforms (e.g. Hubtimize/Esalink) require this address NOT to be the bare SIREN but a suffixed Peppol endpoint — "SIREN_Status" (lifecycle-status return address), as configured when registering the entity. Must match, byte for byte, the address registered on the PA. Empty = bare SIREN (legacy PPF directory). Does NOT affect the buyer address (BT-49), always kept as bare SIREN.
+AuvoERechnungEndpointSuffixSellerPlaceholder = e.g. _Status — empty = bare SIREN
+AuvoERechnungNotesOverwrite = Overwrite the existing Dolibarr mention
+AuvoERechnungNotesOverwriteHint = If No, our mentions are appended after the existing "Additional text on invoices". If Yes, they replace it entirely. Either way, an empty field is filled with our mentions.
+AuvoERechnungNotesAppend = append
+AuvoERechnungNotesReplace = replace
+AuvoERechnungChorusToNote = Copy the Chorus references to the public note
+AuvoERechnungChorusToNoteHint = Adds the filled Chorus fields (framework, service code, engagement no., contract no.) to the invoice public note, which is printed on the PDF. Empty fields ignored, no duplicates.
+AuvoERechnungChorusToNoteDone = %s Chorus reference(s) added to the public note
+AuvoERechnungChorusToNoteAlready = The Chorus references are already in the public note
+AuvoERechnungChorusToNoteEmpty = No filled Chorus field to copy
+AuvoERechnungPdfFont = Generated PDF font
+AuvoERechnungPdfFontHint = Font forced for all Dolibarr PDFs. For Factur-X compliance (PDF/A-3), the font must be embedded (✓). Non-compliant fonts (⚠, base-14) break PDF/A-3 validity even if the rendering looks fine. "Default font" removes the forcing.
+AuvoERechnungPdfFontDefault = — Dolibarr default font (no forcing) —
+AuvoERechnungPdfFontOk = ✓ Factur-X compliant (embedded)
+AuvoERechnungPdfFontKo = ⚠ not PDF/A-3 compliant (not embedded)
+
+# Internal business-rule check (auvoerechnung_rules.php) — the rule code is prepended
+AuvoERechnungXsdEmpty = Empty XML
+AuvoERechnungXsdMalformed = Malformed XML: %s
+AuvoERechnungXsdInvalid = not compliant with the EN16931 XSD: %s
+AuvoERechnungRulePartySeller = seller
+AuvoERechnungRulePartyBuyer = buyer
+AuvoERechnungRuleBR16 = The invoice must contain at least one line
+AuvoERechnungRuleBR27 = line %s — the net unit price must not be negative (%s)
+AuvoERechnungRuleS05 = line %s — category S with a zero rate
+AuvoERechnungRuleCat05 = line %s — category %s with a non-zero rate (%s)
+AuvoERechnungRuleCO10 = LineTotalAmount (%s) != sum of lines (%s)
+AuvoERechnungRuleCO11 = AllowanceTotalAmount (%s) != sum of allowances (%s)
+AuvoERechnungRuleCO12 = ChargeTotalAmount (%s) != sum of charges (%s)
+AuvoERechnungRuleCO13 = TaxBasisTotalAmount (%s) != lines - allowances + charges (%s)
+AuvoERechnungRuleCO15 = GrandTotalAmount (%s) != tax basis (%s) + VAT (%s)
+AuvoERechnungRuleCO16 = DuePayableAmount (%s) != GrandTotal (%s) - Prepaid (%s)
+AuvoERechnungRuleCO17 = calculated VAT (%s) != basis (%s) x rate (%s %%) = %s
+AuvoERechnungRuleCat08 = basis of category %s at %s %% (%s) != sum of lines/allowances (%s)
+AuvoERechnungRuleCat10 = exemption reason missing for category %s
+AuvoERechnungRuleCO14 = TaxTotalAmount (%s) != sum of VAT per category (%s)
+AuvoERechnungRuleBR61 = payment means %s (credit transfer) without payee IBAN
+AuvoERechnungRuleIC11 = category K without delivery date or invoicing period
+AuvoERechnungRuleIC12 = category K without deliver-to country (BT-80)
+AuvoERechnungRuleIC02 = category K without seller VAT identifier (BT-31)
+AuvoERechnungRuleAE02 = category AE — seller (BT-31) and buyer (BT-48) VAT identifiers are mandatory
+AuvoERechnungRuleCO09 = VAT ID "%s" does not start with a country code
+AuvoERechnungRuleCO26 = the seller must carry a legal registration identifier (BT-30) or a tax identifier (BT-31/BT-32)
+AuvoERechnungRuleBR09 = seller address country missing (BT-40)
+AuvoERechnungRuleBR11 = buyer address country missing (BT-55)
+AuvoERechnungRuleCO25 = positive amount due without payment due date (BT-9) or payment terms (BT-20)
+AuvoERechnungRuleFR01 = invoice number (BT-1) limited to 35 characters (%s issued)
+AuvoERechnungRuleFR02 = invoice number (BT-1) "%s" — only alphanumerics and - + _ / are allowed (no spaces)
+AuvoERechnungRuleFR04 = document type (BT-3) "%s" is not in the closed list allowed in France
+AuvoERechnungRuleFR09Length = the %s SIRET must have 14 digits (%s)
+AuvoERechnungRuleFR09Mismatch = %s SIRET (%s) inconsistent with its SIREN (%s) — the first 9 digits must match
+AuvoERechnungRuleFRCO04Count = corrective invoice (%s) — exactly one reference to the preceding invoice (BT-25) is required (%s issued)
+AuvoERechnungRuleFRCO04Date = corrective invoice (%s) — the preceding invoice date (BT-26) is required
+AuvoERechnungRuleFRCO05Missing = credit note (%s) — at least one reference to the preceding invoice (BT-25) is required (create the credit note from the original invoice)
+AuvoERechnungRuleFRCO05Date = credit note (%s) — the preceding invoice date (BT-26) is required on the reference
+AuvoERechnungRuleFR23 = electronic address 0225 "%s" — only alphanumerics and - _ . are allowed
+
+# Errors while embedding the XML into the PDF
+AuvoERechnungErrInjReadSource = unable to read the source files (PDF/XML)
+AuvoERechnungErrInjLibMissing = embedding library not found (vendor/ missing?)
+AuvoERechnungErrInjEmptyOutput = embedding returned an empty output
+AuvoERechnungErrInjWriteOutput = unable to write the output PDF
+AuvoERechnungErrInjReplacePdf = unable to replace the original PDF
+AuvoERechnungErrInjNoPhpCli = PHP CLI binary not found
+AuvoERechnungErrInjFpdiConflict = %s already loaded outside the module vendor (%s): FPDI conflict, in-process embedding impossible

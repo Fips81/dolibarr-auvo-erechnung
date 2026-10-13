@@ -1,6 +1,6 @@
-# Sicherheitsrichtlinie — DoliZUGFeRD
+# Sicherheitsrichtlinie — AuVo E-Rechnung
 
-Dieses Dokument beschreibt das Bedrohungsmodell des Moduls DoliZUGFeRD, die vorhandenen Schutzmaßnahmen, bewusste Einschränkungen und das Verfahren zur verantwortungsvollen Meldung einer Sicherheitslücke.
+Dieses Dokument beschreibt das Bedrohungsmodell des Moduls AuVo E-Rechnung, die vorhandenen Schutzmaßnahmen, bewusste Einschränkungen und das Verfahren zur verantwortungsvollen Meldung einer Sicherheitslücke.
 
 ## Sicherheitslücke melden
 
@@ -26,13 +26,13 @@ Bitte vermeiden Sie alles, was einen Produktivbetrieb beeinträchtigen, auf Date
 
 ## Bedrohungsmodell
 
-DoliZUGFeRD ist ein Dolibarr-Modul, das die PDFs von Kundenrechnungen automatisch in das Format ZUGFeRD/Factur-X EN16931 umwandelt (PDF/A-3 mit eingebettetem CII-XML). Es läuft **innerhalb** einer authentifizierten Dolibarr-Instanz und hängt am Hook `afterPDFCreation`. Das Bedrohungsmodell ist das einer Geschäftsanwendung im Intranet.
+AuVo E-Rechnung ist ein Dolibarr-Modul, das die PDFs von Kundenrechnungen automatisch in das Format ZUGFeRD/Factur-X EN16931 umwandelt (PDF/A-3 mit eingebettetem CII-XML). Es läuft **innerhalb** einer authentifizierten Dolibarr-Instanz und hängt am Hook `afterPDFCreation`. Das Bedrohungsmodell ist das einer Geschäftsanwendung im Intranet.
 
 ### Rollen
 
 | Rolle | Zugriff | Vertrauen |
 |---|---|---|
-| Dolibarr-Administrator | Konfiguration des Moduls, einschließlich `DOLIZUGFERD_PHP_CLI_PATH` | **Hohes Vertrauen**. Ein kompromittierter Admin bedeutet ohnehin eine vollständige Kompromittierung von Dolibarr. |
+| Dolibarr-Administrator | Konfiguration des Moduls, einschließlich `AUVOERECHNUNG_PHP_CLI_PATH` | **Hohes Vertrauen**. Ein kompromittierter Admin bedeutet ohnehin eine vollständige Kompromittierung von Dolibarr. |
 | Dolibarr-Nutzer mit dem Recht, eine Rechnungs-PDF zu erzeugen | Löst die ZUGFeRD-Einbettung über den Standard-Hook aus | Internes Vertrauen. |
 | Anonymer Nutzer (außerhalb von Dolibarr) | Kein Zugriff | Nicht betroffen: Das Modul stellt keinen öffentlichen Endpunkt bereit. |
 
@@ -41,10 +41,10 @@ DoliZUGFeRD ist ein Dolibarr-Modul, das die PDFs von Kundenrechnungen automatisc
 - **Hook `afterPDFCreation`**: läuft im Kontext einer Rechnungs-PDF-Erzeugung (authentifizierter Nutzer)
 - **Hooks `invoicecard`** (Buttons „ZUGFeRD prüfen / neu erzeugen“): nur für authentifizierte Nutzer mit Rechnungsrechten (`lire` / `creer`), geschützt durch CSRF-Token (`currentToken()`)
 - **Admin-Konfigurationsseite**: `admin/setup.php`, nur für Admins über `accessforbidden()` + CSRF-Schutz beim Speichern
-- **REST-API**: `class/api_dolizugferd.class.php`, nur verfügbar, wenn das Dolibarr-Modul REST-API aktiv ist; API-Schlüssel erforderlich, Rechte `facture->lire` + `_checkAccessToResource()` werden geprüft
+- **REST-API**: `class/api_auvoerechnung.class.php`, nur verfügbar, wenn das Dolibarr-Modul REST-API aktiv ist; API-Schlüssel erforderlich, Rechte `facture->lire` + `_checkAccessToResource()` werden geprüft
 - **CLI-Skripte**: `scripts/inject_facturx.php`, `scripts/export_facturx_batch.php`, `tests/*.php`, `demo/*.php` — alle gegen direkten HTTP-Zugriff durch `PHP_SAPI === 'cli'` geschützt; die Ordner `scripts/`, `tests/`, `demo/` enthalten zusätzlich eine `.htaccess` mit `Require all denied`
 - **Einziger ausgehender HTTP-Aufruf**: Prüfung der neuesten GitHub-Release über `api.github.com` beim Laden der Admin-Konfigurationsseite, mit 24-h-Cache (für Erfolge **und** Fehler) und 5 s Timeout (es werden keine lokalen Daten gesendet, nur ein anonymer `GET`)
-- **Optionales externes Programm**: veraPDF (`DOLIZUGFERD_VERAPDF_PATH`, Admin-Konstante), aufgerufen mit `escapeshellarg()` + `is_executable()`
+- **Optionales externes Programm**: veraPDF (`AUVOERECHNUNG_VERAPDF_PATH`, Admin-Konstante), aufgerufen mit `escapeshellarg()` + `is_executable()`
 - **Kein öffentlich erreichbarer Web-Endpunkt**
 
 ### **Nicht** Teil des Bedrohungsmodells
@@ -56,10 +56,10 @@ DoliZUGFeRD ist ein Dolibarr-Modul, das die PDFs von Kundenrechnungen automatisc
 
 ### PDF-Einbettung: standardmäßig isolierter Subprozess
 
-Standardmäßig (Modus `auto` mit verfügbarem `exec()`) wird das XML in einem **isolierten PHP-Subprozess** (`scripts/inject_facturx.php`) in die PDF eingebettet. Das ist der robusteste Weg: Der Prozess ist leer — keine Dolibarr- oder Fremdklassen geladen — und damit sind **keine Bibliothekskonflikte** möglich. Das PHP-CLI-Programm ist über `DOLIZUGFERD_PHP_CLI_PATH` einstellbar. Schutz des Aufrufs:
+Standardmäßig (Modus `auto` mit verfügbarem `exec()`) wird das XML in einem **isolierten PHP-Subprozess** (`scripts/inject_facturx.php`) in die PDF eingebettet. Das ist der robusteste Weg: Der Prozess ist leer — keine Dolibarr- oder Fremdklassen geladen — und damit sind **keine Bibliothekskonflikte** möglich. Das PHP-CLI-Programm ist über `AUVOERECHNUNG_PHP_CLI_PATH` einstellbar. Schutz des Aufrufs:
 
 - `escapeshellarg()` wird auf **alle** Bestandteile des Befehls angewendet (PHP-Programm, Skript, PDF, temporäre XML-Datei). Ein manipulierter Wert in der Konstante wird gequotet, die Shell sucht ein Programm mit genau diesem Namen, das nicht existiert → `command not found`. Keine Befehlsverkettung möglich.
-- Prüfung per Regex `^[A-Za-z0-9/._:() \\-]+$` auf `DOLIZUGFERD_PHP_CLI_PATH` vor dem Aufruf (`: \ ( )` und Leerzeichen für Windows-Pfade erlaubt). Jeder Wert mit exotischen Zeichen (`;`, `&`, `$`, Anführungszeichen usw.) wird abgelehnt.
+- Prüfung per Regex `^[A-Za-z0-9/._:() \\-]+$` auf `AUVOERECHNUNG_PHP_CLI_PATH` vor dem Aufruf (`: \ ( )` und Leerzeichen für Windows-Pfade erlaubt). Jeder Wert mit exotischen Zeichen (`;`, `&`, `$`, Anführungszeichen usw.) wird abgelehnt.
 - Bei absolutem Pfad prüft `is_executable()`, dass tatsächlich ein ausführbares Programm existiert.
 - `function_exists('exec')` wird vorab geprüft.
 - Das CLI-Skript `inject_facturx.php` verweigert jeden Aufruf über HTTP: `if (php_sapi_name() !== 'cli') { http_response_code(403); die(...); }`
@@ -85,7 +85,7 @@ Seit v1.1.0 prüft das Modul vor dem Schreiben des XML auf die Platte und dem Au
 1. **Wohlgeformtheit** über `DOMDocument::loadXML()`. Ein kaputtes XML (unwahrscheinlich, da programmatisch erzeugt, aber als zusätzliche Absicherung) wird abgelehnt, bevor es die Fremdbibliothek erreicht.
 2. **XSD-Konformität EN16931** über `DOMDocument::schemaValidate()` gegen das mitgelieferte Schema `vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.09.2_EN16931.xsd`. Fehler werden zur Diagnose in `dol_syslog` protokolliert.
 
-Im Modus `DOLIZUGFERD_STRICT_MODE=1` blockieren fehlgeschlagene Prüfungen die Erzeugung mit einer sichtbaren Fehlermeldung. Im best-effort-Modus (Standard) erscheint eine Warnung und die normale PDF bleibt verfügbar (fail-open). So lässt sich je nach Konformitätsbedarf bewusst zwischen fail-open und fail-closed wählen.
+Im Modus `AUVOERECHNUNG_STRICT_MODE=1` blockieren fehlgeschlagene Prüfungen die Erzeugung mit einer sichtbaren Fehlermeldung. Im best-effort-Modus (Standard) erscheint eine Warnung und die normale PDF bleibt verfügbar (fail-open). So lässt sich je nach Konformitätsbedarf bewusst zwischen fail-open und fail-closed wählen.
 
 ### CSRF auf der Admin-Seite
 
@@ -101,19 +101,19 @@ Alle Konstanten des Moduls werden im Klartext in `llx_const` gespeichert (Doliba
 
 | Konstante | Bedeutung |
 |---|---|
-| `DOLIZUGFERD_BANK_ACCOUNT` | ID des eingestellten Bankkontos |
-| `DOLIZUGFERD_PAYMENT_MEANS` | Zahlungsart-Code UNTDID 4461 |
-| `DOLIZUGFERD_STRICT_MODE` | Fehlerverhalten (best-effort / strikt) |
-| `DOLIZUGFERD_BR_CHECK` | Interne Prüfung der EN16931-Geschäftsregeln |
-| `DOLIZUGFERD_INJECTION_MODE` | Einbettungsmodus des XML (auto / In-Process / Subprozess) |
-| `DOLIZUGFERD_PHP_CLI_PATH` | Pfad zum PHP-Programm (per Regex geprüft) |
-| `DOLIZUGFERD_VERAPDF_PATH` | Pfad zum veraPDF-Programm (optional, `is_executable()` geprüft) |
-| `DOLIZUGFERD_ENDPOINT_SUFFIX_SELLER` | Suffix zur SIREN des Verkäufers im Endpoint BT-34 (nur Frankreich) |
-| `DOLIZUGFERD_NOTE_PMD/PMT/AAB` | Pflichthinweise (Verzug, Mahnpauschale, Skonto) |
-| `DOLIZUGFERD_NOTES_IN_FOOTER` | Übernahme der Hinweise in die Rechnungsfußzeile (Schalter) |
-| `DOLIZUGFERD_NOTES_OVERWRITE` | Übernahme Fußzeile: überschreiben (1) oder anhängen (0) |
-| `DOLIZUGFERD_CHORUS_ENABLED` | Schalter für die Chorus-Pro-Funktionen (nur Frankreich) |
-| `DOLIZUGFERD_UPDATE_CHECK_CACHE` | JSON-Cache der neuesten GitHub-Version (TTL 24 h, Erfolge und Fehler) |
+| `AUVOERECHNUNG_BANK_ACCOUNT` | ID des eingestellten Bankkontos |
+| `AUVOERECHNUNG_PAYMENT_MEANS` | Zahlungsart-Code UNTDID 4461 |
+| `AUVOERECHNUNG_STRICT_MODE` | Fehlerverhalten (best-effort / strikt) |
+| `AUVOERECHNUNG_BR_CHECK` | Interne Prüfung der EN16931-Geschäftsregeln |
+| `AUVOERECHNUNG_INJECTION_MODE` | Einbettungsmodus des XML (auto / In-Process / Subprozess) |
+| `AUVOERECHNUNG_PHP_CLI_PATH` | Pfad zum PHP-Programm (per Regex geprüft) |
+| `AUVOERECHNUNG_VERAPDF_PATH` | Pfad zum veraPDF-Programm (optional, `is_executable()` geprüft) |
+| `AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER` | Suffix zur SIREN des Verkäufers im Endpoint BT-34 (nur Frankreich) |
+| `AUVOERECHNUNG_NOTE_PMD/PMT/AAB` | Pflichthinweise (Verzug, Mahnpauschale, Skonto) |
+| `AUVOERECHNUNG_NOTES_IN_FOOTER` | Übernahme der Hinweise in die Rechnungsfußzeile (Schalter) |
+| `AUVOERECHNUNG_NOTES_OVERWRITE` | Übernahme Fußzeile: überschreiben (1) oder anhängen (0) |
+| `AUVOERECHNUNG_CHORUS_ENABLED` | Schalter für die Chorus-Pro-Funktionen (nur Frankreich) |
+| `AUVOERECHNUNG_UPDATE_CHECK_CACHE` | JSON-Cache der neuesten GitHub-Version (TTL 24 h, Erfolge und Fehler) |
 
 ## Mitgelieferte Abhängigkeiten
 

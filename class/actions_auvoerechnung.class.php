@@ -1,14 +1,14 @@
 <?php
 /*
  * Copyright (C) 2026 SASU LEMON <https://hellolemon.fr>
- * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — fork, renamed and modified as DoliZUGFeRD
+ * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — fork, renamed and modified as AuVo E-Rechnung
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Hooks DoliZUGFeRD :
+ * Hooks AuVo E-Rechnung :
  *  - afterPDFCreation (contexte pdfgeneration) : injecte le XML Factur-X EN16931
  *    dans les PDF factures clients générés par les modèles TCPDF natifs
  *    (sponge / crabe / octopus)
@@ -19,7 +19,7 @@
  *    "Vérifier Factur-X" et "Régénérer Factur-X" sur la fiche facture
  */
 
-class ActionsDoliZugferd
+class ActionsAuvoERechnung
 {
 	public $db;
 	public $error = '';
@@ -65,22 +65,22 @@ class ActionsDoliZugferd
 		}
 
 		$modulePath = dirname(__DIR__);
-		require_once $modulePath.'/core/lib/dolizugferd.lib.php';
-		require_once $modulePath.'/core/lib/dolizugferd_rules.php';
+		require_once $modulePath.'/core/lib/auvoerechnung.lib.php';
+		require_once $modulePath.'/core/lib/auvoerechnung_rules.php';
 		if (is_object($langs)) {
-			$langs->loadLangs(['dolizugferd@dolizugferd']);
+			$langs->loadLangs(['auvoerechnung@auvoerechnung']);
 		}
 
-		$strict = (int) getDolGlobalInt('DOLIZUGFERD_STRICT_MODE', 0);
+		$strict = (int) getDolGlobalInt('AUVOERECHNUNG_STRICT_MODE', 0);
 
 		if (empty($invoice->thirdparty) || !is_object($invoice->thirdparty)) {
 			$invoice->fetch_thirdparty();
 		}
 		if (empty($invoice->thirdparty) || !is_object($invoice->thirdparty)) {
-			return $this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrNoThirdparty'), $strict);
+			return $this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrNoThirdparty'), $strict);
 		}
 		if (empty($mysoc) || !is_object($mysoc) || empty($mysoc->name)) {
-			return $this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrNoMysoc'), $strict);
+			return $this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrNoMysoc'), $strict);
 		}
 		if (empty($invoice->lines)) {
 			$invoice->fetch_lines();
@@ -88,41 +88,41 @@ class ActionsDoliZugferd
 
 		// Périmètre supporté (multidevise, date manquante...) : on refuse
 		// proprement plutôt que d'émettre un XML divergent du PDF visible.
-		$unsupported = dolizugferd_check_supported($invoice);
+		$unsupported = auvoerechnung_check_supported($invoice);
 		if ($unsupported !== null) {
-			return $this->handleNonFatal('DoliZUGFeRD: '.$unsupported, $strict, dolizugferd_trans('DoliZugferdHintPdfKept'));
+			return $this->handleNonFatal('AuVo E-Rechnung: '.$unsupported, $strict, auvoerechnung_trans('AuvoERechnungHintPdfKept'));
 		}
 
 		// Vérifier les infos obligatoires (on continue même si incomplet en best-effort).
 		// Les warnings ne sont PAS affichés individuellement : ils sont consolidés
 		// dans le message final (vert si aucun, orange avec la liste si présents).
-		$warnings = dolizugferd_check_mandatory($invoice, $mysoc);
+		$warnings = auvoerechnung_check_mandatory($invoice, $mysoc);
 
 		$buildWarnings = [];
-		$xml = dolizugferd_build_xml($invoice, $mysoc, $buildWarnings);
+		$xml = auvoerechnung_build_xml($invoice, $mysoc, $buildWarnings);
 		$warnings = array_merge($warnings, $buildWarnings);
 
 		foreach ($warnings as $w) {
-			dol_syslog('DoliZUGFeRD WARNING: '.$w, LOG_WARNING);
+			dol_syslog('AuVo E-Rechnung WARNING: '.$w, LOG_WARNING);
 		}
 
 		// Validation interne avant injection : well-formed + XSD EN16931
 		$validationError = $this->validateXml($xml, $modulePath);
 		if ($validationError !== null) {
-			return $this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrInvalidXml').' : '.$validationError, $strict, dolizugferd_trans('DoliZugferdHintPdfKept'));
+			return $this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrInvalidXml').' : '.$validationError, $strict, auvoerechnung_trans('AuvoERechnungHintPdfKept'));
 		}
 
 		// Contrôle des règles métier EN16931 (sous-ensemble Schematron) :
 		// bloquant en mode strict, consolidé dans les warnings sinon.
-		if (getDolGlobalInt('DOLIZUGFERD_BR_CHECK', 1)) {
-			$brViolations = dolizugferd_validate_business_rules($xml);
+		if (getDolGlobalInt('AUVOERECHNUNG_BR_CHECK', 1)) {
+			$brViolations = auvoerechnung_validate_business_rules($xml);
 			if (!empty($brViolations)) {
 				if ($strict) {
-					return $this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrBrViolations').' — '.implode(' ; ', $brViolations), $strict);
+					return $this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrBrViolations').' — '.implode(' ; ', $brViolations), $strict);
 				}
 				foreach ($brViolations as $v) {
-					dol_syslog('DoliZUGFeRD BR: '.$v, LOG_WARNING);
-					$warnings[] = dolizugferd_trans('DoliZugferdWarnBrPrefix').' '.$v;
+					dol_syslog('AuVo E-Rechnung BR: '.$v, LOG_WARNING);
+					$warnings[] = auvoerechnung_trans('AuvoERechnungWarnBrPrefix').' '.$v;
 				}
 			}
 		}
@@ -136,23 +136,23 @@ class ActionsDoliZugferd
 		$this->xmlTmpFile = tempnam($xmlTempDir, 'facturx_');
 		if ($this->xmlTmpFile === false) {
 			$this->xmlTmpFile = null;
-			return $this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrTempDir', $xmlTempDir), $strict);
+			return $this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrTempDir', $xmlTempDir), $strict);
 		}
 		if (file_put_contents($this->xmlTmpFile, $xml) === false) {
 			@unlink($this->xmlTmpFile);
 			$this->xmlTmpFile = null;
-			return $this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrTempWrite', $xmlTempDir), $strict);
+			return $this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrTempWrite', $xmlTempDir), $strict);
 		}
 
 		try {
 			// Injection du XML dans le PDF. Par défaut en IN-PROCESS (sans exec,
 			// donc compatible avec les hébergements mutualisés où exec() est
 			// désactivé) avec repli automatique sur le sous-process si besoin.
-			// Le comportement est réglable via DOLIZUGFERD_INJECTION_MODE
+			// Le comportement est réglable via AUVOERECHNUNG_INJECTION_MODE
 			// (auto | inprocess | subprocess).
 			$inj = $this->injectFacturx($file, $this->xmlTmpFile, $modulePath);
 			if (!$inj['ok']) {
-				return $this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans_raw('DoliZugferdErrInjectFailed').' : '.dol_trunc($inj['error'], 300), $strict);
+				return $this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans_raw('AuvoERechnungErrInjectFailed').' : '.dol_trunc($inj['error'], 300), $strict);
 			}
 
 			// Post-validation PDF/A-3 optionnelle via veraPDF (non bloquante)
@@ -161,23 +161,23 @@ class ActionsDoliZugferd
 				$warnings[] = $veraWarning;
 			}
 
-			// Fonctionnalités Chorus Pro (opt-in via DOLIZUGFERD_CHORUS_ENABLED).
-			if (getDolGlobalInt('DOLIZUGFERD_CHORUS_ENABLED')) {
+			// Fonctionnalités Chorus Pro (opt-in via AUVOERECHNUNG_CHORUS_ENABLED).
+			if (getDolGlobalInt('AUVOERECHNUNG_CHORUS_ENABLED')) {
 				// Activé : génère le PDF Chorus EN PLUS du standard si la facture
 				// relève du public. N'altère jamais le PDF principal.
-				if (dolizugferd_is_chorus_invoice($invoice)) {
+				if (auvoerechnung_is_chorus_invoice($invoice)) {
 					$chorus = $this->generateChorusPdf($invoice, $file, $mysoc, $modulePath);
 					if (!$chorus['ok']) {
 						$warnings[] = $chorus['msg'];
 					}
 				}
-			} elseif (dolizugferd_is_public_sector_siret($invoice)) {
+			} elseif (auvoerechnung_is_public_sector_siret($invoice)) {
 				// Désactivé mais acheteur public détecté : on informe (sans rien
 				// générer), pour suggérer d'activer Chorus Pro si besoin.
-				$warnings[] = dolizugferd_trans('DoliZugferdChorusSuggested');
+				$warnings[] = auvoerechnung_trans('AuvoERechnungChorusSuggested');
 			}
 
-			dol_syslog('DoliZUGFeRD: PDF Factur-X généré pour '.$invoice->ref, LOG_INFO);
+			dol_syslog('AuVo E-Rechnung: PDF Factur-X généré pour '.$invoice->ref, LOG_INFO);
 			$this->reportSuccess($invoice->ref, $warnings);
 			return 0;
 		} finally {
@@ -239,13 +239,13 @@ class ActionsDoliZugferd
 		}
 
 		$modulePath = dirname(__DIR__);
-		require_once $modulePath.'/core/lib/dolizugferd.lib.php';
-		require_once $modulePath.'/core/lib/dolizugferd_rules.php';
+		require_once $modulePath.'/core/lib/auvoerechnung.lib.php';
+		require_once $modulePath.'/core/lib/auvoerechnung_rules.php';
 		if (is_object($langs)) {
-			$langs->loadLangs(['dolizugferd@dolizugferd']);
+			$langs->loadLangs(['auvoerechnung@auvoerechnung']);
 		}
 
-		$strict = (int) getDolGlobalInt('DOLIZUGFERD_STRICT_MODE', 0);
+		$strict = (int) getDolGlobalInt('AUVOERECHNUNG_STRICT_MODE', 0);
 
 		// 2) Dériver le chemin du PDF produit depuis $parameters['file'] (= le fichier
 		// ODF source : .odt le plus souvent, mais aussi .ods/.odx selon le modèle).
@@ -274,18 +274,18 @@ class ActionsDoliZugferd
 			// le filtre SelectPdfVersion). Sans lui : soit il n'y a qu'un .odt, soit le
 			// PDF est >=1.5 illisible par FPDI. On informe sans bloquer.
 			return $this->handleNonFatal(
-				'DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdOdtErrNoPdfConv'),
+				'AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungOdtErrNoPdfConv'),
 				$strict,
-				dolizugferd_trans('DoliZugferdOdtHintEnable')
+				auvoerechnung_trans('AuvoERechnungOdtHintEnable')
 			);
 		}
 		if ($odtAsPdfa < 1) {
 			// PDF produit mais probablement >=1.5 : on prévient (best-effort) plutôt
 			// que de partir dans une injection vouée à un échec FPDI illisible.
 			return $this->handleNonFatal(
-				'DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdOdtErrNoPdfa'),
+				'AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungOdtErrNoPdfa'),
 				$strict,
-				dolizugferd_trans('DoliZugferdOdtHintEnablePdfa')
+				auvoerechnung_trans('AuvoERechnungOdtHintEnablePdfa')
 			);
 		}
 
@@ -294,9 +294,9 @@ class ActionsDoliZugferd
 		// best-effort, on laisse le .odt en place.
 		if (!file_exists($pdf)) {
 			return $this->handleNonFatal(
-				'DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdOdtErrPdfMissing', basename($pdf)),
+				'AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungOdtErrPdfMissing', basename($pdf)),
 				$strict,
-				dolizugferd_trans('DoliZugferdOdtHintEnablePdfa')
+				auvoerechnung_trans('AuvoERechnungOdtHintEnablePdfa')
 			);
 		}
 
@@ -306,46 +306,46 @@ class ActionsDoliZugferd
 			$invoice->fetch_thirdparty();
 		}
 		if (empty($invoice->thirdparty) || !is_object($invoice->thirdparty)) {
-			return $this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrNoThirdparty'), $strict);
+			return $this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrNoThirdparty'), $strict);
 		}
 		if (empty($mysoc) || !is_object($mysoc) || empty($mysoc->name)) {
-			return $this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrNoMysoc'), $strict);
+			return $this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrNoMysoc'), $strict);
 		}
 		if (empty($invoice->lines)) {
 			$invoice->fetch_lines();
 		}
 
-		$unsupported = dolizugferd_check_supported($invoice);
+		$unsupported = auvoerechnung_check_supported($invoice);
 		if ($unsupported !== null) {
-			return $this->handleNonFatal('DoliZUGFeRD: '.$unsupported, $strict, dolizugferd_trans('DoliZugferdHintPdfKept'));
+			return $this->handleNonFatal('AuVo E-Rechnung: '.$unsupported, $strict, auvoerechnung_trans('AuvoERechnungHintPdfKept'));
 		}
 
 		// 5) Construction + validation du XML (réutilise intégralement le pipeline,
 		// profil PDP par défaut — appel sans $options, comme le PDF EN16931 standard).
-		$warnings = dolizugferd_check_mandatory($invoice, $mysoc);
+		$warnings = auvoerechnung_check_mandatory($invoice, $mysoc);
 
 		$buildWarnings = [];
-		$xml = dolizugferd_build_xml($invoice, $mysoc, $buildWarnings);
+		$xml = auvoerechnung_build_xml($invoice, $mysoc, $buildWarnings);
 		$warnings = array_merge($warnings, $buildWarnings);
 
 		foreach ($warnings as $w) {
-			dol_syslog('DoliZUGFeRD WARNING (ODT): '.$w, LOG_WARNING);
+			dol_syslog('AuVo E-Rechnung WARNING (ODT): '.$w, LOG_WARNING);
 		}
 
 		$validationError = $this->validateXml($xml, $modulePath);
 		if ($validationError !== null) {
-			return $this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrInvalidXml').' : '.$validationError, $strict, dolizugferd_trans('DoliZugferdHintPdfKept'));
+			return $this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrInvalidXml').' : '.$validationError, $strict, auvoerechnung_trans('AuvoERechnungHintPdfKept'));
 		}
 
-		if (getDolGlobalInt('DOLIZUGFERD_BR_CHECK', 1)) {
-			$brViolations = dolizugferd_validate_business_rules($xml);
+		if (getDolGlobalInt('AUVOERECHNUNG_BR_CHECK', 1)) {
+			$brViolations = auvoerechnung_validate_business_rules($xml);
 			if (!empty($brViolations)) {
 				if ($strict) {
-					return $this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrBrViolations').' — '.implode(' ; ', $brViolations), $strict);
+					return $this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrBrViolations').' — '.implode(' ; ', $brViolations), $strict);
 				}
 				foreach ($brViolations as $v) {
-					dol_syslog('DoliZUGFeRD BR (ODT): '.$v, LOG_WARNING);
-					$warnings[] = dolizugferd_trans('DoliZugferdWarnBrPrefix').' '.$v;
+					dol_syslog('AuVo E-Rechnung BR (ODT): '.$v, LOG_WARNING);
+					$warnings[] = auvoerechnung_trans('AuvoERechnungWarnBrPrefix').' '.$v;
 				}
 			}
 		}
@@ -357,12 +357,12 @@ class ActionsDoliZugferd
 		$this->xmlTmpFile = tempnam($xmlTempDir, 'facturx_');
 		if ($this->xmlTmpFile === false) {
 			$this->xmlTmpFile = null;
-			return $this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrTempDir', $xmlTempDir), $strict);
+			return $this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrTempDir', $xmlTempDir), $strict);
 		}
 		if (file_put_contents($this->xmlTmpFile, $xml) === false) {
 			@unlink($this->xmlTmpFile);
 			$this->xmlTmpFile = null;
-			return $this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrTempWrite', $xmlTempDir), $strict);
+			return $this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrTempWrite', $xmlTempDir), $strict);
 		}
 
 		try {
@@ -373,9 +373,9 @@ class ActionsDoliZugferd
 			$inj = $this->injectFacturx($pdf, $this->xmlTmpFile, $modulePath);
 			if (!$inj['ok']) {
 				return $this->handleNonFatal(
-					'DoliZUGFeRD: '.dolizugferd_trans_raw('DoliZugferdErrInjectFailed').' : '.dol_trunc($inj['error'], 300),
+					'AuVo E-Rechnung: '.auvoerechnung_trans_raw('AuvoERechnungErrInjectFailed').' : '.dol_trunc($inj['error'], 300),
 					$strict,
-					dolizugferd_trans('DoliZugferdOdtHintEnablePdfa')
+					auvoerechnung_trans('AuvoERechnungOdtHintEnablePdfa')
 				);
 			}
 
@@ -389,18 +389,18 @@ class ActionsDoliZugferd
 
 			// Chorus Pro (opt-in) : même logique que le flux TCPDF, le 2e PDF est
 			// copié depuis ce {ref}.pdf déjà injecté.
-			if (getDolGlobalInt('DOLIZUGFERD_CHORUS_ENABLED')) {
-				if (dolizugferd_is_chorus_invoice($invoice)) {
+			if (getDolGlobalInt('AUVOERECHNUNG_CHORUS_ENABLED')) {
+				if (auvoerechnung_is_chorus_invoice($invoice)) {
 					$chorus = $this->generateChorusPdf($invoice, $pdf, $mysoc, $modulePath);
 					if (!$chorus['ok']) {
 						$warnings[] = $chorus['msg'];
 					}
 				}
-			} elseif (dolizugferd_is_public_sector_siret($invoice)) {
-				$warnings[] = dolizugferd_trans('DoliZugferdChorusSuggested');
+			} elseif (auvoerechnung_is_public_sector_siret($invoice)) {
+				$warnings[] = auvoerechnung_trans('AuvoERechnungChorusSuggested');
 			}
 
-			dol_syslog('DoliZUGFeRD: PDF Factur-X (ODT) généré pour '.$invoice->ref, LOG_INFO);
+			dol_syslog('AuVo E-Rechnung: PDF Factur-X (ODT) généré pour '.$invoice->ref, LOG_INFO);
 			$this->reportSuccess($invoice->ref, $warnings);
 			return 0;
 		} finally {
@@ -428,24 +428,24 @@ class ActionsDoliZugferd
 	 */
 	protected function generateChorusPdf($invoice, $mainPdf, $mysoc, $modulePath)
 	{
-		$options = dolizugferd_chorus_options($invoice);
+		$options = auvoerechnung_chorus_options($invoice);
 
 		$cw = [];
-		$chorusXml = dolizugferd_build_xml($invoice, $mysoc, $cw, $options);
+		$chorusXml = auvoerechnung_build_xml($invoice, $mysoc, $cw, $options);
 
 		// Le PDF Chorus doit être aussi valide que le principal : on bloque la
 		// copie si le XML profil Chorus ne passe pas le XSD.
 		$xsdError = $this->validateXml($chorusXml, $modulePath);
 		if ($xsdError !== null) {
-			dol_syslog('DoliZUGFeRD Chorus: XML invalide pour '.$invoice->ref.' : '.$xsdError, LOG_ERR);
-			return array('ok' => false, 'msg' => dolizugferd_trans('DoliZugferdChorusErr'));
+			dol_syslog('AuVo E-Rechnung Chorus: XML invalide pour '.$invoice->ref.' : '.$xsdError, LOG_ERR);
+			return array('ok' => false, 'msg' => auvoerechnung_trans('AuvoERechnungChorusErr'));
 		}
 
 		// Copie {ref}-CHORUS.pdf dans le même dossier que le PDF principal.
 		$chorusPdf = preg_replace('/\.pdf$/i', '', $mainPdf).'-CHORUS.pdf';
 		if (!@copy($mainPdf, $chorusPdf)) {
-			dol_syslog('DoliZUGFeRD Chorus: copie PDF impossible vers '.$chorusPdf, LOG_ERR);
-			return array('ok' => false, 'msg' => dolizugferd_trans('DoliZugferdChorusErr'));
+			dol_syslog('AuVo E-Rechnung Chorus: copie PDF impossible vers '.$chorusPdf, LOG_ERR);
+			return array('ok' => false, 'msg' => auvoerechnung_trans('AuvoERechnungChorusErr'));
 		}
 
 		$xmlTempDir = DOL_DATA_ROOT.'/facturx/temp';
@@ -454,8 +454,8 @@ class ActionsDoliZugferd
 		if ($tmp === false || file_put_contents($tmp, $chorusXml) === false) {
 			if ($tmp !== false) { @unlink($tmp); }
 			@unlink($chorusPdf);
-			dol_syslog('DoliZUGFeRD Chorus: écriture XML temp impossible', LOG_ERR);
-			return array('ok' => false, 'msg' => dolizugferd_trans('DoliZugferdChorusErr'));
+			dol_syslog('AuVo E-Rechnung Chorus: écriture XML temp impossible', LOG_ERR);
+			return array('ok' => false, 'msg' => auvoerechnung_trans('AuvoERechnungChorusErr'));
 		}
 
 		try {
@@ -463,15 +463,15 @@ class ActionsDoliZugferd
 			$inj = $this->injectFacturx($chorusPdf, $tmp, $modulePath);
 			if (!$inj['ok']) {
 				@unlink($chorusPdf);
-				dol_syslog('DoliZUGFeRD Chorus: injection KO : '.dol_trunc($inj['error'], 300), LOG_ERR);
-				return array('ok' => false, 'msg' => dolizugferd_trans('DoliZugferdChorusErr'));
+				dol_syslog('AuVo E-Rechnung Chorus: injection KO : '.dol_trunc($inj['error'], 300), LOG_ERR);
+				return array('ok' => false, 'msg' => auvoerechnung_trans('AuvoERechnungChorusErr'));
 			}
 		} finally {
 			@unlink($tmp);
 		}
 
-		dol_syslog('DoliZUGFeRD: PDF Chorus généré pour '.$invoice->ref.' ('.basename($chorusPdf).')', LOG_INFO);
-		return array('ok' => true, 'msg' => dolizugferd_trans('DoliZugferdChorusGenerated', basename($chorusPdf)));
+		dol_syslog('AuVo E-Rechnung: PDF Chorus généré pour '.$invoice->ref.' ('.basename($chorusPdf).')', LOG_INFO);
+		return array('ok' => true, 'msg' => auvoerechnung_trans('AuvoERechnungChorusGenerated', basename($chorusPdf)));
 	}
 
 	/**
@@ -483,8 +483,8 @@ class ActionsDoliZugferd
 		global $mysoc, $langs;
 
 		$modulePath = dirname(__DIR__);
-		require_once $modulePath.'/core/lib/dolizugferd.lib.php';
-		require_once $modulePath.'/core/lib/dolizugferd_rules.php';
+		require_once $modulePath.'/core/lib/auvoerechnung.lib.php';
+		require_once $modulePath.'/core/lib/auvoerechnung_rules.php';
 
 		if (empty($invoice->thirdparty) || !is_object($invoice->thirdparty)) {
 			$invoice->fetch_thirdparty();
@@ -495,7 +495,7 @@ class ActionsDoliZugferd
 
 		$mainPdf = $this->getInvoicePdfPath($invoice);
 		if ($mainPdf === null || !file_exists($mainPdf)) {
-			setEventMessages($langs->trans('DoliZugferdMsgNoPdf'), null, 'warnings');
+			setEventMessages($langs->trans('AuvoERechnungMsgNoPdf'), null, 'warnings');
 			return;
 		}
 		$res = $this->generateChorusPdf($invoice, $mainPdf, $mysoc, $modulePath);
@@ -545,7 +545,7 @@ class ActionsDoliZugferd
 			return 0; // brouillon : pas encore de PDF définitif
 		}
 		if (is_object($langs)) {
-			$langs->loadLangs(['dolizugferd@dolizugferd']);
+			$langs->loadLangs(['auvoerechnung@auvoerechnung']);
 		}
 
 		// Menu déroulant unique « Factur-X ▾ » regroupant les actions du module
@@ -560,17 +560,17 @@ class ActionsDoliZugferd
 		// transmise...) : pas de couplage inverse FacturX → SuperPDP.
 		$items = array();
 		if ($canRead) {
-			$items[] = array('href' => $url.'&action=dolizugferd_verify', 'label' => $langs->trans('DoliZugferdBtnVerify'));
+			$items[] = array('href' => $url.'&action=auvoerechnung_verify', 'label' => $langs->trans('AuvoERechnungBtnVerify'));
 		}
 		if ($canWrite) {
-			$items[] = array('href' => $url.'&action=dolizugferd_regenerate', 'label' => $langs->trans('DoliZugferdBtnRegenerate'));
-			if (getDolGlobalInt('DOLIZUGFERD_CHORUS_ENABLED')) {
-				$items[] = array('href' => $url.'&action=dolizugferd_generatechorus', 'label' => $langs->trans('DoliZugferdBtnGenerateChorus'));
+			$items[] = array('href' => $url.'&action=auvoerechnung_regenerate', 'label' => $langs->trans('AuvoERechnungBtnRegenerate'));
+			if (getDolGlobalInt('AUVOERECHNUNG_CHORUS_ENABLED')) {
+				$items[] = array('href' => $url.'&action=auvoerechnung_generatechorus', 'label' => $langs->trans('AuvoERechnungBtnGenerateChorus'));
 			}
 		}
 
 		if (!empty($items)) {
-			print $this->renderDropdown($langs->trans('DoliZugferdMenuLabel'), $items);
+			print $this->renderDropdown($langs->trans('AuvoERechnungMenuLabel'), $items);
 		}
 
 		return 0;
@@ -578,7 +578,7 @@ class ActionsDoliZugferd
 
 	/**
 	 * Hook doActions — contexte invoicecard.
-	 * Traite les actions dolizugferd_verify / dolizugferd_regenerate.
+	 * Traite les actions auvoerechnung_verify / auvoerechnung_regenerate.
 	 */
 	public function doActions($parameters, &$object, &$action, $hookmanager)
 	{
@@ -588,7 +588,7 @@ class ActionsDoliZugferd
 		if (!in_array('invoicecard', $contexts, true)) {
 			return 0;
 		}
-		if (!in_array($action, ['dolizugferd_verify', 'dolizugferd_regenerate', 'dolizugferd_generatechorus'], true)) {
+		if (!in_array($action, ['auvoerechnung_verify', 'auvoerechnung_regenerate', 'auvoerechnung_generatechorus'], true)) {
 			return 0;
 		}
 		if (!is_object($object) || !($object instanceof Facture) || empty($object->id)) {
@@ -599,10 +599,10 @@ class ActionsDoliZugferd
 			return 0;
 		}
 		if (is_object($langs)) {
-			$langs->loadLangs(['dolizugferd@dolizugferd']);
+			$langs->loadLangs(['auvoerechnung@auvoerechnung']);
 		}
 
-		if ($action === 'dolizugferd_regenerate') {
+		if ($action === 'auvoerechnung_regenerate') {
 			if (!$this->userCanWrite($user)) {
 				setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
 				return 0;
@@ -626,14 +626,14 @@ class ActionsDoliZugferd
 			$hideref = getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_REF');
 			$res = $object->generateDocument($model, $outputlangs, $hidedetails, $hidedesc, $hideref);
 			if ($res <= 0) {
-				setEventMessages($langs->trans('DoliZugferdMsgRegenerateFailed').' : '.$object->error, null, 'errors');
+				setEventMessages($langs->trans('AuvoERechnungMsgRegenerateFailed').' : '.$object->error, null, 'errors');
 			}
 			// Les messages de succès/avertissement sont émis par afterPDFCreation
 			$action = '';
 			return 0;
 		}
 
-		if ($action === 'dolizugferd_generatechorus') {
+		if ($action === 'auvoerechnung_generatechorus') {
 			if (!$this->userCanWrite($user)) {
 				setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
 				return 0;
@@ -643,7 +643,7 @@ class ActionsDoliZugferd
 			return 0;
 		}
 
-		// dolizugferd_verify : extraire le XML embarqué du PDF et le re-valider
+		// auvoerechnung_verify : extraire le XML embarqué du PDF et le re-valider
 		if (!$this->userCanRead($user)) {
 			setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
 			return 0;
@@ -667,18 +667,18 @@ class ActionsDoliZugferd
 		global $conf, $langs;
 
 		$modulePath = dirname(__DIR__);
-		require_once $modulePath.'/core/lib/dolizugferd.lib.php';
-		require_once $modulePath.'/core/lib/dolizugferd_rules.php';
+		require_once $modulePath.'/core/lib/auvoerechnung.lib.php';
+		require_once $modulePath.'/core/lib/auvoerechnung_rules.php';
 
 		$pdfPath = $this->getInvoicePdfPath($invoice);
 		if ($pdfPath === null) {
-			setEventMessages($langs->trans('DoliZugferdMsgNoPdf'), null, 'warnings');
+			setEventMessages($langs->trans('AuvoERechnungMsgNoPdf'), null, 'warnings');
 			return;
 		}
 
-		$xml = dolizugferd_extract_xml_from_pdf($pdfPath);
+		$xml = auvoerechnung_extract_xml_from_pdf($pdfPath);
 		if ($xml === null) {
-			setEventMessages($langs->trans('DoliZugferdMsgNoFacturX', basename($pdfPath)), null, 'warnings');
+			setEventMessages($langs->trans('AuvoERechnungMsgNoFacturX', basename($pdfPath)), null, 'warnings');
 			return;
 		}
 
@@ -687,15 +687,15 @@ class ActionsDoliZugferd
 		if ($xsdError !== null) {
 			$problems[] = 'XSD : '.$xsdError;
 		}
-		if (getDolGlobalInt('DOLIZUGFERD_BR_CHECK', 1)) {
-			$problems = array_merge($problems, dolizugferd_validate_business_rules($xml));
+		if (getDolGlobalInt('AUVOERECHNUNG_BR_CHECK', 1)) {
+			$problems = array_merge($problems, auvoerechnung_validate_business_rules($xml));
 		}
 
 		if (empty($problems)) {
-			setEventMessages($langs->trans('DoliZugferdMsgVerifyOk', basename($pdfPath)), null, 'mesgs');
+			setEventMessages($langs->trans('AuvoERechnungMsgVerifyOk', basename($pdfPath)), null, 'mesgs');
 			return;
 		}
-		$msg = $langs->trans('DoliZugferdMsgVerifyKo', basename($pdfPath)).'<br><ul style="margin:4px 0 0 0;padding-left:20px;">';
+		$msg = $langs->trans('AuvoERechnungMsgVerifyKo', basename($pdfPath)).'<br><ul style="margin:4px 0 0 0;padding-left:20px;">';
 		foreach ($problems as $p) {
 			$msg .= '<li>'.dol_escape_htmltag($p).'</li>';
 		}
@@ -711,23 +711,23 @@ class ActionsDoliZugferd
 		global $conf;
 
 		$entity = $invoice->entity ?? $conf->entity;
-		return dolizugferd_invoice_pdf_path($invoice->ref, $entity, (string) ($invoice->last_main_doc ?? ''));
+		return auvoerechnung_invoice_pdf_path($invoice->ref, $entity, (string) ($invoice->last_main_doc ?? ''));
 	}
 
 	/**
-	 * Post-validation PDF/A-3 via veraPDF si DOLIZUGFERD_VERAPDF_PATH est
+	 * Post-validation PDF/A-3 via veraPDF si AUVOERECHNUNG_VERAPDF_PATH est
 	 * configuré. Renvoie un warning à afficher, ou null si OK / non configuré.
 	 */
 	protected function runVeraPdf($pdfFile)
 	{
 		global $langs;
 
-		$veraPath = trim(getDolGlobalString('DOLIZUGFERD_VERAPDF_PATH', ''));
+		$veraPath = trim(getDolGlobalString('AUVOERECHNUNG_VERAPDF_PATH', ''));
 		if ($veraPath === '' || !function_exists('exec')) {
 			return null;
 		}
 		if (!is_executable($veraPath)) {
-			return dolizugferd_trans('DoliZugferdWarnVeraPdfNotFound', $veraPath);
+			return auvoerechnung_trans('AuvoERechnungWarnVeraPdfNotFound', $veraPath);
 		}
 
 		$cmd = escapeshellarg($veraPath).' -f 3b --format text '.escapeshellarg($pdfFile).' 2>&1';
@@ -743,11 +743,11 @@ class ActionsDoliZugferd
 
 		// veraPDF (format text) : "PASS file.pdf" / "FAIL file.pdf"
 		if (strpos($text, 'PASS') === 0 || preg_match('/^PASS\b/m', $text)) {
-			dol_syslog('DoliZUGFeRD: veraPDF PASS pour '.$pdfFile, LOG_INFO);
+			dol_syslog('AuVo E-Rechnung: veraPDF PASS pour '.$pdfFile, LOG_INFO);
 			return null;
 		}
-		dol_syslog('DoliZUGFeRD: veraPDF KO pour '.$pdfFile.' : '.dol_trunc($text, 500), LOG_WARNING);
-		return dolizugferd_trans('DoliZugferdWarnVeraPdfFailed');
+		dol_syslog('AuVo E-Rechnung: veraPDF KO pour '.$pdfFile.' : '.dol_trunc($text, 500), LOG_WARNING);
+		return auvoerechnung_trans('AuvoERechnungWarnVeraPdfFailed');
 	}
 
 	/**
@@ -773,7 +773,7 @@ class ActionsDoliZugferd
 	}
 
 	/**
-	 * Résout et valide le binaire PHP CLI configuré (DOLIZUGFERD_PHP_CLI_PATH).
+	 * Résout et valide le binaire PHP CLI configuré (AUVOERECHNUNG_PHP_CLI_PATH).
 	 * Retourne null en cas d'échec après avoir remonté le message via handleNonFatal().
 	 *
 	 * @param int $strict
@@ -785,12 +785,12 @@ class ActionsDoliZugferd
 		// version major.minor du web, en évitant le piège PHP_BINARY=php-fpm en FPM.
 		// 'php' nu (ancien défaut résiduel des activations passées) = pas une vraie
 		// surcharge → auto-détection aussi.
-		$manual = trim(getDolGlobalString('DOLIZUGFERD_PHP_CLI_PATH', ''));
+		$manual = trim(getDolGlobalString('AUVOERECHNUNG_PHP_CLI_PATH', ''));
 		if ($manual === '' || $manual === 'php') {
-			return dolizugferd_resolve_php_cli($this->db);
+			return auvoerechnung_resolve_php_cli($this->db);
 		}
 
-		$phpBin = getDolGlobalString('DOLIZUGFERD_PHP_CLI_PATH', 'php');
+		$phpBin = getDolGlobalString('AUVOERECHNUNG_PHP_CLI_PATH', 'php');
 
 		// Hardening : la constante est modifiable par un admin via /admin/const.php.
 		// escapeshellarg() sur la commande bloque déjà toute injection shell (une
@@ -800,8 +800,8 @@ class ActionsDoliZugferd
 		// `:`, `\`, `(`, `)`, espace autorisés pour les chemins Windows
 		// (ex C:\Program Files\php\php.exe).
 		if (!preg_match('#^[A-Za-z0-9/._:() \\\\-]+$#', $phpBin)) {
-			dol_syslog('DoliZUGFeRD: DOLIZUGFERD_PHP_CLI_PATH valeur reçue : '.$phpBin, LOG_ERR);
-			$this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrPhpCliChars'), $strict);
+			dol_syslog('AuVo E-Rechnung: AUVOERECHNUNG_PHP_CLI_PATH valeur reçue : '.$phpBin, LOG_ERR);
+			$this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrPhpCliChars'), $strict);
 			return null;
 		}
 
@@ -809,7 +809,7 @@ class ActionsDoliZugferd
 		// vers un exécutable. Cas relatif ("php", "php8.2") : on laisse passer
 		// au shell qui résoudra via PATH.
 		if (strpos($phpBin, '/') !== false && !is_executable($phpBin)) {
-			$this->handleNonFatal('DoliZUGFeRD: '.dolizugferd_trans('DoliZugferdErrPhpCliNotFound', $phpBin), $strict);
+			$this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrPhpCliNotFound', $phpBin), $strict);
 			return null;
 		}
 
@@ -818,7 +818,7 @@ class ActionsDoliZugferd
 
 	/**
 	 * Injecte le XML Factur-X dans le PDF selon le mode configuré
-	 * (DOLIZUGFERD_INJECTION_MODE) :
+	 * (AUVOERECHNUNG_INJECTION_MODE) :
 	 *  - 'auto' (défaut)  : in-process, puis repli sur le sous-process si échec ;
 	 *  - 'inprocess'      : in-process uniquement (jamais d'exec) ;
 	 *  - 'subprocess'     : sous-process uniquement (comportement historique).
@@ -830,7 +830,7 @@ class ActionsDoliZugferd
 	 */
 	protected function injectFacturx($pdfPath, $xmlPath, $modulePath)
 	{
-		$mode = strtolower(trim(getDolGlobalString('DOLIZUGFERD_INJECTION_MODE', 'auto')));
+		$mode = strtolower(trim(getDolGlobalString('AUVOERECHNUNG_INJECTION_MODE', 'auto')));
 		if (!in_array($mode, array('auto', 'inprocess', 'subprocess'), true)) {
 			$mode = 'auto';
 		}
@@ -874,7 +874,7 @@ class ActionsDoliZugferd
 			$pdfContent = @file_get_contents($pdfPath);
 			$xmlContent = @file_get_contents($xmlPath);
 			if ($pdfContent === false || $xmlContent === false) {
-				return array('ok' => false, 'method' => 'inprocess', 'error' => dolizugferd_trans_raw('DoliZugferdErrInjReadSource'));
+				return array('ok' => false, 'method' => 'inprocess', 'error' => auvoerechnung_trans_raw('AuvoERechnungErrInjReadSource'));
 			}
 
 			// Garantit un minimum mémoire pour le parsing PDF en mémoire
@@ -883,7 +883,7 @@ class ActionsDoliZugferd
 
 			require_once $modulePath.'/vendor/autoload.php';
 			if (!class_exists('\\Atgp\\FacturX\\Writer')) {
-				return array('ok' => false, 'method' => 'inprocess', 'error' => dolizugferd_trans_raw('DoliZugferdErrInjLibMissing'));
+				return array('ok' => false, 'method' => 'inprocess', 'error' => auvoerechnung_trans_raw('AuvoERechnungErrInjLibMissing'));
 			}
 
 			// Garde-fou anti-FATAL : si une classe FPDF/FPDI est déjà chargée par
@@ -901,7 +901,7 @@ class ActionsDoliZugferd
 			$writer = new \Atgp\FacturX\Writer();
 			$facturxPdf = $writer->generate($pdfContent, $xmlContent, 'en16931', false, array(), false, 'Alternative');
 			if (!is_string($facturxPdf) || $facturxPdf === '') {
-				return array('ok' => false, 'method' => 'inprocess', 'error' => dolizugferd_trans_raw('DoliZugferdErrInjEmptyOutput'));
+				return array('ok' => false, 'method' => 'inprocess', 'error' => auvoerechnung_trans_raw('AuvoERechnungErrInjEmptyOutput'));
 			}
 
 			// Écriture atomique : le PDF d'origine n'est remplacé qu'une fois le
@@ -909,11 +909,11 @@ class ActionsDoliZugferd
 			$tmpPath = $pdfPath.'.facturx.tmp';
 			if (file_put_contents($tmpPath, $facturxPdf) !== strlen($facturxPdf)) {
 				@unlink($tmpPath);
-				return array('ok' => false, 'method' => 'inprocess', 'error' => dolizugferd_trans_raw('DoliZugferdErrInjWriteOutput'));
+				return array('ok' => false, 'method' => 'inprocess', 'error' => auvoerechnung_trans_raw('AuvoERechnungErrInjWriteOutput'));
 			}
 			if (!@rename($tmpPath, $pdfPath)) {
 				@unlink($tmpPath);
-				return array('ok' => false, 'method' => 'inprocess', 'error' => dolizugferd_trans_raw('DoliZugferdErrInjReplacePdf'));
+				return array('ok' => false, 'method' => 'inprocess', 'error' => auvoerechnung_trans_raw('AuvoERechnungErrInjReplacePdf'));
 			}
 
 			return array('ok' => true, 'method' => 'inprocess', 'error' => '');
@@ -953,8 +953,8 @@ class ActionsDoliZugferd
 				$file = false;
 			}
 			if ($file !== false && strpos(str_replace('\\', '/', $file), $ourVendor) === false) {
-				return function_exists('dolizugferd_trans')
-					? dolizugferd_trans('DoliZugferdErrTcpdiConflict', basename($file))
+				return function_exists('auvoerechnung_trans')
+					? auvoerechnung_trans('AuvoERechnungErrTcpdiConflict', basename($file))
 					: 'Conflit FPDF/TCPDF (tcpdi de Dolibarr, '.basename($file).') : injection in-process impossible. Activez exec() (mode sous-process) ou posez MAIN_DISABLE_TCPDI=1.';
 			}
 		}
@@ -971,7 +971,7 @@ class ActionsDoliZugferd
 				continue;
 			}
 			if ($file !== false && strpos(str_replace('\\', '/', $file), $ourVendor) === false) {
-				return dolizugferd_trans_raw('DoliZugferdErrInjFpdiConflict', $cls, basename($file));
+				return auvoerechnung_trans_raw('AuvoERechnungErrInjFpdiConflict', $cls, basename($file));
 			}
 		}
 		return null;
@@ -989,11 +989,11 @@ class ActionsDoliZugferd
 	protected function injectSubprocess($pdfPath, $xmlPath, $modulePath)
 	{
 		if (!function_exists('exec')) {
-			return array('ok' => false, 'method' => 'subprocess', 'error' => dolizugferd_trans('DoliZugferdErrNoExec'));
+			return array('ok' => false, 'method' => 'subprocess', 'error' => auvoerechnung_trans('AuvoERechnungErrNoExec'));
 		}
 		$phpBin = $this->resolvePhpBinary(0);
 		if ($phpBin === null) {
-			return array('ok' => false, 'method' => 'subprocess', 'error' => dolizugferd_trans_raw('DoliZugferdErrInjNoPhpCli'));
+			return array('ok' => false, 'method' => 'subprocess', 'error' => auvoerechnung_trans_raw('AuvoERechnungErrInjNoPhpCli'));
 		}
 
 		$cmd  = escapeshellarg($phpBin);
@@ -1055,11 +1055,11 @@ class ActionsDoliZugferd
 
 		$safeRef = dol_escape_htmltag($invoiceRef);
 		if (empty($warnings)) {
-			setEventMessages(dolizugferd_trans('DoliZugferdMsgSuccess', $safeRef), null, 'mesgs');
+			setEventMessages(auvoerechnung_trans('AuvoERechnungMsgSuccess', $safeRef), null, 'mesgs');
 			return;
 		}
 
-		$msg  = dolizugferd_trans('DoliZugferdMsgSuccessWithWarnings', $safeRef, count($warnings)).'<br>';
+		$msg  = auvoerechnung_trans('AuvoERechnungMsgSuccessWithWarnings', $safeRef, count($warnings)).'<br>';
 		$msg .= '<ul style="margin:4px 0 0 0;padding-left:20px;">';
 		foreach ($warnings as $w) {
 			$msg .= '<li>'.dol_escape_htmltag($w).'</li>';
@@ -1086,7 +1086,7 @@ class ActionsDoliZugferd
 	{
 		dol_syslog($msg, LOG_ERR);
 		if ($fallbackHint === '') {
-			$fallbackHint = dolizugferd_trans('DoliZugferdHintPdfKeptShort');
+			$fallbackHint = auvoerechnung_trans('AuvoERechnungHintPdfKeptShort');
 		}
 		$interactive = function_exists('setEventMessages') && php_sapi_name() !== 'cli';
 		if ($strict) {
@@ -1098,7 +1098,7 @@ class ActionsDoliZugferd
 			return -1;
 		}
 		if ($interactive) {
-			setEventMessages($msg.' ('.dolizugferd_trans('DoliZugferdHintBestEffort').' : '.$fallbackHint.')', null, 'warnings');
+			setEventMessages($msg.' ('.auvoerechnung_trans('AuvoERechnungHintBestEffort').' : '.$fallbackHint.')', null, 'warnings');
 		}
 		return 0;
 	}
@@ -1116,12 +1116,12 @@ class ActionsDoliZugferd
 	protected function validateXml($xml, $modulePath)
 	{
 		// Implémentation partagée avec les suites de tests : les tests valident
-		// le même code que la production (cf. core/lib/dolizugferd_rules.php).
-		require_once $modulePath.'/core/lib/dolizugferd_rules.php';
+		// le même code que la production (cf. core/lib/auvoerechnung_rules.php).
+		require_once $modulePath.'/core/lib/auvoerechnung_rules.php';
 		$xsdPath = $modulePath.'/vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.09.2_EN16931.xsd';
 		if (!file_exists($xsdPath)) {
-			dol_syslog('DoliZUGFeRD: XSD EN16931 absent de vendor/, validation structurelle limitée au well-formed', LOG_WARNING);
+			dol_syslog('AuVo E-Rechnung: XSD EN16931 absent de vendor/, validation structurelle limitée au well-formed', LOG_WARNING);
 		}
-		return dolizugferd_validate_xsd($xml, $modulePath);
+		return auvoerechnung_validate_xsd($xml, $modulePath);
 	}
 }

@@ -1,7 +1,7 @@
 <?php
 /*
  * Copyright (C) 2026 SASU LEMON <https://hellolemon.fr>
- * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — fork, renamed and modified as DoliZUGFeRD
+ * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — fork, renamed and modified as AuVo E-Rechnung
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ if (!$loaded) {
 	exit(2);
 }
 
-require_once __DIR__.'/../core/lib/dolizugferd.lib.php';
+require_once __DIR__.'/../core/lib/auvoerechnung.lib.php';
 
 $sql = "SELECT rowid, ref, datef, entity, last_main_doc FROM ".MAIN_DB_PREFIX."facture"
 	." WHERE fk_statut >= 1 AND entity IN (".getEntity('invoice').")";
@@ -72,14 +72,14 @@ if (!$res) {
 
 $counts = ['OK' => 0, 'NO_PDF' => 0, 'NO_XML' => 0];
 
-echo "=== DoliZUGFeRD - Stapelexport der ZUGFeRD-XML ===\n";
+echo "=== AuVo E-Rechnung - Stapelexport der ZUGFeRD-XML ===\n";
 echo "Ziel: $destDir".($year > 0 ? " | Jahr: $year" : '')."\n\n";
 
 while ($obj = $db->fetch_object($res)) {
 	$ref = $obj->ref;
 	// Entité de la facture (et non l'entité courante) : en multicompany avec
 	// partage, le PDF vit dans le répertoire documents de SON entité.
-	$pdfPath = dolizugferd_invoice_pdf_path($ref, (int) $obj->entity, (string) ($obj->last_main_doc ?? ''));
+	$pdfPath = auvoerechnung_invoice_pdf_path($ref, (int) $obj->entity, (string) ($obj->last_main_doc ?? ''));
 
 	if ($pdfPath === null) {
 		$counts['NO_PDF']++;
@@ -87,7 +87,7 @@ while ($obj = $db->fetch_object($res)) {
 		continue;
 	}
 
-	$xml = dolizugferd_extract_xml_from_pdf($pdfPath);
+	$xml = auvoerechnung_extract_xml_from_pdf($pdfPath);
 	if ($xml === null) {
 		$counts['NO_XML']++;
 		printf("%-20s NO_XML\n", $ref);

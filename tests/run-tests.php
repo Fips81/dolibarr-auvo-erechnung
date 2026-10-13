@@ -1,9 +1,9 @@
 <?php
 /*
- * Suite de tests métier DoliZUGFeRD.
+ * Suite de tests métier AuVo E-Rechnung.
  *
  * S'appuie sur les 10 fixtures Factur-X (F001-F010) créées par demo/fixtures.php.
- * Pour chaque cas, génère le XML via dolizugferd_build_xml() puis vérifie :
+ * Pour chaque cas, génère le XML via auvoerechnung_build_xml() puis vérifie :
  *  - TypeCode documentaire attendu (380/381/386)
  *  - CategoryCode(s) présents (S/K/G/O/E)
  *  - unitCode UN/ECE (C62, HUR, DAY...)
@@ -44,8 +44,8 @@ if (!$loaded) {
 }
 
 require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
-require_once __DIR__.'/../core/lib/dolizugferd.lib.php';
-require_once __DIR__.'/../core/lib/dolizugferd_rules.php';
+require_once __DIR__.'/../core/lib/auvoerechnung.lib.php';
+require_once __DIR__.'/../core/lib/auvoerechnung_rules.php';
 
 $modulePath = dirname(__DIR__);
 
@@ -83,7 +83,7 @@ function getXmlSingleMatch($pattern, $xml)
 	return preg_match($pattern, $xml, $m) ? $m[1] : null;
 }
 
-echo "=== DoliZUGFeRD - Suite de tests métier ===\n\n";
+echo "=== AuVo E-Rechnung - Suite de tests métier ===\n\n";
 
 foreach ($cases as $id => $c) {
 	$pass = 0;
@@ -96,7 +96,7 @@ foreach ($cases as $id => $c) {
 		continue;
 	}
 	$f->fetch_thirdparty();
-	$xml = dolizugferd_build_xml($f, $mysoc);
+	$xml = auvoerechnung_build_xml($f, $mysoc);
 
 	// Extractions
 	$typeCode = getXmlSingleMatch('#<ram:TypeCode>([^<]+)</ram:TypeCode>#', $xml);
@@ -126,8 +126,8 @@ foreach ($cases as $id => $c) {
 	assertEquals($c['prepaid'] === null ? null : (float) $c['prepaid'], $prepaid === null ? null : (float) $prepaid, 'TotalPrepaidAmount', $pass, $fail, $caseFailures, $id);
 	assertEquals((float) $c['due'], $due === null ? null : (float) $due, 'DuePayableAmount', $pass, $fail, $caseFailures, $id);
 
-	// Validation XSD : même implémentation que la production (dolizugferd_rules.php)
-	$xsdError = dolizugferd_validate_xsd($xml, $modulePath);
+	// Validation XSD : même implémentation que la production (auvoerechnung_rules.php)
+	$xsdError = auvoerechnung_validate_xsd($xml, $modulePath);
 	if ($xsdError !== null) {
 		$caseFailures[] = sprintf("F%03d XSD validation KO : %s", $id, $xsdError);
 		$fail++;

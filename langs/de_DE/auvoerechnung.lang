@@ -1,0 +1,261 @@
+Module194202Name = AuVo E-Rechnung
+Module194202Desc = E-Rechnungen für Dolibarr (ZUGFeRD / Factur-X EN16931)
+
+AuvoERechnungSetup = AuVo E-Rechnung-Einstellungen
+AuvoERechnungBankAccount = Bankkonto (IBAN/BIC)
+AuvoERechnungPaymentMeans = Standard-Zahlungsart
+AuvoERechnungPaymentMeansHint = UNTDID-4461-Code. 30/58 (Überweisung) erfordern eine IBAN: Ohne konfiguriertes Bankkonto wird der Zahlungsblock im XML weggelassen (BR-61). 59 (SEPA-Lastschrift) gibt die Gläubiger-ID (Dolibarr-Konstante PRELEVEMENT_ICS), die Mandatsreferenz und die IBAN des Standard-Bankkontos des Geschäftspartners aus.
+PaymentMeans30 = Überweisung
+PaymentMeans58 = SEPA-Überweisung
+PaymentMeans59 = SEPA-Lastschrift
+PaymentMeans49 = Lastschrift (national)
+AuvoERechnungBrCheck = Prüfung der EN16931-Geschäftsregeln
+AuvoERechnungBrCheckHint = Prüft vor der Injektion eine Teilmenge der EN16931-Schematron-Regeln (BR-CO-10..17, BR-27, BR-61, BR-IC-11/12, Konsistenz der MwSt-Kategorien ...). Verstöße blockieren im Strikt-Modus, andernfalls werden sie den Warnungen hinzugefügt.
+AuvoERechnungVeraPdfPath = PDF/A-3-Validierung mit veraPDF (optional, externes Tool)
+AuvoERechnungVeraPdfPathHint = Standardmäßig leer = deaktiviert, und das ist in Ordnung: Die EN16931-XSD-Prüfung und die internen BR-Regeln laufen bereits. veraPDF wird NICHT mit dem Modul ausgeliefert — es ist ein Drittanbieter-Tool, das Sie selbst installieren (https://verapdf.org) und hier eintragen. Wenn gesetzt, wird jede PDF nach der Injektion erneut als PDF/A-3b validiert: nicht blockierend (ein Fehlschlag erzeugt nur eine Warnung), verlangsamt die Erzeugung um einige Sekunden.
+AuvoERechnungVeraPdfPlaceholder = z. B. /usr/local/bin/verapdf — leer = deaktiviert
+AuvoERechnungInfo = Erzeugte PDF-Rechnungen werden automatisch in ZUGFeRD EN16931 umgewandelt (PDF/A-3 mit eingebettetem CrossIndustryInvoice-XML). IBAN und BIC werden aus dem ausgewählten Bankkonto gelesen.
+AuvoERechnungDiagTitle = Diagnose der Pflichtangaben
+AuvoERechnungDiagResults = Prüfung ZUGFeRD EN16931 + BR-FR-Regeln
+AuvoERechnungDiagSellerName = Firmenname des Verkäufers
+AuvoERechnungDiagSellerAddress = Adresse des Verkäufers
+AuvoERechnungDiagSellerVAT = Umsatzsteuer-Identifikationsnummer
+AuvoERechnungDiagSellerVATFranchise = nicht erforderlich (Kleinunternehmerregelung) — als Steuerkennung (BT-32) wird die Steuernummer ausgegeben, bei französischen Verkäufern die SIREN
+AuvoERechnungDiagSellerSIRET = SIRET / SIREN
+AuvoERechnungDiagSellerSteuernummer = Steuernummer des Verkäufers (BT-32)
+AuvoERechnungDiagSellerSteuernummerNotNeeded = nicht hinterlegt — nicht erforderlich, da USt-IdNr. vorhanden
+AuvoERechnungDiagSellerTaxIdMissing = Steuernummer oder USt-IdNr. des Verkäufers fehlt — eine davon ist Pflicht (§ 14 Abs. 4 UStG, BR-CO-26); in Dolibarr unter Firma/Organisation im Feld „USt-Nr.“ bzw. „USt-IdNr.“ eintragen
+AuvoERechnungDiagSellerEmail = E-Mail des Verkäufers
+AuvoERechnungDiagIBAN = IBAN des Bankkontos
+AuvoERechnungDiagBIC = BIC des Bankkontos
+AuvoERechnungDiagBankNotFound = Bankkonto nicht gefunden
+AuvoERechnungDiagBankNotSet = Kein Bankkonto ausgewählt
+AuvoERechnungDiagModuleBankEnabled = Bank-Modul aktiviert
+AuvoERechnungDiagModuleBankDisabled = Bank-Modul deaktiviert (erforderlich zur Verwaltung des Bankkontos)
+AuvoERechnungDiagModuleInvoiceEnabled = Rechnungs-Modul aktiviert
+AuvoERechnungDiagModuleInvoiceDisabled = Rechnungs-Modul deaktiviert (erforderlich zur Erzeugung von Rechnungen)
+AuvoERechnungDiagForceFontOk = Eingebettete PDF-Schriftart erzwungen (MAIN_PDF_FORCE_FONT)
+AuvoERechnungDiagForceFontMissing = MAIN_PDF_FORCE_FONT nicht gesetzt — ohne eingebettete Schriftarten ist die PDF nicht PDF/A-3-konform
+AuvoERechnungDiagInjInProcess = In-Process-Injektion (ohne exec) erzwungen — funktioniert auf Servern, auf denen exec() deaktiviert ist
+AuvoERechnungDiagInjAuto = Automatischer Modus: Injektion per Subprozess (exec verfügbar) — isolierter PHP-Prozess, der sicherste Weg
+AuvoERechnungDiagInjAutoNoExec = Automatischer Modus: In-Process-Injektion (exec auf diesem Server deaktiviert — keine Alternative verfügbar)
+AuvoERechnungDiagInjSubprocess = Injektion per Subprozess (exec) — Legacy-Modus erzwungen
+AuvoERechnungDiagExecRequiredSub = Modus „Subprozess" gewählt, aber exec() ist auf diesem Server deaktiviert — wechseln Sie in der Konfiguration zu „Automatisch" oder „In-Process"
+AuvoERechnungDiagTcpdiConflict = Die In-Process-Injektion wird fehlschlagen: Dolibarr lädt bei jeder Erzeugung seine PDF-Engine „tcpdi" (ein TCPDF-basiertes FPDF, inkompatibel mit der Factur-X-Injektionsbibliothek). Zwei Lösungen: Aktivieren Sie die exec()-Funktion auf dem Server (das Modul nutzt dann einen isolierten Subprozess, empfohlen), ODER setzen Sie die Konstante MAIN_DISABLE_TCPDI = 1 (gibt In-Process frei, deaktiviert aber die PDF-Zusammenführungsfunktionen von Dolibarr — Seitenhintergründe, Verkettung).
+AuvoERechnungErrTcpdiConflict = FPDF/TCPDF-Konflikt: Dolibarr hat seine tcpdi-Engine geladen (%s), inkompatibel mit der In-Process-Injektion. Aktivieren Sie exec() (Subprozess-Modus) oder setzen Sie die Konstante MAIN_DISABLE_TCPDI=1 (deaktiviert die PDF-Zusammenführung von Dolibarr).
+AuvoERechnungDiagPhpCliOk = PHP-CLI-Binärdatei
+AuvoERechnungDiagPhpCliNotFound = Die konfigurierte PHP-CLI-Binärdatei wurde nicht gefunden oder ist nicht ausführbar: %s
+AuvoERechnungDiagMulticurrencyNote = Multiwährungs-Modul aktiviert: Rechnungen in Fremdwährung werden NICHT in ZUGFeRD umgewandelt (dokumentierte Einschränkung, die klassische PDF bleibt erhalten)
+AuvoERechnungDiagFixLink = Beheben
+AuvoERechnungDiagFixForceFont = Automatisch beheben (setzt „pdfahelvetica")
+AuvoERechnungForceFontSet = MAIN_PDF_FORCE_FONT auf „pdfahelvetica" gesetzt: Erzeugte PDFs betten Schriftarten jetzt ein (PDF/A-3). Globale Einstellung, wirkt auf alle PDF-Dokumente in Dolibarr.
+AuvoERechnungDiagAllOk = Alle Pflichtangaben sind ausgefüllt!
+AuvoERechnungDiagNoBlocker = Kein Blocker: Die ZUGFeRD-Konformität ist sichergestellt. Es verbleiben einige empfohlene Punkte (in Orange), die Sie für ein optimales Ergebnis noch angehen können.
+
+AuvoERechnungStrictMode = Fehlerbehandlungsmodus
+AuvoERechnungStrictModeHint = Best-Effort: Schlägt die ZUGFeRD-Erzeugung fehl, wird die klassische PDF mit einer Warnung ausgeliefert. Strikt: Blockiert die Erzeugung mit sichtbarem Fehler, wenn das XML ungültig ist oder die PDF-Injektion fehlschlägt. Hinweis: Auch im Strikt-Modus bleibt die bereits von Dolibarr erzeugte klassische PDF auf der Festplatte erhalten.
+AuvoERechnungStrictModeBestEffort = Best-Effort (Standard, nicht blockierend)
+AuvoERechnungStrictModeStrict = Strikt (blockiert, wenn ZUGFeRD fehlschlägt)
+AuvoERechnungInjectionMode = XML-Injektionsmodus
+AuvoERechnungInjectionModeHint = „Automatisch" (empfohlen): Subprozess, wenn exec() verfügbar ist (der sicherste, isolierte Weg), und In-Process nur, wenn exec() deaktiviert ist (gehärtetes Shared Hosting). „Nur In-Process" erzwingt die Injektion ohne exec() — nur für Server ohne exec() verwenden, da ein PDF-Bibliothekskonflikt mit einem anderen Modul die Injektion dann verhindern kann. „Subprozess" erzwingt das Legacy-Verhalten (erfordert exec()).
+AuvoERechnungInjectionModeAuto = Automatisch (Subprozess wenn exec, sonst In-Process)
+AuvoERechnungInjectionModeInProcess = Nur In-Process (ohne exec)
+AuvoERechnungInjectionModeSubprocess = Subprozess (exec, Legacy)
+AuvoERechnungPhpCliPath = Pfad zur PHP-CLI-Binärdatei
+AuvoERechnungPhpCliPathHint = Wird nur vom Modus „Subprozess" verwendet. Leer lassen: Das Modul erkennt die richtige PHP-CLI-Binärdatei automatisch. Nur einen Pfad setzen, um eine bestimmte Binärdatei zu erzwingen (exotisches Setup).
+AuvoERechnungLegalNotes = Französische Pflichtangaben (BR-FR-05)
+AuvoERechnungNotePMD = Verzugszinsen (PMD)
+AuvoERechnungNotePMT = Pauschale Beitreibungsentschädigung (PMT)
+AuvoERechnungNoteAAB = Skonto bei vorzeitiger Zahlung (AAB)
+AuvoERechnungLegalNotesForeignHint = Verkäufer außerhalb Frankreichs: Es werden keine Standardangaben gesetzt (die Vorgabetexte stammen aus dem französischen Code de commerce). Leere Felder erzeugen keine Note im XML — tragen Sie hier Ihre eigenen Angaben ein, etwa Verzugszinsen nach § 288 BGB oder Ihre Skontoregelung.
+
+AuvoERechnungUpdateAvailable = Neue Version verfügbar
+AuvoERechnungUpdateAvailableMsg = Eine neuere Version des Moduls ist auf GitHub veröffentlicht (%s, aktuell: %s).
+AuvoERechnungUpdateSeeRelease = Release und Upgrade-Anleitung ansehen
+
+AuvoERechnungBtnVerify = ZUGFeRD prüfen
+AuvoERechnungBtnRegenerate = ZUGFeRD neu erzeugen
+AuvoERechnungMsgNoPdf = Keine PDF für diese Rechnung gefunden — erzeugen Sie zuerst das Dokument.
+AuvoERechnungMsgNoFacturX = Kein ZUGFeRD-XML in %s eingebettet — verwenden Sie „ZUGFeRD neu erzeugen".
+AuvoERechnungMsgVerifyOk = %s: eingebettetes ZUGFeRD-XML gefunden, EN16931-XSD gültig und Geschäftsregeln geprüft.
+AuvoERechnungMsgVerifyKo = %s: eingebettetes ZUGFeRD-XML gefunden, aber nicht konform:
+AuvoERechnungMsgRegenerateFailed = PDF-Neuerzeugung fehlgeschlagen
+AuvoERechnungMsgSuccess = ZUGFeRD-EN16931-E-Rechnung in PDF %s eingebettet.
+AuvoERechnungMsgSuccessWithWarnings = ZUGFeRD-EN16931-E-Rechnung in PDF %s eingebettet. %s nicht blockierende Warnung(en), die für volle Konformität zu beheben sind:
+
+# ODT template support (experimental, v3.8.0) — afterODTCreation hook
+AuvoERechnungOdtErrNoPdfConv = ODT-Template ohne PDF-Konvertierung: Factur-X erfordert eine PDF, es wurde aber nur die .odt-Datei erzeugt
+AuvoERechnungOdtHintEnable = Setzen Sie MAIN_ODT_AS_PDF = libreoffice (und installieren Sie LibreOffice auf dem Server), um die ODT vor der Injektion in eine PDF zu konvertieren
+AuvoERechnungOdtErrNoPdfa = Die aus dem ODT-Template erzeugte PDF ist kein PDF/A: LibreOffice erzeugt dann eine PDF >= 1.5 (komprimierte Xref-Tabelle), die die Factur-X-Injektionsbibliothek nicht lesen kann
+AuvoERechnungOdtHintEnablePdfa = Setzen Sie MAIN_ODT_AS_PDF = libreoffice + MAIN_ODT_AS_PDFA = 1, um eine lesbare, injizierbare PDF/A-1 zu erzeugen
+AuvoERechnungOdtErrPdfMissing = Erwartete PDF neben dem ODT-Template nicht gefunden (%s): Die LibreOffice-Konvertierung ist vermutlich fehlgeschlagen (soffice-Binärdatei fehlt oder ist nicht im PATH)
+
+AuvoERechnungErrMulticurrency = Rechnung in Fremdwährung (%s ≠ Firmenwährung %s) — nicht unterstützt: Das XML würde von der sichtbaren PDF abweichen (dokumentierte Einschränkung)
+AuvoERechnungErrLocalTax = Rechnung mit lokalen Steuern (localtax1/2) — nicht unterstützt: EN16931 bildet nur die MwSt ab, die XML-Gesamtsumme würde von der sichtbaren PDF-Gesamtsumme abweichen (dokumentierte Einschränkung)
+AuvoERechnungErrNoDate = Rechnung hat kein Ausstellungsdatum
+AuvoERechnungErrNoThirdparty = Käufer-Geschäftspartner nicht gefunden (fetch_thirdparty fehlgeschlagen)
+AuvoERechnungErrNoMysoc = Ausstellende Firma ($mysoc) nicht initialisiert
+AuvoERechnungErrInvalidXml = Ungültiges XML
+AuvoERechnungErrBrViolations = EN16931-Geschäftsregeln verletzt
+AuvoERechnungErrTempDir = Temporäre Datei in %s kann nicht erstellt werden
+AuvoERechnungErrTempWrite = Temporäres XML in %s kann nicht geschrieben werden
+AuvoERechnungErrNoExec = Die exec()-Funktion ist auf diesem Server deaktiviert
+AuvoERechnungErrPhpCliChars = AUVOERECHNUNG_PHP_CLI_PATH enthält unzulässige Zeichen (erwartet: alphanumerischer Pfad, „/ . _ - : ( ) \" und Leerzeichen)
+AuvoERechnungErrPhpCliNotFound = Die konfigurierte PHP-Binärdatei wurde nicht gefunden oder ist nicht ausführbar: %s
+AuvoERechnungErrInjectFailed = PDF-Injektion fehlgeschlagen
+AuvoERechnungHintPdfKept = klassische PDF ohne ZUGFeRD beibehalten
+AuvoERechnungHintPdfKeptShort = klassische PDF beibehalten
+AuvoERechnungHintBestEffort = Best-Effort-Modus
+
+AuvoERechnungWarnSellerName = Firmenname des Verkäufers fehlt
+AuvoERechnungWarnSellerAddress = Firmenadresse des Verkäufers fehlt
+AuvoERechnungWarnSellerZip = Postleitzahl des Verkäufers fehlt
+AuvoERechnungWarnSellerTown = Ort des Verkäufers fehlt
+AuvoERechnungWarnSellerVAT = Umsatzsteuer-Identifikationsnummer fehlt (Firma)
+AuvoERechnungWarnSellerVATInvalid = Das Feld USt-IdNr. der Firma enthält „%s“ — das ist keine USt-IdNr. (sie beginnt immer mit dem Ländercode, z. B. DE123456789). Der Wert wird nicht als USt-IdNr. ausgegeben (BR-CO-09). Steuernummer bitte im Feld „Steuernummer“ (Prof-ID 1) eintragen und das Feld USt-IdNr. leeren, falls keine vorhanden ist.
+AuvoERechnungWarnSellerSIRET = SIRET/SIREN fehlt (Firma) — Pflicht nach BR-FR-10
+AuvoERechnungWarnSellerEndpoint = Elektronische Adresse des Verkäufers fehlt (keine SIREN/SIRET, keine E-Mail) — Pflicht nach BR-FR-13 (BT-34)
+AuvoERechnungWarnSellerSIRETLen = Die SIRET des Verkäufers muss genau 14 Ziffern enthalten (BT-30), %s eingegeben — eine 9-stellige SIREN wird von Chorus Pro abgelehnt
+AuvoERechnungWarnBuyerName = Name des Käufers fehlt
+AuvoERechnungWarnBuyerAddress = Adresse des Käufers fehlt
+AuvoERechnungWarnBuyerZip = Postleitzahl des Käufers fehlt
+AuvoERechnungWarnBuyerTown = Ort des Käufers fehlt
+AuvoERechnungWarnBuyerEndpoint = Elektronische Adresse des Käufers fehlt (keine SIREN/SIRET, keine E-Mail) — Pflicht nach BR-FR-12 (BT-49)
+AuvoERechnungWarnBuyerSIRENRouting = SIREN/SIRET des Käufers fehlt — erforderlich für das Routing im Netzwerk der zugelassenen Plattformen (Endpoint BT-49, schemeID 0225); eine E-Mail allein ist nicht routbar
+AuvoERechnungWarnBuyerSIRETLen = Die SIRET des Käufers muss genau 14 Ziffern enthalten (BT-47), %s eingegeben
+AuvoERechnungWarnNoBank = Kein Bankkonto im Modul konfiguriert
+AuvoERechnungWarnNoForceFont = MAIN_PDF_FORCE_FONT nicht gesetzt — die erzeugte PDF ist nicht garantiert PDF/A-3 (Schriftarten nicht eingebettet); mit einem Klick in den AuVo E-Rechnung-Einstellungen behebbar (Diagnose)
+AuvoERechnungWarnPaymentMeansOmitted = Zahlungsart %s (Überweisung) im XML weggelassen: keine IBAN konfiguriert (BR-61 — konfigurieren Sie ein Bankkonto im Modul)
+AuvoERechnungWarnDirectDebitNoICS = SEPA-Lastschrift: Gläubiger-Identifikationsnummer fehlt (BT-90) — setzen Sie die Dolibarr-Konstante PRELEVEMENT_ICS
+AuvoERechnungWarnDirectDebitNoRUM = SEPA-Lastschrift: Mandatsreferenz fehlt (BT-89) — hinterlegen Sie die Mandatsreferenz im Standard-Bankkonto des Geschäftspartners
+AuvoERechnungWarnCreditNoteNoSource = Gutschrift ohne verknüpfte Ursprungsrechnung: Die Referenz auf die Originalrechnung (BG-3, französische Pflichtangabe) kann nicht ausgegeben werden — erstellen Sie die Gutschrift aus der Originalrechnung
+AuvoERechnungWarnAllNegativeLines = Vollständig negative Rechnung, die keine Gutschrift ist: Positionen werden unverändert ausgegeben, das XML verletzt BR-27 (verwenden Sie eine Dolibarr-Gutschrift)
+AuvoERechnungWarnSituationInvoice = Abschlagsrechnung (Baufortschritt): wird als TypeCode 380 ausgegeben, aber die Abbildung kumulierter Beträge/Einbehalte ist nicht garantiert konform (dokumentierte Einschränkung)
+AuvoERechnungWarnRoundingAdjusted = MwSt-Rundungsdifferenz von %s auf die Hauptkategorie verteilt, um BR-CO-14 zu gewährleisten (Summen prüfen)
+AuvoERechnungWarnTaxMismatch = Differenz von %s zwischen Positions-MwSt und der MwSt-Gesamtsumme der Rechnung, nicht zuordenbar (keine besteuerte Kategorie)
+AuvoERechnungWarnTaxRecomputed = MwSt der Kategorie %s aus ihrer Bemessungsgrundlage neu berechnet (%s statt %s), um BR-CO-17 zu erfüllen — die Differenz zur Dolibarr-Summe stammt aus positionsweiser Rundung (Rundungsmodus prüfen)
+AuvoERechnungWarnTotalsMismatch = XML-Gesamtsumme (%s) weicht von der Dolibarr-Summe (%s) ab — lokale Steuern oder inkonsistente Positionen; das XML priorisiert die interne EN16931-Konsistenz (BR-CO-15)
+AuvoERechnungWarnVeraPdfNotFound = veraPDF nicht gefunden oder nicht ausführbar: %s (AUVOERECHNUNG_VERAPDF_PATH)
+AuvoERechnungWarnVeraPdfFailed = veraPDF: Die erzeugte PDF ist nicht PDF/A-3b-konform (Details im Syslog) — prüfen Sie MAIN_PDF_FORCE_FONT und die Bilder des PDF-Templates
+AuvoERechnungWarnBrPrefix = EN16931-Geschäftsregel:
+AuvoERechnungWarnCorrectiveNoSource = Korrekturrechnung ohne verknüpfte Ursprungsrechnung: Die Referenz auf die ersetzte Rechnung (BT-25, gefordert durch Regel BR-FR-CO-04) kann nicht ausgegeben werden — erstellen Sie die Ersatzrechnung aus der Originalrechnung
+AuvoERechnungWarnRefTooLong = Rechnungsnummer (BT-1) zu lang: %s Zeichen, maximal 35 (Regel BR-FR-01)
+AuvoERechnungWarnRefCharset = Rechnungsnummer (BT-1) „%s" enthält unzulässige Zeichen — erlaubt: Buchstaben, Ziffern und - + _ / , kein Leerzeichen (Regel BR-FR-02)
+AuvoERechnungWarnSellerSirenSiretMismatch = SIREN (%s) und SIRET (%s) des Verkäufers sind inkonsistent: Die ersten 9 Ziffern der SIRET müssen der SIREN entsprechen (Regel BR-FR-09) — korrigieren Sie die Firmendaten
+AuvoERechnungWarnBuyerSirenSiretMismatch = SIREN (%s) und SIRET (%s) des Käufers sind inkonsistent: Die ersten 9 Ziffern der SIRET müssen der SIREN entsprechen (Regel BR-FR-09) — korrigieren Sie die Geschäftspartnerdaten
+AuvoERechnungWarnVatRateNotFR = MwSt-Satz %s %% ist nicht in der Liste der zulässigen französischen Sätze (Festland und Überseedepartements) enthalten (Regel BR-FR-16) — prüfen Sie die Eingabe, falls dieser Satz nicht beabsichtigt ist
+AuvoERechnungWarnEndpointSuffixCharset = Das Suffix der elektronischen Verkäuferadresse (AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER) enthält unzulässige Zeichen — bei der Ausgabe werden nur Buchstaben, Ziffern und - _ . übernommen (Regel BR-FR-23)
+AuvoERechnungWarnEndpointTooLong = Elektronische Verkäuferadresse ist %s Zeichen lang: maximal 125 (Regel BR-FR-25) — kürzen Sie das konfigurierte Suffix
+
+AuvoERechnungAboutTitle = Gepflegt von auvo-design
+AuvoERechnungAboutIntro = AuVo E-Rechnung ist ein freier Fork von LemonFacturX (Lemon), gepflegt von auvo-design und für den Einsatz in Deutschland angepasst (GPLv3).
+AuvoERechnungAboutLocation = Kontakt: r.vogel@auvo-design.de
+
+# v3.1 — BR-FR-05 mentions bridge to the invoice footer (FACTURE_FREE_TEXT)
+AuvoERechnungCopyNotesDone = %s Angabe(n) zur Dolibarr-Rechnungsfußzeile hinzugefügt („Ergänzender Hinweis auf Rechnungen")
+AuvoERechnungDiagFreeTextMissing = Dolibarr-Rechnungsfußzeile leer („Ergänzender Hinweis auf Rechnungen") — die BR-FR-05-Angaben stehen im XML, erscheinen aber nicht im Klartext auf der gedruckten PDF. Empfohlen, nicht blockierend: Aktivieren Sie „Angaben in die Rechnungsfußzeile kopieren" unter Pflichtangaben.
+AuvoERechnungDiagFreeTextOk = Dolibarr-Rechnungsfußzeile ausgefüllt (Angaben auf der PDF sichtbar)
+
+# v3.4.0 — Chorus Pro profile (B2G): 2nd PDF + extrafields
+AuvoERechnungEfChorus = Chorus-Pro-Rechnung (öffentlicher Sektor)
+AuvoERechnungEfServiceCode = Service-Code (Chorus, BT-10)
+AuvoERechnungEfEngagement = Nummer der rechtlichen Verpflichtung (Chorus, BT-13)
+AuvoERechnungEfMarche = Vertrags-/Auftragsnummer (Chorus, BT-12)
+AuvoERechnungEfLeitwegId = Leitweg-ID (öffentlicher Auftraggeber, BT-10)
+AuvoERechnungChorusGenerated = Chorus-Pro-PDF zusätzlich erzeugt: %s
+AuvoERechnungChorusErr = Die Chorus-Pro-PDF konnte nicht erzeugt werden (die Standard-ZUGFeRD-PDF bleibt gültig)
+
+# Factur-X dropdown menu (v3.4.1)
+AuvoERechnungMenuLabel = ZUGFeRD
+AuvoERechnungBtnGenerateChorus = Chorus-PDF erzeugen
+
+# Chorus Pro tab (v3.4.0)
+AuvoERechnungChorusTab = Chorus Pro
+AuvoERechnungChorusTabHelp = Einstellungen für das Profil „öffentlicher Sektor". Fällt diese Rechnung unter Chorus Pro, wird zusätzlich zur Standard-ZUGFeRD eine zweite Datei „{ref}-CHORUS.pdf" in dem von Chorus erwarteten Format erzeugt (SIRET in der rechtlichen Kennung + Referenzen unten).
+AuvoERechnungChorusDetected = Chorus-Pro-Profil für diese Rechnung erkannt
+AuvoERechnungEfCadre = Rechnungsstellungsrahmen (Chorus, BT-23)
+AuvoERechnungEfChorusHint = Chorus-PDF-Erzeugung auch ohne automatische Erkennung erzwingen
+AuvoERechnungChorusTabGenerateHint = Die -CHORUS.pdf wird (neu) erzeugt, wenn die Rechnungs-PDF neu erzeugt wird, oder über das Menü „ZUGFeRD › Chorus-PDF erzeugen".
+
+# Chorus Pro opt-in toggle
+AuvoERechnungChorusEnabled = Chorus-Pro-Funktionen (öffentlicher Sektor)
+AuvoERechnungChorusEnabledHint = Zeigt den Chorus-Pro-Reiter auf Rechnungen und die Chorus-PDF-Erzeugung an. Nur aktivieren, wenn Sie an den öffentlichen Sektor fakturieren.
+AuvoERechnungChorusSuggested = Diese Rechnung scheint an den öffentlichen Sektor gerichtet zu sein (staatliche SIRET). Aktivieren Sie die Chorus-Pro-Funktionen in den Moduleinstellungen, falls Sie sie bei Chorus Pro einreichen müssen.
+
+# Setup reorganised into blocks (v3.4.0)
+AuvoERechnungSecBilling = Rechnungsstellung
+AuvoERechnungSecPublic = Öffentlicher Sektor (Chorus Pro)
+AuvoERechnungSecValidation = Validierung und Konformität
+AuvoERechnungSecTech = Technik (erweitert)
+AuvoERechnungNotesInFooter = Angaben in die Rechnungsfußzeile kopieren
+AuvoERechnungNotesInFooterHint = Bei Ja werden die obigen Angaben an „Zusätzlicher Text auf Rechnungen" (Fußzeile jeder PDF) angehängt, ohne bestehenden Text zu verändern. Wird beim Speichern angewendet.
+AuvoERechnungPhpCliAutoPlaceholder = auto (erkannt)
+AuvoERechnungDiagPhpCliAuto = automatisch erkannt
+AuvoERechnungSecPA = Adressierung über zugelassene Plattform (PA)
+AuvoERechnungEndpointSuffixSeller = Endpoint-Suffix des Verkäufers (BT-34)
+AuvoERechnungEndpointSuffixSellerHint = Suffix, das an die SIREN des Ausstellers in der elektronischen Verkäuferadresse angehängt wird. Manche zugelassenen Plattformen (z. B. Hubtimize/Esalink) verlangen, dass diese Adresse NICHT die bloße SIREN ist, sondern ein Peppol-Endpoint mit Suffix — „SIREN_Status" (Rückgabeadresse für Lifecycle-Status), wie bei der Registrierung der Einheit konfiguriert. Muss Byte für Byte mit der auf der PA registrierten Adresse übereinstimmen. Leer = bloße SIREN (Legacy-PPF-Verzeichnis). Beeinflusst NICHT die Käuferadresse (BT-49), die immer als bloße SIREN ausgegeben wird.
+AuvoERechnungEndpointSuffixSellerPlaceholder = z. B. _Status — leer = bloße SIREN
+AuvoERechnungNotesOverwrite = Bestehende Dolibarr-Angabe überschreiben
+AuvoERechnungNotesOverwriteHint = Bei Nein werden unsere Angaben nach dem bestehenden „Zusätzlicher Text auf Rechnungen" angehängt. Bei Ja ersetzen sie ihn vollständig. Ein leeres Feld wird in beiden Fällen mit unseren Angaben gefüllt.
+AuvoERechnungNotesAppend = anhängen
+AuvoERechnungNotesReplace = ersetzen
+AuvoERechnungChorusToNote = Chorus-Referenzen in die öffentliche Notiz kopieren
+AuvoERechnungChorusToNoteHint = Fügt die ausgefüllten Chorus-Felder (Rahmen, Service-Code, Verpflichtungs-Nr., Vertrags-Nr.) der öffentlichen Notiz der Rechnung hinzu, die auf der PDF gedruckt wird. Leere Felder werden ignoriert, keine Duplikate.
+AuvoERechnungChorusToNoteDone = %s Chorus-Referenz(en) zur öffentlichen Notiz hinzugefügt
+AuvoERechnungChorusToNoteAlready = Die Chorus-Referenzen stehen bereits in der öffentlichen Notiz
+AuvoERechnungChorusToNoteEmpty = Kein ausgefülltes Chorus-Feld zum Kopieren vorhanden
+AuvoERechnungPdfFont = Schriftart der erzeugten PDF
+AuvoERechnungPdfFontHint = Schriftart, die für alle Dolibarr-PDFs erzwungen wird. Für ZUGFeRD-Konformität (PDF/A-3) muss die Schriftart eingebettet sein (✓). Nicht konforme Schriftarten (⚠, Base-14) machen die PDF/A-3-Gültigkeit zunichte, auch wenn die Darstellung gut aussieht. „Standardschriftart" hebt die Erzwingung auf.
+AuvoERechnungPdfFontDefault = — Dolibarr-Standardschriftart (keine Erzwingung) —
+AuvoERechnungPdfFontOk = ✓ ZUGFeRD-konform (eingebettet)
+AuvoERechnungPdfFontKo = ⚠ nicht PDF/A-3-konform (nicht eingebettet)
+
+# Interne Prüfung der Geschäftsregeln (auvoerechnung_rules.php) — der Regelcode wird vorangestellt
+AuvoERechnungXsdEmpty = XML ist leer
+AuvoERechnungXsdMalformed = XML ist nicht wohlgeformt: %s
+AuvoERechnungXsdInvalid = nicht konform zum XSD EN16931: %s
+AuvoERechnungRulePartySeller = des Verkäufers
+AuvoERechnungRulePartyBuyer = des Käufers
+AuvoERechnungRuleBR16 = Die Rechnung muss mindestens eine Position enthalten
+AuvoERechnungRuleBR27 = Position %s — der Netto-Einzelpreis darf nicht negativ sein (%s)
+AuvoERechnungRuleS05 = Position %s — Kategorie S mit Steuersatz 0
+AuvoERechnungRuleCat05 = Position %s — Kategorie %s mit Steuersatz ungleich 0 (%s)
+AuvoERechnungRuleCO10 = LineTotalAmount (%s) ≠ Summe der Positionen (%s)
+AuvoERechnungRuleCO11 = AllowanceTotalAmount (%s) ≠ Summe der Nachlässe (%s)
+AuvoERechnungRuleCO12 = ChargeTotalAmount (%s) ≠ Summe der Zuschläge (%s)
+AuvoERechnungRuleCO13 = TaxBasisTotalAmount (%s) ≠ Positionen − Nachlässe + Zuschläge (%s)
+AuvoERechnungRuleCO15 = GrandTotalAmount (%s) ≠ Nettobetrag (%s) + Umsatzsteuer (%s)
+AuvoERechnungRuleCO16 = DuePayableAmount (%s) ≠ Bruttobetrag (%s) − Vorauszahlung (%s)
+AuvoERechnungRuleCO17 = berechnete Umsatzsteuer (%s) ≠ Bemessungsgrundlage (%s) × Steuersatz (%s %%) = %s
+AuvoERechnungRuleCat08 = Bemessungsgrundlage der Kategorie %s zu %s %% (%s) ≠ Summe der Positionen/Nachlässe (%s)
+AuvoERechnungRuleCat10 = Befreiungsgrund für Kategorie %s fehlt
+AuvoERechnungRuleCO14 = TaxTotalAmount (%s) ≠ Summe der Umsatzsteuer je Kategorie (%s)
+AuvoERechnungRuleBR61 = Zahlungsart %s (Überweisung) ohne IBAN des Zahlungsempfängers
+AuvoERechnungRuleIC11 = Kategorie K ohne Lieferdatum und ohne Abrechnungszeitraum
+AuvoERechnungRuleIC12 = Kategorie K ohne Lieferland (BT-80)
+AuvoERechnungRuleIC02 = Kategorie K ohne USt-IdNr. des Verkäufers (BT-31)
+AuvoERechnungRuleAE02 = Kategorie AE — die USt-IdNr. von Verkäufer (BT-31) und Käufer (BT-48) sind Pflicht
+AuvoERechnungRuleCO09 = USt-IdNr. „%s“ beginnt nicht mit einem Ländercode
+AuvoERechnungRuleCO26 = Der Verkäufer muss eine Registernummer (BT-30) oder Steuernummer/USt-IdNr. (BT-31/BT-32) tragen
+AuvoERechnungRuleBR09 = Land der Verkäuferadresse fehlt (BT-40)
+AuvoERechnungRuleBR11 = Land der Käuferadresse fehlt (BT-55)
+AuvoERechnungRuleCO25 = Positiver Zahlbetrag ohne Fälligkeitsdatum (BT-9) und ohne Zahlungsbedingungen (BT-20)
+AuvoERechnungRuleFR01 = Rechnungsnummer (BT-1) ist auf 35 Zeichen begrenzt (%s ausgegeben)
+AuvoERechnungRuleFR02 = Rechnungsnummer (BT-1) „%s" — nur alphanumerische Zeichen und - + _ / sind erlaubt (keine Leerzeichen)
+AuvoERechnungRuleFR04 = Dokumentart (BT-3) „%s" ist nicht in der in Frankreich zugelassenen Liste
+AuvoERechnungRuleFR09Length = Die SIRET %s muss 14 Ziffern haben (%s)
+AuvoERechnungRuleFR09Mismatch = SIRET %s (%s) passt nicht zur SIREN (%s) — die ersten 9 Ziffern müssen übereinstimmen
+AuvoERechnungRuleFRCO04Count = Korrekturrechnung (%s) — genau ein Verweis auf die ursprüngliche Rechnung (BT-25) ist erforderlich (%s ausgegeben)
+AuvoERechnungRuleFRCO04Date = Korrekturrechnung (%s) — das Datum der ursprünglichen Rechnung (BT-26) ist erforderlich
+AuvoERechnungRuleFRCO05Missing = Gutschrift (%s) — mindestens ein Verweis auf die ursprüngliche Rechnung (BT-25) ist erforderlich (Gutschrift aus der ursprünglichen Rechnung heraus erstellen)
+AuvoERechnungRuleFRCO05Date = Gutschrift (%s) — das Datum der ursprünglichen Rechnung (BT-26) ist im Verweis erforderlich
+AuvoERechnungRuleFR23 = Elektronische Adresse 0225 „%s" — nur alphanumerische Zeichen und - _ . sind erlaubt
+
+# Fehler beim Einbetten der XML in das PDF
+AuvoERechnungErrInjReadSource = Quelldateien (PDF/XML) konnten nicht gelesen werden
+AuvoERechnungErrInjLibMissing = Einbettungs-Bibliothek nicht gefunden (vendor/ fehlt?)
+AuvoERechnungErrInjEmptyOutput = Einbettung lieferte eine leere Ausgabe
+AuvoERechnungErrInjWriteOutput = Ausgabe-PDF konnte nicht geschrieben werden
+AuvoERechnungErrInjReplacePdf = Original-PDF konnte nicht ersetzt werden
+AuvoERechnungErrInjNoPhpCli = PHP-CLI-Programm nicht gefunden
+AuvoERechnungErrInjFpdiConflict = %s ist bereits außerhalb des Modul-vendor geladen (%s): FPDI-Konflikt, In-Process-Einbettung nicht möglich

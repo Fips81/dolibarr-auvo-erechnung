@@ -1,7 +1,7 @@
 <?php
 /*
  * Copyright (C) 2026 SASU LEMON <https://hellolemon.fr>
- * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — fork, renamed and modified as DoliZUGFeRD
+ * Copyright (C) 2026 auvo-design <r.vogel@auvo-design.de> — fork, renamed and modified as AuVo E-Rechnung
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,41 +17,41 @@
  * la catégorie de TVA EN16931 sur les opérations B2B intracommunautaires).
  *
  * Mentions légales BR-FR par défaut (BG-3 IncludedNote) : surchargeable via
- * les constantes Dolibarr DOLIZUGFERD_NOTE_*.
+ * les constantes Dolibarr AUVOERECHNUNG_NOTE_*.
  *
  * define() (au lieu de const) pour rester tolérant si la lib est incluse depuis
  * deux chemins distincts (custom + dol_buildpath) sur certains setups.
  */
-if (!defined('DOLIZUGFERD_EU_COUNTRIES')) {
-	define('DOLIZUGFERD_EU_COUNTRIES', [
+if (!defined('AUVOERECHNUNG_EU_COUNTRIES')) {
+	define('AUVOERECHNUNG_EU_COUNTRIES', [
 		'AT','BE','BG','CY','CZ','DE','DK','EE','ES','FI','FR','GR','HR','HU',
 		'IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK',
 	]);
 	// Codes pays des DOM/COM remplacés par FR dans les flux de la réforme
 	// (BR-FR-MAP-14) : assimilés à la France pour la note BAR et pour
 	// l'applicabilité du bloc de règles BR-FR du validateur interne.
-	define('DOLIZUGFERD_FR_OVERSEAS_COUNTRIES', ['GF', 'TF', 'GP', 'GY', 'MQ', 'YT', 'RE', 'BL', 'MF', 'PM']);
-	define('DOLIZUGFERD_DEFAULT_NOTE_PMD', 'En cas de retard de paiement, une pénalité égale à 3 fois le taux d\'intérêt légal sera exigible (article L.441-10 du Code de commerce).');
-	define('DOLIZUGFERD_DEFAULT_NOTE_PMT', 'Une indemnité forfaitaire de 40 euros sera exigible pour frais de recouvrement en cas de retard de paiement.');
-	define('DOLIZUGFERD_DEFAULT_NOTE_AAB', 'Pas d\'escompte pour paiement anticipé.');
+	define('AUVOERECHNUNG_FR_OVERSEAS_COUNTRIES', ['GF', 'TF', 'GP', 'GY', 'MQ', 'YT', 'RE', 'BL', 'MF', 'PM']);
+	define('AUVOERECHNUNG_DEFAULT_NOTE_PMD', 'En cas de retard de paiement, une pénalité égale à 3 fois le taux d\'intérêt légal sera exigible (article L.441-10 du Code de commerce).');
+	define('AUVOERECHNUNG_DEFAULT_NOTE_PMT', 'Une indemnité forfaitaire de 40 euros sera exigible pour frais de recouvrement en cas de retard de paiement.');
+	define('AUVOERECHNUNG_DEFAULT_NOTE_AAB', 'Pas d\'escompte pour paiement anticipé.');
 }
 
 /**
  * Traduit une clé via $langs si l'environnement Dolibarr est chargé,
  * sinon renvoie la clé brute (contexte tests unitaires standalone).
  */
-function dolizugferd_trans($key, ...$args)
+function auvoerechnung_trans($key, ...$args)
 {
 	global $langs;
 	if (is_object($langs) && method_exists($langs, 'trans')) {
-		$langs->load('dolizugferd@dolizugferd');
+		$langs->load('auvoerechnung@auvoerechnung');
 		return $langs->trans($key, ...$args);
 	}
 	return $args ? $key.' ('.implode(', ', array_map('strval', $args)).')' : $key;
 }
 
 /**
- * Variante sans entités HTML de dolizugferd_trans(), pour les messages qui
+ * Variante sans entités HTML de auvoerechnung_trans(), pour les messages qui
  * finissent aussi dans le syslog, l'API JSON ou sont tronqués (dol_trunc) :
  * « ä » reste « ä » au lieu de « &auml; ».
  *
@@ -59,11 +59,11 @@ function dolizugferd_trans($key, ...$args)
  * @param mixed  ...$args Paramètres %s de la traduction
  * @return string
  */
-function dolizugferd_trans_raw($key, ...$args)
+function auvoerechnung_trans_raw($key, ...$args)
 {
 	global $langs;
 	if (is_object($langs) && method_exists($langs, 'transnoentitiesnoconv')) {
-		$langs->load('dolizugferd@dolizugferd');
+		$langs->load('auvoerechnung@auvoerechnung');
 		return $langs->transnoentitiesnoconv($key, ...array_map('strval', $args));
 	}
 	return $args ? $key.' ('.implode(', ', array_map('strval', $args)).')' : $key;
@@ -83,12 +83,12 @@ function dolizugferd_trans_raw($key, ...$args)
  * @param Societe|object $mysoc  Société émettrice
  * @return bool
  */
-function dolizugferd_seller_is_fr($mysoc)
+function auvoerechnung_seller_is_fr($mysoc)
 {
 	// Pays inconnu (objet absent, fiche société incomplète) : on retombe sur FR,
 	// comportement historique du module.
 	$country = (is_object($mysoc) && !empty($mysoc->country_code)) ? strtoupper($mysoc->country_code) : 'FR';
-	return ($country === 'FR' || in_array($country, DOLIZUGFERD_FR_OVERSEAS_COUNTRIES, true));
+	return ($country === 'FR' || in_array($country, AUVOERECHNUNG_FR_OVERSEAS_COUNTRIES, true));
 }
 
 /**
@@ -104,24 +104,24 @@ function dolizugferd_seller_is_fr($mysoc)
  * @param Facture $invoice
  * @return string|null
  */
-function dolizugferd_check_supported($invoice)
+function auvoerechnung_check_supported($invoice)
 {
 	global $conf;
 
 	$companyCurrency = !empty($conf->currency) ? $conf->currency : 'EUR';
 	if (!empty($invoice->multicurrency_code) && $invoice->multicurrency_code !== $companyCurrency) {
-		return dolizugferd_trans('DoliZugferdErrMulticurrency', $invoice->multicurrency_code, $companyCurrency);
+		return auvoerechnung_trans('AuvoERechnungErrMulticurrency', $invoice->multicurrency_code, $companyCurrency);
 	}
 
 	// Taxes locales (localtax1/2, RE/IRPF...) : non représentables dans le XML
 	// EN16931 (TVA uniquement). Le total XML divergerait du TTC visible sur le
 	// PDF — même principe de refus que le multidevise.
 	if (abs((float) ($invoice->total_localtax1 ?? 0)) > 0.005 || abs((float) ($invoice->total_localtax2 ?? 0)) > 0.005) {
-		return dolizugferd_trans('DoliZugferdErrLocalTax');
+		return auvoerechnung_trans('AuvoERechnungErrLocalTax');
 	}
 
 	if (empty($invoice->date)) {
-		return dolizugferd_trans('DoliZugferdErrNoDate');
+		return auvoerechnung_trans('AuvoERechnungErrNoDate');
 	}
 
 	return null;
@@ -140,7 +140,7 @@ function dolizugferd_check_supported($invoice)
  * @param array   $buildWarnings  (sortie) Avertissements non bloquants détectés pendant la génération
  * @return string                 XML CrossIndustryInvoice
  */
-function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options = [])
+function auvoerechnung_build_xml($invoice, $mysoc, &$buildWarnings = [], $options = [])
 {
 	global $conf;
 
@@ -152,9 +152,9 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
 	// Tout le bloc « socle réforme française » (BT-23, note BAR, mentions
 	// légales) est conditionné à un vendeur établi en France : hors de France
 	// le document reste un Factur-X/ZUGFeRD EN16931 pur.
-	$sellerIsFR = dolizugferd_seller_is_fr($mysoc);
+	$sellerIsFR = auvoerechnung_seller_is_fr($mysoc);
 
-	$typeCode = dolizugferd_resolve_document_type($invoice, $buildWarnings);
+	$typeCode = auvoerechnung_resolve_document_type($invoice, $buildWarnings);
 	$isCreditNote = ($typeCode === '381');
 	$sign = $isCreditNote ? -1.0 : 1.0;
 
@@ -163,20 +163,20 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
 	$currency = !empty($conf->currency) ? $conf->currency : 'EUR';
 
 	$buyer = $invoice->thirdparty;
-	$bank = dolizugferd_get_bank_account($invoice->db, $invoice);
-	$paymentMeans = getDolGlobalString('DOLIZUGFERD_PAYMENT_MEANS', '30');
+	$bank = auvoerechnung_get_bank_account($invoice->db, $invoice);
+	$paymentMeans = getDolGlobalString('AUVOERECHNUNG_PAYMENT_MEANS', '30');
 
 	// Lignes utiles : on filtre une seule fois les lignes sans montant
 	// (descriptions, titres, sous-totaux) pour les réutiliser ci-dessous.
-	$billableLines = dolizugferd_filter_billable_lines($invoice->lines);
+	$billableLines = auvoerechnung_filter_billable_lines($invoice->lines);
 
 	// Sépare lignes facturables et remises pied de facture (BG-21) : une ligne
 	// à total négatif (remise fixe Dolibarr) devient une SpecifiedTradeAllowanceCharge
 	// document pour respecter BR-27 (prix net de ligne jamais négatif).
-	$prepared = dolizugferd_prepare_lines($billableLines, $sign, $invoice, $buyer, $mysoc, $buildWarnings);
+	$prepared = auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $buyer, $mysoc, $buildWarnings);
 
 	// Ventilation TVA par (catégorie, taux), réconciliée avec les totaux facture
-	$breakdown = dolizugferd_get_tax_breakdown($prepared, $invoice, $sign, $buildWarnings);
+	$breakdown = auvoerechnung_get_tax_breakdown($prepared, $invoice, $sign, $buildWarnings);
 
 	// BR-61 : un moyen de paiement 30/58 (virement) exige un IBAN. Sans compte
 	// bancaire configuré, on omet le bloc PaymentMeans plutôt que d'émettre un
@@ -184,11 +184,11 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
 	$emitPaymentMeans = true;
 	if (in_array($paymentMeans, ['30', '58'], true) && empty($bank['iban'])) {
 		$emitPaymentMeans = false;
-		$buildWarnings[] = dolizugferd_trans('DoliZugferdWarnPaymentMeansOmitted', $paymentMeans);
+		$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnPaymentMeansOmitted', $paymentMeans);
 	}
 
 	// Prélèvement SEPA (59) : ICS créancier (BT-90), RUM mandat (BT-89), IBAN débiteur (BT-91)
-	$directDebit = ($paymentMeans === '59') ? dolizugferd_get_direct_debit_info($invoice->db, $buyer, $buildWarnings) : null;
+	$directDebit = ($paymentMeans === '59') ? auvoerechnung_get_direct_debit_info($invoice->db, $buyer, $buildWarnings) : null;
 
 	$xml  = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
 	$xml .= '<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"';
@@ -208,11 +208,11 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
 	$bt23 = ($profile === 'choruspro')
 		? (!empty($options['cadre']) ? $options['cadre'] : 'A1')
 		: ($sellerIsFR
-			? dolizugferd_resolve_business_process($billableLines, $typeCode, dolizugferd_get_prepaid_amount($invoice))
+			? auvoerechnung_resolve_business_process($billableLines, $typeCode, auvoerechnung_get_prepaid_amount($invoice))
 			: '');
 	if ($bt23 !== '') {
 		$xml .= '  <ram:BusinessProcessSpecifiedDocumentContextParameter>'."\n";
-		$xml .= '    <ram:ID>'.dolizugferd_xml_encode($bt23).'</ram:ID>'."\n";
+		$xml .= '    <ram:ID>'.auvoerechnung_xml_encode($bt23).'</ram:ID>'."\n";
 		$xml .= '  </ram:BusinessProcessSpecifiedDocumentContextParameter>'."\n";
 	}
 	$xml .= '  <ram:GuidelineSpecifiedDocumentContextParameter>'."\n";
@@ -222,17 +222,17 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
 
 	// === ExchangedDocument ===
 	$xml .= '<rsm:ExchangedDocument>'."\n";
-	$xml .= '  <ram:ID>'.dolizugferd_xml_encode($invoice->ref).'</ram:ID>'."\n";
-	$xml .= '  <ram:TypeCode>'.dolizugferd_xml_encode($typeCode).'</ram:TypeCode>'."\n";
+	$xml .= '  <ram:ID>'.auvoerechnung_xml_encode($invoice->ref).'</ram:ID>'."\n";
+	$xml .= '  <ram:TypeCode>'.auvoerechnung_xml_encode($typeCode).'</ram:TypeCode>'."\n";
 	$xml .= '  <ram:IssueDateTime>'."\n";
-	$xml .= '    <udt:DateTimeString format="102">'.dolizugferd_xml_encode($issueDate).'</udt:DateTimeString>'."\n";
+	$xml .= '    <udt:DateTimeString format="102">'.auvoerechnung_xml_encode($issueDate).'</udt:DateTimeString>'."\n";
 	$xml .= '  </ram:IssueDateTime>'."\n";
 	// Note BAR (BR-FR-07/20) : qualification du traitement attendu, émise sur le
 	// profil PDP uniquement (le B2G Chorus a son propre marquage, hors périmètre)
 	// et pour un vendeur français uniquement — le code qualifie le flux de la
 	// réforme FR (e-invoicing / e-reporting), sans objet pour un vendeur étranger.
-	$barCode = ($profile === 'choruspro' || !$sellerIsFR) ? '' : dolizugferd_resolve_bar_code($buyer);
-	$xml .= dolizugferd_build_legal_notes_xml($barCode, $sellerIsFR);
+	$barCode = ($profile === 'choruspro' || !$sellerIsFR) ? '' : auvoerechnung_resolve_bar_code($buyer);
+	$xml .= auvoerechnung_build_legal_notes_xml($barCode, $sellerIsFR);
 	$xml .= '</rsm:ExchangedDocument>'."\n";
 
 	// === SupplyChainTradeTransaction ===
@@ -241,7 +241,7 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
 	$xmlLineNum = 0;
 	foreach ($prepared['lines'] as $pl) {
 		$xmlLineNum++;
-		$xml .= dolizugferd_build_line_xml($pl, $xmlLineNum);
+		$xml .= auvoerechnung_build_line_xml($pl, $xmlLineNum);
 	}
 
 	$xml .= '  <ram:ApplicableHeaderTradeAgreement>'."\n";
@@ -250,7 +250,7 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
 	// prime donc sur le code service Chorus et sur ref_client. Hors Allemagne,
 	// comportement inchangé : code service Chorus (profil choruspro) sinon ref_client.
 	$buyerCountry = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : 'FR');
-	$leitwegId = ($buyerCountry === 'DE') ? dolizugferd_party_leitwegid($buyer) : '';
+	$leitwegId = ($buyerCountry === 'DE') ? auvoerechnung_party_leitwegid($buyer) : '';
 	if ($leitwegId !== '') {
 		$buyerRef = $leitwegId;
 	} elseif ($profile === 'choruspro' && !empty($options['service_code'])) {
@@ -259,23 +259,23 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
 		$buyerRef = !empty($invoice->ref_client) ? $invoice->ref_client : '';
 	}
 	if ($buyerRef !== '') {
-		$xml .= '    <ram:BuyerReference>'.dolizugferd_xml_encode($buyerRef).'</ram:BuyerReference>'."\n";
+		$xml .= '    <ram:BuyerReference>'.auvoerechnung_xml_encode($buyerRef).'</ram:BuyerReference>'."\n";
 	}
-	$xml .= dolizugferd_build_trade_party_xml('Seller', $mysoc, $mysoc->email ?? '', $legalIdMode);
-	$xml .= dolizugferd_build_trade_party_xml('Buyer', $buyer, dolizugferd_get_buyer_email($buyer, $invoice->db), $legalIdMode);
+	$xml .= auvoerechnung_build_trade_party_xml('Seller', $mysoc, $mysoc->email ?? '', $legalIdMode);
+	$xml .= auvoerechnung_build_trade_party_xml('Buyer', $buyer, auvoerechnung_get_buyer_email($buyer, $invoice->db), $legalIdMode);
 	// BT-13 : n° d'engagement juridique (Chorus) sinon référence de la commande liée.
 	$orderRef = ($profile === 'choruspro' && !empty($options['engagement']))
 		? $options['engagement']
-		: dolizugferd_get_linked_order_ref($invoice);
+		: auvoerechnung_get_linked_order_ref($invoice);
 	if ($orderRef !== '') {
 		$xml .= '    <ram:BuyerOrderReferencedDocument>'."\n";
-		$xml .= '      <ram:IssuerAssignedID>'.dolizugferd_xml_encode($orderRef).'</ram:IssuerAssignedID>'."\n";
+		$xml .= '      <ram:IssuerAssignedID>'.auvoerechnung_xml_encode($orderRef).'</ram:IssuerAssignedID>'."\n";
 		$xml .= '    </ram:BuyerOrderReferencedDocument>'."\n";
 	}
 	// BT-12 : référence du marché (Chorus Pro). Séquence XSD : après BuyerOrder.
 	if ($profile === 'choruspro' && !empty($options['marche'])) {
 		$xml .= '    <ram:ContractReferencedDocument>'."\n";
-		$xml .= '      <ram:IssuerAssignedID>'.dolizugferd_xml_encode($options['marche']).'</ram:IssuerAssignedID>'."\n";
+		$xml .= '      <ram:IssuerAssignedID>'.auvoerechnung_xml_encode($options['marche']).'</ram:IssuerAssignedID>'."\n";
 		$xml .= '    </ram:ContractReferencedDocument>'."\n";
 	}
 	$xml .= '  </ram:ApplicableHeaderTradeAgreement>'."\n";
@@ -307,14 +307,14 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
 		$shipToCountry = !empty($buyer->country_code) ? $buyer->country_code : 'FR';
 		$xml .= '    <ram:ShipToTradeParty>'."\n";
 		$xml .= '      <ram:PostalTradeAddress>'."\n";
-		$xml .= '        <ram:CountryID>'.dolizugferd_xml_encode($shipToCountry).'</ram:CountryID>'."\n";
+		$xml .= '        <ram:CountryID>'.auvoerechnung_xml_encode($shipToCountry).'</ram:CountryID>'."\n";
 		$xml .= '      </ram:PostalTradeAddress>'."\n";
 		$xml .= '    </ram:ShipToTradeParty>'."\n";
 	}
 	if ($deliveryDate !== null) {
 		$xml .= '    <ram:ActualDeliverySupplyChainEvent>'."\n";
 		$xml .= '      <ram:OccurrenceDateTime>'."\n";
-		$xml .= '        <udt:DateTimeString format="102">'.dolizugferd_xml_encode($deliveryDate).'</udt:DateTimeString>'."\n";
+		$xml .= '        <udt:DateTimeString format="102">'.auvoerechnung_xml_encode($deliveryDate).'</udt:DateTimeString>'."\n";
 		$xml .= '      </ram:OccurrenceDateTime>'."\n";
 		$xml .= '    </ram:ActualDeliverySupplyChainEvent>'."\n";
 	}
@@ -324,26 +324,26 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
 	$xml .= '  <ram:ApplicableHeaderTradeSettlement>'."\n";
 	// BT-90 : identifiant créancier SEPA (ICS) pour le prélèvement
 	if ($directDebit !== null && $directDebit['ics'] !== '') {
-		$xml .= '    <ram:CreditorReferenceID>'.dolizugferd_xml_encode($directDebit['ics']).'</ram:CreditorReferenceID>'."\n";
+		$xml .= '    <ram:CreditorReferenceID>'.auvoerechnung_xml_encode($directDebit['ics']).'</ram:CreditorReferenceID>'."\n";
 	}
-	$xml .= '    <ram:InvoiceCurrencyCode>'.dolizugferd_xml_encode($currency).'</ram:InvoiceCurrencyCode>'."\n";
+	$xml .= '    <ram:InvoiceCurrencyCode>'.auvoerechnung_xml_encode($currency).'</ram:InvoiceCurrencyCode>'."\n";
 
 	if ($emitPaymentMeans) {
 		$xml .= '    <ram:SpecifiedTradeSettlementPaymentMeans>'."\n";
-		$xml .= '      <ram:TypeCode>'.dolizugferd_xml_encode($paymentMeans).'</ram:TypeCode>'."\n";
+		$xml .= '      <ram:TypeCode>'.auvoerechnung_xml_encode($paymentMeans).'</ram:TypeCode>'."\n";
 		// BT-91 : compte débité (prélèvement)
 		if ($directDebit !== null && $directDebit['debtor_iban'] !== '') {
 			$xml .= '      <ram:PayerPartyDebtorFinancialAccount>'."\n";
-			$xml .= '        <ram:IBANID>'.dolizugferd_xml_encode($directDebit['debtor_iban']).'</ram:IBANID>'."\n";
+			$xml .= '        <ram:IBANID>'.auvoerechnung_xml_encode($directDebit['debtor_iban']).'</ram:IBANID>'."\n";
 			$xml .= '      </ram:PayerPartyDebtorFinancialAccount>'."\n";
 		}
 		if (!empty($bank['iban'])) {
 			$xml .= '      <ram:PayeePartyCreditorFinancialAccount>'."\n";
-			$xml .= '        <ram:IBANID>'.dolizugferd_xml_encode($bank['iban']).'</ram:IBANID>'."\n";
+			$xml .= '        <ram:IBANID>'.auvoerechnung_xml_encode($bank['iban']).'</ram:IBANID>'."\n";
 			$xml .= '      </ram:PayeePartyCreditorFinancialAccount>'."\n";
 			if (!empty($bank['bic'])) {
 				$xml .= '      <ram:PayeeSpecifiedCreditorFinancialInstitution>'."\n";
-				$xml .= '        <ram:BICID>'.dolizugferd_xml_encode($bank['bic']).'</ram:BICID>'."\n";
+				$xml .= '        <ram:BICID>'.auvoerechnung_xml_encode($bank['bic']).'</ram:BICID>'."\n";
 				$xml .= '      </ram:PayeeSpecifiedCreditorFinancialInstitution>'."\n";
 			}
 		}
@@ -353,46 +353,46 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
 	// BT-8 : exigibilité TVA (5 = débits, 72 = encaissements), émise sur les
 	// catégories taxées uniquement. Dérivée automatiquement du régime TVA de
 	// Dolibarr (constante TAX_MODE, Configuration > Taxes) — plus de réglage dédié.
-	$dueDateTypeCode = dolizugferd_resolve_vat_due_date_code();
+	$dueDateTypeCode = auvoerechnung_resolve_vat_due_date_code();
 
 	foreach ($breakdown as $amounts) {
 		$xml .= '    <ram:ApplicableTradeTax>'."\n";
-		$xml .= '      <ram:CalculatedAmount>'.dolizugferd_format_amount($amounts['tax']).'</ram:CalculatedAmount>'."\n";
+		$xml .= '      <ram:CalculatedAmount>'.auvoerechnung_format_amount($amounts['tax']).'</ram:CalculatedAmount>'."\n";
 		$xml .= '      <ram:TypeCode>VAT</ram:TypeCode>'."\n";
 		// ExemptionReason émis pour toute catégorie non-standard quand un motif est disponible
 		if (!empty($amounts['exemption']) && in_array($amounts['categoryCode'], ['E', 'K', 'G', 'O', 'Z', 'AE'], true)) {
-			$xml .= '      <ram:ExemptionReason>'.dolizugferd_xml_encode($amounts['exemption']).'</ram:ExemptionReason>'."\n";
+			$xml .= '      <ram:ExemptionReason>'.auvoerechnung_xml_encode($amounts['exemption']).'</ram:ExemptionReason>'."\n";
 		}
-		$xml .= '      <ram:BasisAmount>'.dolizugferd_format_amount($amounts['base']).'</ram:BasisAmount>'."\n";
-		$xml .= '      <ram:CategoryCode>'.dolizugferd_xml_encode($amounts['categoryCode']).'</ram:CategoryCode>'."\n";
+		$xml .= '      <ram:BasisAmount>'.auvoerechnung_format_amount($amounts['base']).'</ram:BasisAmount>'."\n";
+		$xml .= '      <ram:CategoryCode>'.auvoerechnung_xml_encode($amounts['categoryCode']).'</ram:CategoryCode>'."\n";
 		// BT-121 : code d'exonération VATEX (attendu par la réforme FR)
 		if (!empty($amounts['vatex'])) {
-			$xml .= '      <ram:ExemptionReasonCode>'.dolizugferd_xml_encode($amounts['vatex']).'</ram:ExemptionReasonCode>'."\n";
+			$xml .= '      <ram:ExemptionReasonCode>'.auvoerechnung_xml_encode($amounts['vatex']).'</ram:ExemptionReasonCode>'."\n";
 		}
 		if ($dueDateTypeCode !== '' && $amounts['categoryCode'] === 'S') {
-			$xml .= '      <ram:DueDateTypeCode>'.dolizugferd_xml_encode($dueDateTypeCode).'</ram:DueDateTypeCode>'."\n";
+			$xml .= '      <ram:DueDateTypeCode>'.auvoerechnung_xml_encode($dueDateTypeCode).'</ram:DueDateTypeCode>'."\n";
 		}
 		// BR-O-05 : pas de RateApplicablePercent pour CategoryCode='O' (services hors champ)
 		if ($amounts['categoryCode'] !== 'O') {
-			$xml .= '      <ram:RateApplicablePercent>'.dolizugferd_format_amount($amounts['rate']).'</ram:RateApplicablePercent>'."\n";
+			$xml .= '      <ram:RateApplicablePercent>'.auvoerechnung_format_amount($amounts['rate']).'</ram:RateApplicablePercent>'."\n";
 		}
 		$xml .= '    </ram:ApplicableTradeTax>'."\n";
 	}
 
 	// BG-14 : période de facturation (dates de service des lignes Dolibarr)
-	$xml .= dolizugferd_build_billing_period_xml($billableLines);
+	$xml .= auvoerechnung_build_billing_period_xml($billableLines);
 
 	// BG-21 : remises pied de facture (issues des lignes à montant négatif)
 	foreach ($prepared['allowances'] as $al) {
 		$xml .= '    <ram:SpecifiedTradeAllowanceCharge>'."\n";
 		$xml .= '      <ram:ChargeIndicator><udt:Indicator>false</udt:Indicator></ram:ChargeIndicator>'."\n";
-		$xml .= '      <ram:ActualAmount>'.dolizugferd_format_amount($al['amount']).'</ram:ActualAmount>'."\n";
-		$xml .= '      <ram:Reason>'.dolizugferd_xml_encode($al['reason']).'</ram:Reason>'."\n";
+		$xml .= '      <ram:ActualAmount>'.auvoerechnung_format_amount($al['amount']).'</ram:ActualAmount>'."\n";
+		$xml .= '      <ram:Reason>'.auvoerechnung_xml_encode($al['reason']).'</ram:Reason>'."\n";
 		$xml .= '      <ram:CategoryTradeTax>'."\n";
 		$xml .= '        <ram:TypeCode>VAT</ram:TypeCode>'."\n";
-		$xml .= '        <ram:CategoryCode>'.dolizugferd_xml_encode($al['categoryCode']).'</ram:CategoryCode>'."\n";
+		$xml .= '        <ram:CategoryCode>'.auvoerechnung_xml_encode($al['categoryCode']).'</ram:CategoryCode>'."\n";
 		if ($al['categoryCode'] !== 'O') {
-			$xml .= '        <ram:RateApplicablePercent>'.dolizugferd_format_amount($al['rate']).'</ram:RateApplicablePercent>'."\n";
+			$xml .= '        <ram:RateApplicablePercent>'.auvoerechnung_format_amount($al['rate']).'</ram:RateApplicablePercent>'."\n";
 		}
 		$xml .= '      </ram:CategoryTradeTax>'."\n";
 		$xml .= '    </ram:SpecifiedTradeAllowanceCharge>'."\n";
@@ -400,25 +400,25 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
 
 	$xml .= '    <ram:SpecifiedTradePaymentTerms>'."\n";
 	$xml .= '      <ram:DueDateDateTime>'."\n";
-	$xml .= '        <udt:DateTimeString format="102">'.dolizugferd_xml_encode($dueDate).'</udt:DateTimeString>'."\n";
+	$xml .= '        <udt:DateTimeString format="102">'.auvoerechnung_xml_encode($dueDate).'</udt:DateTimeString>'."\n";
 	$xml .= '      </ram:DueDateDateTime>'."\n";
 	// BT-89 : référence unique de mandat (RUM) pour le prélèvement SEPA
 	if ($directDebit !== null && $directDebit['rum'] !== '') {
-		$xml .= '      <ram:DirectDebitMandateID>'.dolizugferd_xml_encode($directDebit['rum']).'</ram:DirectDebitMandateID>'."\n";
+		$xml .= '      <ram:DirectDebitMandateID>'.auvoerechnung_xml_encode($directDebit['rum']).'</ram:DirectDebitMandateID>'."\n";
 	}
 	$xml .= '    </ram:SpecifiedTradePaymentTerms>'."\n";
 
-	$xml .= dolizugferd_build_monetary_summation_xml($invoice, $currency, $sign, $prepared, $breakdown, $buildWarnings);
+	$xml .= auvoerechnung_build_monetary_summation_xml($invoice, $currency, $sign, $prepared, $breakdown, $buildWarnings);
 
 	// BG-3 : références aux factures antérieures (facture d'origine d'un avoir /
 	// d'une rectificative, factures d'acompte imputées sur une facture finale).
 	// Rectificative (384) : seule la facture remplacée est référencée (BR-FR-CO-04).
-	foreach (dolizugferd_get_preceding_invoices($invoice, $typeCode) as $prev) {
+	foreach (auvoerechnung_get_preceding_invoices($invoice, $typeCode) as $prev) {
 		$xml .= '    <ram:InvoiceReferencedDocument>'."\n";
-		$xml .= '      <ram:IssuerAssignedID>'.dolizugferd_xml_encode($prev['ref']).'</ram:IssuerAssignedID>'."\n";
+		$xml .= '      <ram:IssuerAssignedID>'.auvoerechnung_xml_encode($prev['ref']).'</ram:IssuerAssignedID>'."\n";
 		if (!empty($prev['date'])) {
 			$xml .= '      <ram:FormattedIssueDateTime>'."\n";
-			$xml .= '        <qdt:DateTimeString format="102">'.dolizugferd_xml_encode($prev['date']).'</qdt:DateTimeString>'."\n";
+			$xml .= '        <qdt:DateTimeString format="102">'.auvoerechnung_xml_encode($prev['date']).'</qdt:DateTimeString>'."\n";
 			$xml .= '      </ram:FormattedIssueDateTime>'."\n";
 		}
 		$xml .= '    </ram:InvoiceReferencedDocument>'."\n";
@@ -434,9 +434,9 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
 	// actionnable ici ; le validateur interne porte la violation bloquante.
 	if (empty($invoice->fk_facture_source)) {
 		if ($isCreditNote) {
-			$buildWarnings[] = dolizugferd_trans('DoliZugferdWarnCreditNoteNoSource');
+			$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnCreditNoteNoSource');
 		} elseif ($typeCode === '384') {
-			$buildWarnings[] = dolizugferd_trans('DoliZugferdWarnCorrectiveNoSource');
+			$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnCorrectiveNoSource');
 		}
 	}
 
@@ -451,7 +451,7 @@ function dolizugferd_build_xml($invoice, $mysoc, &$buildWarnings = [], $options 
  * @param array $lines Lignes Dolibarr
  * @return array
  */
-function dolizugferd_filter_billable_lines($lines)
+function auvoerechnung_filter_billable_lines($lines)
 {
 	$out = [];
 	foreach ((array) $lines as $line) {
@@ -486,7 +486,7 @@ function dolizugferd_filter_billable_lines($lines)
  *
  * @return array ['lines' => array, 'allowances' => array]
  */
-function dolizugferd_prepare_lines($billableLines, $sign, $invoice, $thirdparty, $mysoc, &$buildWarnings)
+function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdparty, $mysoc, &$buildWarnings)
 {
 	// Constructeur unique de ligne préparée : utilisé par le chemin nominal ET
 	// le fallback "tout négatif" pour que les deux émettent le même mapping.
@@ -504,8 +504,8 @@ function dolizugferd_prepare_lines($billableLines, $sign, $invoice, $thirdparty,
 			'lineTotal' => $lineTotal,
 			'lineTax'   => $sign * (float) $line->total_tva,
 			'vatRate'   => (float) $line->tva_tx,
-			'taxCat'    => dolizugferd_resolve_tax_category($line, $invoice, $thirdparty, $mysoc),
-			'unitCode'  => dolizugferd_map_unit_code($line),
+			'taxCat'    => auvoerechnung_resolve_tax_category($line, $invoice, $thirdparty, $mysoc),
+			'unitCode'  => auvoerechnung_map_unit_code($line),
 		];
 	};
 
@@ -530,7 +530,7 @@ function dolizugferd_prepare_lines($billableLines, $sign, $invoice, $thirdparty,
 	if (empty($lines) && !empty($allowances)) {
 		// Facture intégralement négative hors avoir : pas de conversion BG-21
 		// possible (il faut au moins une ligne). On ré-émet les lignes brutes.
-		$buildWarnings[] = dolizugferd_trans('DoliZugferdWarnAllNegativeLines');
+		$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnAllNegativeLines');
 		$lines = array_map($buildLine, $billableLines);
 		$allowances = [];
 	}
@@ -546,17 +546,17 @@ function dolizugferd_prepare_lines($billableLines, $sign, $invoice, $thirdparty,
  *      que Dolibarr imprime dans le PDF quand un compte est sélectionné au
  *      niveau du tiers ou de la facture ;
  *   2. à défaut, le compte figé dans la config du module
- *      (DOLIZUGFERD_BANK_ACCOUNT) — repli historique, préserve l'existant.
+ *      (AUVOERECHNUNG_BANK_ACCOUNT) — repli historique, préserve l'existant.
  *
  * @param object      $db      Handle DB Dolibarr
  * @param object|null $invoice Facture courante (pour lire fk_account) ; null = config seule
  * @return array ['iban' => string, 'bic' => string] (chaînes vides si aucun compte résolu)
  */
-function dolizugferd_get_bank_account($db, $invoice = null)
+function auvoerechnung_get_bank_account($db, $invoice = null)
 {
 	$bankAccountId = ($invoice !== null && !empty($invoice->fk_account))
 		? (int) $invoice->fk_account
-		: getDolGlobalInt('DOLIZUGFERD_BANK_ACCOUNT');
+		: getDolGlobalInt('AUVOERECHNUNG_BANK_ACCOUNT');
 	if ($bankAccountId <= 0) {
 		return ['iban' => '', 'bic' => ''];
 	}
@@ -578,7 +578,7 @@ function dolizugferd_get_bank_account($db, $invoice = null)
  *
  * @return array ['ics' => string, 'rum' => string, 'debtor_iban' => string]
  */
-function dolizugferd_get_direct_debit_info($db, $buyer, &$buildWarnings)
+function auvoerechnung_get_direct_debit_info($db, $buyer, &$buildWarnings)
 {
 	$info = [
 		'ics'         => trim(getDolGlobalString('PRELEVEMENT_ICS', '')),
@@ -604,10 +604,10 @@ function dolizugferd_get_direct_debit_info($db, $buyer, &$buildWarnings)
 	}
 
 	if ($info['ics'] === '') {
-		$buildWarnings[] = dolizugferd_trans('DoliZugferdWarnDirectDebitNoICS');
+		$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnDirectDebitNoICS');
 	}
 	if ($info['rum'] === '') {
-		$buildWarnings[] = dolizugferd_trans('DoliZugferdWarnDirectDebitNoRUM');
+		$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnDirectDebitNoRUM');
 	}
 
 	return $info;
@@ -619,7 +619,7 @@ function dolizugferd_get_direct_debit_info($db, $buyer, &$buildWarnings)
  * clé n'existe pas ; or nos constantes de configuration sont créées vides à
  * l'activation du module, donc le défaut ne s'appliquait jamais sans ce garde-fou.
  */
-function dolizugferd_conf_or_default($key, $default)
+function auvoerechnung_conf_or_default($key, $default)
 {
 	$val = trim(getDolGlobalString($key, ''));
 	return $val !== '' ? $val : $default;
@@ -634,26 +634,26 @@ function dolizugferd_conf_or_default($key, $default)
  * vendeur établi hors de France, aucun défaut n'est appliqué : Factur-X est
  * la même spécification que ZUGFeRD, et imprimer d'office des mentions
  * françaises — ou leur transposition devinée — dans la facture d'un vendeur
- * étranger serait faux. Les constantes DOLIZUGFERD_NOTE_* restent
+ * étranger serait faux. Les constantes AUVOERECHNUNG_NOTE_* restent
  * pleinement utilisables : un vendeur allemand y saisit ses propres mentions
  * (§ 288 BGB, escompte…), et elles sont alors émises normalement.
  *
- * @param bool $sellerIsFR  cf. dolizugferd_seller_is_fr()
+ * @param bool $sellerIsFR  cf. auvoerechnung_seller_is_fr()
  * @return array<string,string>  ['PMD' => texte, 'PMT' => texte, 'AAB' => texte]
  */
-function dolizugferd_resolve_legal_notes($sellerIsFR = true)
+function auvoerechnung_resolve_legal_notes($sellerIsFR = true)
 {
 	$defaults = $sellerIsFR
 		? [
-			'PMD' => DOLIZUGFERD_DEFAULT_NOTE_PMD,
-			'PMT' => DOLIZUGFERD_DEFAULT_NOTE_PMT,
-			'AAB' => DOLIZUGFERD_DEFAULT_NOTE_AAB,
+			'PMD' => AUVOERECHNUNG_DEFAULT_NOTE_PMD,
+			'PMT' => AUVOERECHNUNG_DEFAULT_NOTE_PMT,
+			'AAB' => AUVOERECHNUNG_DEFAULT_NOTE_AAB,
 		]
 		: ['PMD' => '', 'PMT' => '', 'AAB' => ''];
 
 	$notes = [];
 	foreach ($defaults as $code => $default) {
-		$notes[$code] = dolizugferd_conf_or_default('DOLIZUGFERD_NOTE_'.$code, $default);
+		$notes[$code] = auvoerechnung_conf_or_default('AUVOERECHNUNG_NOTE_'.$code, $default);
 	}
 	return $notes;
 }
@@ -664,13 +664,13 @@ function dolizugferd_resolve_legal_notes($sellerIsFR = true)
  * plus la note BAR (qualification du traitement attendu, BR-FR-07/20) quand un
  * code est fourni. Chaque code sujet n'est émis qu'une fois (BR-FR-06, BR-FR-31).
  *
- * @param string $barCode     'B2B', 'B2BINT' ou 'B2C' (cf. dolizugferd_resolve_bar_code),
+ * @param string $barCode     'B2B', 'B2BINT' ou 'B2C' (cf. auvoerechnung_resolve_bar_code),
  *                            ou '' pour ne pas émettre de note BAR
- * @param bool   $sellerIsFR  cf. dolizugferd_seller_is_fr()
+ * @param bool   $sellerIsFR  cf. auvoerechnung_seller_is_fr()
  */
-function dolizugferd_build_legal_notes_xml($barCode = '', $sellerIsFR = true)
+function auvoerechnung_build_legal_notes_xml($barCode = '', $sellerIsFR = true)
 {
-	$notes = dolizugferd_resolve_legal_notes($sellerIsFR);
+	$notes = auvoerechnung_resolve_legal_notes($sellerIsFR);
 	if ($barCode !== '') {
 		// BR-FR-20 : le contenu (BT-22) est le code brut, sans texte libre autour
 		$notes['BAR'] = $barCode;
@@ -684,7 +684,7 @@ function dolizugferd_build_legal_notes_xml($barCode = '', $sellerIsFR = true)
 			continue;
 		}
 		$xml .= '  <ram:IncludedNote>'."\n";
-		$xml .= '    <ram:Content>'.dolizugferd_xml_encode($content).'</ram:Content>'."\n";
+		$xml .= '    <ram:Content>'.auvoerechnung_xml_encode($content).'</ram:Content>'."\n";
 		$xml .= '    <ram:SubjectCode>'.$code.'</ram:SubjectCode>'."\n";
 		$xml .= '  </ram:IncludedNote>'."\n";
 	}
@@ -713,14 +713,14 @@ function dolizugferd_build_legal_notes_xml($barCode = '', $sellerIsFR = true)
  * @param Societe|object $buyer  Tiers acheteur
  * @return string 'B2B', 'B2BINT' ou 'B2C'
  */
-function dolizugferd_resolve_bar_code($buyer)
+function auvoerechnung_resolve_bar_code($buyer)
 {
-	if (dolizugferd_is_non_assujetti($buyer)) {
+	if (auvoerechnung_is_non_assujetti($buyer)) {
 		return 'B2C';
 	}
 	$country = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : 'FR');
 	// Codes remplacés par FR dans les flux (BR-FR-MAP-14) : traités comme FR
-	if ($country !== 'FR' && !in_array($country, DOLIZUGFERD_FR_OVERSEAS_COUNTRIES, true)) {
+	if ($country !== 'FR' && !in_array($country, AUVOERECHNUNG_FR_OVERSEAS_COUNTRIES, true)) {
 		return 'B2BINT';
 	}
 	return 'B2B';
@@ -738,12 +738,12 @@ function dolizugferd_resolve_bar_code($buyer)
  * autofacturation, multi-vendeurs x8, bidirectionnel x9) ne correspondent à
  * aucun flux produit par ce module : non émis.
  *
- * @param array  $billableLines  Lignes facturables (cf. dolizugferd_filter_billable_lines)
+ * @param array  $billableLines  Lignes facturables (cf. auvoerechnung_filter_billable_lines)
  * @param string $typeCode       TypeCode BT-3 émis ('380', '386', '381'...)
  * @param float  $prepaidAmount  Montant d'acomptes imputés (BT-113)
  * @return string 'B1'|'S1'|'M1'|'B4'|'S4'|'M4'
  */
-function dolizugferd_resolve_business_process($billableLines, $typeCode, $prepaidAmount = 0.0)
+function auvoerechnung_resolve_business_process($billableLines, $typeCode, $prepaidAmount = 0.0)
 {
 	$hasGoods = false;
 	$hasServices = false;
@@ -766,7 +766,7 @@ function dolizugferd_resolve_business_process($billableLines, $typeCode, $prepai
  * BG-14 : période de facturation déduite des dates de service des lignes
  * (min des date_start / max des date_end). Bloc omis si aucune ligne datée.
  */
-function dolizugferd_build_billing_period_xml($billableLines)
+function auvoerechnung_build_billing_period_xml($billableLines)
 {
 	$start = null;
 	$end = null;
@@ -799,41 +799,41 @@ function dolizugferd_build_billing_period_xml($billableLines)
 }
 
 /**
- * Génère le XML d'une ligne préparée (cf. dolizugferd_prepare_lines).
+ * Génère le XML d'une ligne préparée (cf. auvoerechnung_prepare_lines).
  *
  * @param array  $pl       Ligne préparée (desc, qty, unitPrice, lineTotal, vatRate, taxCat, unitCode)
  * @param int    $lineNum  Numéro de ligne séquentiel
  * @return string XML
  */
-function dolizugferd_build_line_xml($pl, $lineNum)
+function auvoerechnung_build_line_xml($pl, $lineNum)
 {
 	$xml  = '  <ram:IncludedSupplyChainTradeLineItem>'."\n";
 	$xml .= '    <ram:AssociatedDocumentLineDocument>'."\n";
-	$xml .= '      <ram:LineID>'.dolizugferd_xml_encode((string) $lineNum).'</ram:LineID>'."\n";
+	$xml .= '      <ram:LineID>'.auvoerechnung_xml_encode((string) $lineNum).'</ram:LineID>'."\n";
 	$xml .= '    </ram:AssociatedDocumentLineDocument>'."\n";
 	$xml .= '    <ram:SpecifiedTradeProduct>'."\n";
-	$xml .= '      <ram:Name>'.dolizugferd_xml_encode($pl['desc']).'</ram:Name>'."\n";
+	$xml .= '      <ram:Name>'.auvoerechnung_xml_encode($pl['desc']).'</ram:Name>'."\n";
 	$xml .= '    </ram:SpecifiedTradeProduct>'."\n";
 	$xml .= '    <ram:SpecifiedLineTradeAgreement>'."\n";
 	$xml .= '      <ram:NetPriceProductTradePrice>'."\n";
 	// BT-146 : 4 décimales pour limiter l'écart qty x prix vs total de ligne
-	$xml .= '        <ram:ChargeAmount>'.dolizugferd_format_unit_price($pl['unitPrice']).'</ram:ChargeAmount>'."\n";
+	$xml .= '        <ram:ChargeAmount>'.auvoerechnung_format_unit_price($pl['unitPrice']).'</ram:ChargeAmount>'."\n";
 	$xml .= '      </ram:NetPriceProductTradePrice>'."\n";
 	$xml .= '    </ram:SpecifiedLineTradeAgreement>'."\n";
 	$xml .= '    <ram:SpecifiedLineTradeDelivery>'."\n";
-	$xml .= '      <ram:BilledQuantity unitCode="'.dolizugferd_xml_encode($pl['unitCode']).'">'.dolizugferd_format_qty($pl['qty']).'</ram:BilledQuantity>'."\n";
+	$xml .= '      <ram:BilledQuantity unitCode="'.auvoerechnung_xml_encode($pl['unitCode']).'">'.auvoerechnung_format_qty($pl['qty']).'</ram:BilledQuantity>'."\n";
 	$xml .= '    </ram:SpecifiedLineTradeDelivery>'."\n";
 	$xml .= '    <ram:SpecifiedLineTradeSettlement>'."\n";
 	$xml .= '      <ram:ApplicableTradeTax>'."\n";
 	$xml .= '        <ram:TypeCode>VAT</ram:TypeCode>'."\n";
-	$xml .= '        <ram:CategoryCode>'.dolizugferd_xml_encode($pl['taxCat']['code']).'</ram:CategoryCode>'."\n";
+	$xml .= '        <ram:CategoryCode>'.auvoerechnung_xml_encode($pl['taxCat']['code']).'</ram:CategoryCode>'."\n";
 	// BR-O-04 : pas de RateApplicablePercent pour CategoryCode='O' (services hors champ)
 	if ($pl['taxCat']['code'] !== 'O') {
-		$xml .= '        <ram:RateApplicablePercent>'.dolizugferd_format_amount($pl['vatRate']).'</ram:RateApplicablePercent>'."\n";
+		$xml .= '        <ram:RateApplicablePercent>'.auvoerechnung_format_amount($pl['vatRate']).'</ram:RateApplicablePercent>'."\n";
 	}
 	$xml .= '      </ram:ApplicableTradeTax>'."\n";
 	$xml .= '      <ram:SpecifiedTradeSettlementLineMonetarySummation>'."\n";
-	$xml .= '        <ram:LineTotalAmount>'.dolizugferd_format_amount($pl['lineTotal']).'</ram:LineTotalAmount>'."\n";
+	$xml .= '        <ram:LineTotalAmount>'.auvoerechnung_format_amount($pl['lineTotal']).'</ram:LineTotalAmount>'."\n";
 	$xml .= '      </ram:SpecifiedTradeSettlementLineMonetarySummation>'."\n";
 	$xml .= '    </ram:SpecifiedLineTradeSettlement>'."\n";
 	$xml .= '  </ram:IncludedSupplyChainTradeLineItem>'."\n";
@@ -845,7 +845,7 @@ function dolizugferd_build_line_xml($pl, $lineNum)
  * Calcule la ventilation TVA par (catégorie, taux) — deux catégories distinctes
  * au même taux (ex. K et AE à 0 %) produisent deux blocs ApplicableTradeTax.
  *
- * Consomme les lignes/remises préparées par dolizugferd_prepare_lines() (mêmes
+ * Consomme les lignes/remises préparées par auvoerechnung_prepare_lines() (mêmes
  * catégories, mêmes arrondis) pour garantir la cohérence BR-S-08 : base par
  * (catégorie, taux) = somme des lignes - remises de la catégorie.
  *
@@ -861,7 +861,7 @@ function dolizugferd_build_line_xml($pl, $lineNum)
  * @param array  $buildWarnings  (sortie) avertissements
  * @return array<string,array>   Indexé par "categorie|taux", avec base/tax/rate/categoryCode/exemption/vatex
  */
-function dolizugferd_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$buildWarnings = [])
+function auvoerechnung_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$buildWarnings = [])
 {
 	$breakdown = [];
 	$accumulate = function ($taxCat, $rate, $base, $tax) use (&$breakdown) {
@@ -909,10 +909,10 @@ function dolizugferd_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$build
 		if ($targetKey !== null) {
 			$breakdown[$targetKey]['tax'] = round($breakdown[$targetKey]['tax'] + $delta, 2);
 			if (abs($delta) > 0.01) {
-				$buildWarnings[] = dolizugferd_trans('DoliZugferdWarnRoundingAdjusted', dolizugferd_format_amount($delta));
+				$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnRoundingAdjusted', auvoerechnung_format_amount($delta));
 			}
 		} else {
-			$buildWarnings[] = dolizugferd_trans('DoliZugferdWarnTaxMismatch', dolizugferd_format_amount($delta));
+			$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnTaxMismatch', auvoerechnung_format_amount($delta));
 		}
 	}
 
@@ -927,7 +927,7 @@ function dolizugferd_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$build
 		}
 		$expected = round($b['base'] * $b['rate'] / 100, 2);
 		if (abs($b['tax'] - $expected) > 0.01) {
-			$buildWarnings[] = dolizugferd_trans('DoliZugferdWarnTaxRecomputed', $b['categoryCode'].' '.$b['rate'].'%', dolizugferd_format_amount($expected), dolizugferd_format_amount($b['tax']));
+			$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnTaxRecomputed', $b['categoryCode'].' '.$b['rate'].'%', auvoerechnung_format_amount($expected), auvoerechnung_format_amount($b['tax']));
 			$breakdown[$key]['tax'] = $expected;
 		}
 	}
@@ -948,7 +948,7 @@ function dolizugferd_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$build
  * @param Societe|null $thirdparty  Tiers Dolibarr (fetch déjà fait)
  * @return bool
  */
-function dolizugferd_is_non_assujetti($thirdparty)
+function auvoerechnung_is_non_assujetti($thirdparty)
 {
 	if (empty($thirdparty)) {
 		return false;
@@ -967,20 +967,20 @@ function dolizugferd_is_non_assujetti($thirdparty)
  * @param Societe $mysoc     Société émettrice
  * @return array             Liste de messages d'avertissement
  */
-function dolizugferd_check_mandatory($invoice, $mysoc)
+function auvoerechnung_check_mandatory($invoice, $mysoc)
 {
 	$warnings = [];
 
 	// SIREN/SIRET : identifiants français — mêmes règles de pays que le générateur
-	$sellerIsFR = dolizugferd_seller_is_fr($mysoc);
+	$sellerIsFR = auvoerechnung_seller_is_fr($mysoc);
 
 	$sellerChecks = [
-		'name'      => 'DoliZugferdWarnSellerName',
-		'address'   => 'DoliZugferdWarnSellerAddress',
-		'zip'       => 'DoliZugferdWarnSellerZip',
-		'town'      => 'DoliZugferdWarnSellerTown',
-		'tva_intra' => 'DoliZugferdWarnSellerVAT',
-		'idprof2'   => 'DoliZugferdWarnSellerSIRET',
+		'name'      => 'AuvoERechnungWarnSellerName',
+		'address'   => 'AuvoERechnungWarnSellerAddress',
+		'zip'       => 'AuvoERechnungWarnSellerZip',
+		'town'      => 'AuvoERechnungWarnSellerTown',
+		'tva_intra' => 'AuvoERechnungWarnSellerVAT',
+		'idprof2'   => 'AuvoERechnungWarnSellerSIRET',
 	];
 	$isFranchise = isset($mysoc->tva_assuj) && (int) $mysoc->tva_assuj === 0;
 	foreach ($sellerChecks as $field => $transKey) {
@@ -993,42 +993,42 @@ function dolizugferd_check_mandatory($invoice, $mysoc)
 			continue;
 		}
 		if (empty($mysoc->$field)) {
-			$warnings[] = dolizugferd_trans($transKey);
+			$warnings[] = auvoerechnung_trans($transKey);
 		}
 	}
 
 	// Champ TVA intra rempli mais sans préfixe pays (BR-CO-09) : il n'est pas
 	// publié en BT-31. Cas typique : Steuernummer saisie au mauvais endroit.
-	if (trim((string) ($mysoc->tva_intra ?? '')) !== '' && !dolizugferd_is_vat_id($mysoc->tva_intra)) {
-		$warnings[] = dolizugferd_trans('DoliZugferdWarnSellerVATInvalid', $mysoc->tva_intra);
+	if (trim((string) ($mysoc->tva_intra ?? '')) !== '' && !auvoerechnung_is_vat_id($mysoc->tva_intra)) {
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnSellerVATInvalid', $mysoc->tva_intra);
 	}
 
 	// BT-34 (adresse électronique vendeur) : satisfaite par le SIREN (endpoint 0225)
 	// OU l'email. On n'avertit que si aucune des deux n'est disponible.
 	// Hors vendeur FR, BT-34 est facultatif en EN16931 (BR-FR-13 ne s'applique
 	// pas) : pas d'avertissement.
-	$sellerSiren = $sellerIsFR ? dolizugferd_party_siren($mysoc) : '';
+	$sellerSiren = $sellerIsFR ? auvoerechnung_party_siren($mysoc) : '';
 	if ($sellerIsFR && $sellerSiren === '' && empty($mysoc->email)) {
-		$warnings[] = dolizugferd_trans('DoliZugferdWarnSellerEndpoint');
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnSellerEndpoint');
 	}
 
 	// BT-29 (ram:ID) : si un SIRET est renseigné (idprof2), il doit faire 14
 	// chiffres. Il identifie l'établissement ; le SIREN (BT-30) vient d'idprof1.
 	$sellerSiret = $sellerIsFR ? preg_replace('/[^0-9]/', '', $mysoc->idprof2 ?? '') : '';
 	if ($sellerSiret !== '' && strlen($sellerSiret) !== 14) {
-		$warnings[] = dolizugferd_trans('DoliZugferdWarnSellerSIRETLen', strlen($sellerSiret));
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnSellerSIRETLen', strlen($sellerSiret));
 	}
 
 	$buyer = $invoice->thirdparty;
 	$buyerChecks = [
-		'name'    => 'DoliZugferdWarnBuyerName',
-		'address' => 'DoliZugferdWarnBuyerAddress',
-		'zip'     => 'DoliZugferdWarnBuyerZip',
-		'town'    => 'DoliZugferdWarnBuyerTown',
+		'name'    => 'AuvoERechnungWarnBuyerName',
+		'address' => 'AuvoERechnungWarnBuyerAddress',
+		'zip'     => 'AuvoERechnungWarnBuyerZip',
+		'town'    => 'AuvoERechnungWarnBuyerTown',
 	];
 	foreach ($buyerChecks as $field => $transKey) {
 		if (empty($buyer->$field)) {
-			$warnings[] = dolizugferd_trans($transKey);
+			$warnings[] = auvoerechnung_trans($transKey);
 		}
 	}
 
@@ -1036,23 +1036,23 @@ function dolizugferd_check_mandatory($invoice, $mysoc)
 	// OU l'email. Pour un acheteur FR, l'absence de SIREN empêche le routage PA/PDP,
 	// même si un email est présent (un email n'est pas routable sur le réseau).
 	$buyerIsFR  = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : 'FR') === 'FR';
-	$buyerSiren = $buyerIsFR ? dolizugferd_party_siren($buyer) : '';
-	$buyerEmail = dolizugferd_get_buyer_email($buyer, $invoice->db);
+	$buyerSiren = $buyerIsFR ? auvoerechnung_party_siren($buyer) : '';
+	$buyerEmail = auvoerechnung_get_buyer_email($buyer, $invoice->db);
 	// Hors vendeur FR, BT-49 est facultatif en EN16931 (BR-FR-12 ne s'applique
 	// pas ; seule XRechnung l'exige, profil non émis ici) : pas d'avertissement.
 	if ($sellerIsFR && $buyerSiren === '' && $buyerEmail === '') {
-		$warnings[] = dolizugferd_trans('DoliZugferdWarnBuyerEndpoint');
-	} elseif ($sellerIsFR && $buyerSiren === '' && $buyerIsFR && !dolizugferd_is_non_assujetti($buyer)) {
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnBuyerEndpoint');
+	} elseif ($sellerIsFR && $buyerSiren === '' && $buyerIsFR && !auvoerechnung_is_non_assujetti($buyer)) {
 		// Non assujetti (particulier OU « Assujetti à la TVA » à Non, ex. asso) :
 		// pas de SIREN, hors champ e-invoicing (relève du e-reporting)
 		// → pas d'avertissement de routage
-		$warnings[] = dolizugferd_trans('DoliZugferdWarnBuyerSIRENRouting');
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnBuyerSIRENRouting');
 	}
 
 	// BT-46 acheteur (ram:ID) : si un SIRET est renseigné, il doit faire 14 chiffres.
 	$buyerSiret = $buyerIsFR ? preg_replace('/[^0-9]/', '', $buyer->idprof2 ?? '') : '';
 	if ($buyerSiret !== '' && strlen($buyerSiret) !== 14) {
-		$warnings[] = dolizugferd_trans('DoliZugferdWarnBuyerSIRETLen', strlen($buyerSiret));
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnBuyerSIRETLen', strlen($buyerSiret));
 	}
 
 	// BR-FR-01/02 : identifiant de facture (BT-1) — 35 caractères maximum,
@@ -1062,10 +1062,10 @@ function dolizugferd_check_mandatory($invoice, $mysoc)
 	if ($ref !== '') {
 		$refLen = function_exists('mb_strlen') ? mb_strlen($ref) : strlen($ref);
 		if ($refLen > 35) {
-			$warnings[] = dolizugferd_trans('DoliZugferdWarnRefTooLong', $refLen);
+			$warnings[] = auvoerechnung_trans('AuvoERechnungWarnRefTooLong', $refLen);
 		}
 		if (!preg_match('/^[A-Za-z0-9+_\/-]+$/', $ref)) {
-			$warnings[] = dolizugferd_trans('DoliZugferdWarnRefCharset', $ref);
+			$warnings[] = auvoerechnung_trans('AuvoERechnungWarnRefCharset', $ref);
 		}
 	}
 
@@ -1073,11 +1073,11 @@ function dolizugferd_check_mandatory($invoice, $mysoc)
 	// les 9 premiers chiffres du SIRET doivent correspondre au SIREN.
 	$sellerSirenSaisi = $sellerIsFR ? preg_replace('/[^0-9]/', '', $mysoc->idprof1 ?? '') : '';
 	if (strlen($sellerSirenSaisi) === 9 && strlen($sellerSiret) === 14 && strncmp($sellerSiret, $sellerSirenSaisi, 9) !== 0) {
-		$warnings[] = dolizugferd_trans('DoliZugferdWarnSellerSirenSiretMismatch', $sellerSirenSaisi, $sellerSiret);
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnSellerSirenSiretMismatch', $sellerSirenSaisi, $sellerSiret);
 	}
 	$buyerSirenSaisi = $buyerIsFR ? preg_replace('/[^0-9]/', '', $buyer->idprof1 ?? '') : '';
 	if (strlen($buyerSirenSaisi) === 9 && strlen($buyerSiret) === 14 && strncmp($buyerSiret, $buyerSirenSaisi, 9) !== 0) {
-		$warnings[] = dolizugferd_trans('DoliZugferdWarnBuyerSirenSiretMismatch', $buyerSirenSaisi, $buyerSiret);
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnBuyerSirenSiretMismatch', $buyerSirenSaisi, $buyerSiret);
 	}
 
 	// BR-FR-16 : taux de TVA hors liste française fermée (métropole + DOM).
@@ -1099,35 +1099,35 @@ function dolizugferd_check_mandatory($invoice, $mysoc)
 		}
 	}
 	foreach (array_keys($flaggedRates) as $rate) {
-		$warnings[] = dolizugferd_trans('DoliZugferdWarnVatRateNotFR', $rate);
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnVatRateNotFR', $rate);
 	}
 
 	// BR-FR-23/25 : suffixe d'adresse électronique vendeur — charset fermé
-	// (sanitisé à l'émission par dolizugferd_build_endpoint_uri) et longueur
+	// (sanitisé à l'émission par auvoerechnung_build_endpoint_uri) et longueur
 	// totale de l'adresse limitée à 125 caractères.
-	$endpointSuffix = trim(getDolGlobalString('DOLIZUGFERD_ENDPOINT_SUFFIX_SELLER', ''));
+	$endpointSuffix = trim(getDolGlobalString('AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER', ''));
 	if ($endpointSuffix !== '') {
 		$suffixClean = preg_replace('/[^A-Za-z0-9._-]/', '', $endpointSuffix);
 		if ($suffixClean !== $endpointSuffix) {
-			$warnings[] = dolizugferd_trans('DoliZugferdWarnEndpointSuffixCharset');
+			$warnings[] = auvoerechnung_trans('AuvoERechnungWarnEndpointSuffixCharset');
 		}
 		$endpointLen = strlen($sellerSiren.$suffixClean);
 		if ($sellerSiren !== '' && $endpointLen > 125) {
-			$warnings[] = dolizugferd_trans('DoliZugferdWarnEndpointTooLong', $endpointLen);
+			$warnings[] = auvoerechnung_trans('AuvoERechnungWarnEndpointTooLong', $endpointLen);
 		}
 	}
 
 	// Compte bancaire : OK si la facture en porte un (fk_account) OU si le module
 	// en a un configuré. On n'avertit que si les deux manquent (issue #16 : le
 	// compte de la facture prime sur la config).
-	if (empty($invoice->fk_account) && getDolGlobalInt('DOLIZUGFERD_BANK_ACCOUNT') <= 0) {
-		$warnings[] = dolizugferd_trans('DoliZugferdWarnNoBank');
+	if (empty($invoice->fk_account) && getDolGlobalInt('AUVOERECHNUNG_BANK_ACCOUNT') <= 0) {
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnNoBank');
 	}
 
 	// PDF/A-3 : sans police embarquée forcée, le PDF TCPDF utilise les polices
 	// base-14 non embarquées et échoue à la validation veraPDF.
 	if (function_exists('getDolGlobalString') && getDolGlobalString('MAIN_PDF_FORCE_FONT', '') === '') {
-		$warnings[] = dolizugferd_trans('DoliZugferdWarnNoForceFont');
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnNoForceFont');
 	}
 
 	return $warnings;
@@ -1140,11 +1140,11 @@ function dolizugferd_check_mandatory($invoice, $mysoc)
  * @param object $party  Société émettrice (mysoc) ou Societe acheteur
  * @param string $email  Email à publier dans le bloc URI (BT-49 / BT-34)
  */
-function dolizugferd_build_trade_party_xml($role, $party, $email, $legalIdMode = 'siren')
+function auvoerechnung_build_trade_party_xml($role, $party, $email, $legalIdMode = 'siren')
 {
 	$tag = ($role === 'Seller') ? 'SellerTradeParty' : 'BuyerTradeParty';
 	$country = !empty($party->country_code) ? $party->country_code : 'FR';
-	$vat     = dolizugferd_party_vat_id($party);
+	$vat     = auvoerechnung_party_vat_id($party);
 	// SIREN/SIRET : identifiants français uniquement. Pour un tiers étranger,
 	// idprof2 contient un identifiant local (HRB allemand, CRN...) qui ne doit
 	// surtout pas être publié sous un scheme SIREN/SIRET (0002/0009/0225) —
@@ -1155,7 +1155,7 @@ function dolizugferd_build_trade_party_xml($role, $party, $email, $legalIdMode =
 	// L'ordre suit la séquence XSD du TradePartyType : ID, Name, SpecifiedLegalOrganization.
 	// Source SIREN = idprof1 (à défaut dérivé du SIRET) ; source SIRET = idprof2.
 	$isFR = (strtoupper($country) === 'FR');
-	$siren = $isFR ? dolizugferd_party_siren($party) : '';
+	$siren = $isFR ? auvoerechnung_party_siren($party) : '';
 	$siretDigits = $isFR ? preg_replace('/[^0-9]/', '', $party->idprof2 ?? '') : '';
 	$siret14 = (strlen($siretDigits) === 14) ? $siretDigits : '';
 
@@ -1172,32 +1172,32 @@ function dolizugferd_build_trade_party_xml($role, $party, $email, $legalIdMode =
 		// l'identifiant qualifié va dans ram:GlobalID, PAS dans ram:ID. EN16931 ne
 		// lit le schemeID que sur GlobalID — sur ram:ID il est « not used in the
 		// given context » et fait échouer la validation Schematron (FNFE-MPE).
-		$xml .= '      <ram:GlobalID schemeID="0009">'.dolizugferd_xml_encode($siret14).'</ram:GlobalID>'."\n";
+		$xml .= '      <ram:GlobalID schemeID="0009">'.auvoerechnung_xml_encode($siret14).'</ram:GlobalID>'."\n";
 	}
-	$xml .= '      <ram:Name>'.dolizugferd_xml_encode($party->name ?? '').'</ram:Name>'."\n";
+	$xml .= '      <ram:Name>'.auvoerechnung_xml_encode($party->name ?? '').'</ram:Name>'."\n";
 	if ($chorus && !empty($siret14)) {
 		$xml .= '      <ram:SpecifiedLegalOrganization>'."\n";
-		$xml .= '        <ram:ID schemeID="0009">'.dolizugferd_xml_encode($siret14).'</ram:ID>'."\n";
+		$xml .= '        <ram:ID schemeID="0009">'.auvoerechnung_xml_encode($siret14).'</ram:ID>'."\n";
 		$xml .= '      </ram:SpecifiedLegalOrganization>'."\n";
 	} elseif (!empty($siren)) {
 		$xml .= '      <ram:SpecifiedLegalOrganization>'."\n";
-		$xml .= '        <ram:ID schemeID="0002">'.dolizugferd_xml_encode($siren).'</ram:ID>'."\n";
+		$xml .= '        <ram:ID schemeID="0002">'.auvoerechnung_xml_encode($siren).'</ram:ID>'."\n";
 		$xml .= '      </ram:SpecifiedLegalOrganization>'."\n";
 	}
 	$xml .= '      <ram:PostalTradeAddress>'."\n";
-	$xml .= '        <ram:PostcodeCode>'.dolizugferd_xml_encode($party->zip ?? '').'</ram:PostcodeCode>'."\n";
-	$xml .= '        <ram:LineOne>'.dolizugferd_xml_encode($party->address ?? '').'</ram:LineOne>'."\n";
-	$xml .= '        <ram:CityName>'.dolizugferd_xml_encode($party->town ?? '').'</ram:CityName>'."\n";
-	$xml .= '        <ram:CountryID>'.dolizugferd_xml_encode($country).'</ram:CountryID>'."\n";
+	$xml .= '        <ram:PostcodeCode>'.auvoerechnung_xml_encode($party->zip ?? '').'</ram:PostcodeCode>'."\n";
+	$xml .= '        <ram:LineOne>'.auvoerechnung_xml_encode($party->address ?? '').'</ram:LineOne>'."\n";
+	$xml .= '        <ram:CityName>'.auvoerechnung_xml_encode($party->town ?? '').'</ram:CityName>'."\n";
+	$xml .= '        <ram:CountryID>'.auvoerechnung_xml_encode($country).'</ram:CountryID>'."\n";
 	$xml .= '      </ram:PostalTradeAddress>'."\n";
 	// BT-34 (vendeur) / BT-49 (acheteur) : adresse électronique de routage.
 	// Le réseau des Plateformes Agréées (réforme FR) route par SIREN ; l'endpoint
 	// porte donc le SIREN avec schemeID="0225" (annuaire PPF), pas l'email. Le rôle
 	// est transmis : certaines PA exigent un suffixe sur l'adresse VENDEUR.
-	$xml .= dolizugferd_build_endpoint_uri($siren, $email, $role);
+	$xml .= auvoerechnung_build_endpoint_uri($siren, $email, $role);
 	if (!empty($vat)) {
 		$xml .= '      <ram:SpecifiedTaxRegistration>'."\n";
-		$xml .= '        <ram:ID schemeID="VA">'.dolizugferd_xml_encode($vat).'</ram:ID>'."\n";
+		$xml .= '        <ram:ID schemeID="VA">'.auvoerechnung_xml_encode($vat).'</ram:ID>'."\n";
 		$xml .= '      </ram:SpecifiedTaxRegistration>'."\n";
 	} elseif ($role === 'Seller' && !empty($siren)) {
 		// BR-CO-26 / BR-E-09 : le Seller doit publier un identifiant fiscal
@@ -1206,15 +1206,15 @@ function dolizugferd_build_trade_party_xml($role, $party, $email, $legalIdMode =
 		// comme tax registration schemeID="FC" (Tax registration identifier
 		// France) pour satisfaire la règle.
 		$xml .= '      <ram:SpecifiedTaxRegistration>'."\n";
-		$xml .= '        <ram:ID schemeID="FC">'.dolizugferd_xml_encode($siren).'</ram:ID>'."\n";
+		$xml .= '        <ram:ID schemeID="FC">'.auvoerechnung_xml_encode($siren).'</ram:ID>'."\n";
 		$xml .= '      </ram:SpecifiedTaxRegistration>'."\n";
-	} elseif ($role === 'Seller' && strtoupper($country) === 'DE' && dolizugferd_party_steuernummer($party) !== '') {
+	} elseif ($role === 'Seller' && strtoupper($country) === 'DE' && auvoerechnung_party_steuernummer($party) !== '') {
 		// BR-CO-26 / BR-E-09, vendeur allemand : un Kleinunternehmer (§ 19 UStG)
 		// n'a pas d'USt-IdNr, donc pas de BT-31. On publie sa Steuernummer en
 		// BT-32 (schemeID="FC", Tax registration identifier) — pendant exact du
 		// SIREN côté français, que ZUGFeRD/XRechnung attendent dans ce cas.
 		$xml .= '      <ram:SpecifiedTaxRegistration>'."\n";
-		$xml .= '        <ram:ID schemeID="FC">'.dolizugferd_xml_encode(dolizugferd_party_steuernummer($party)).'</ram:ID>'."\n";
+		$xml .= '        <ram:ID schemeID="FC">'.auvoerechnung_xml_encode(auvoerechnung_party_steuernummer($party)).'</ram:ID>'."\n";
 		$xml .= '      </ram:SpecifiedTaxRegistration>'."\n";
 	}
 	$xml .= '    </ram:'.$tag.'>'."\n";
@@ -1236,7 +1236,7 @@ function dolizugferd_build_trade_party_xml($role, $party, $email, $legalIdMode =
  * (BT-34) ne soit PAS le SIREN nu mais un endpoint suffixé — p.ex. Hubtimize/
  * Esalink attend "<SIREN>_Status" (adresse de retour des statuts de cycle de vie),
  * tel que paramétré à l'enregistrement de l'entité sur la PA. Configurable via
- * DOLIZUGFERD_ENDPOINT_SUFFIX_SELLER (vide par défaut). Appliqué AU vendeur
+ * AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER (vide par défaut). Appliqué AU vendeur
  * uniquement : l'adresse acheteur (BT-49) reste le SIREN nu, la PA destinataire
  * se chargeant du routage — on ne préjuge pas de son endpoint.
  *
@@ -1245,15 +1245,15 @@ function dolizugferd_build_trade_party_xml($role, $party, $email, $legalIdMode =
  * @param string $role  'Seller' (BT-34, suffixe appliqué) ou 'Buyer' (BT-49, nu)
  * @return string Bloc <ram:URIUniversalCommunication> ou chaîne vide
  */
-function dolizugferd_build_endpoint_uri($siren, $email, $role = 'Seller')
+function auvoerechnung_build_endpoint_uri($siren, $email, $role = 'Seller')
 {
 	if (!empty($siren)) {
 		$scheme = '0225';
-		$suffix = ($role === 'Seller') ? trim(getDolGlobalString('DOLIZUGFERD_ENDPOINT_SUFFIX_SELLER', '')) : '';
+		$suffix = ($role === 'Seller') ? trim(getDolGlobalString('AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER', '')) : '';
 		// BR-FR-23 : une adresse électronique en 0225 n'admet que les
 		// alphanumériques, le tiret, le tiret bas et le point — tout autre
 		// caractère du suffixe configuré est retiré (sanitisation défensive ;
-		// un avertissement est émis par dolizugferd_check_mandatory).
+		// un avertissement est émis par auvoerechnung_check_mandatory).
 		if ($suffix !== '') {
 			$suffix = preg_replace('/[^A-Za-z0-9._-]/', '', $suffix);
 		}
@@ -1266,7 +1266,7 @@ function dolizugferd_build_endpoint_uri($siren, $email, $role = 'Seller')
 	}
 
 	$xml  = '      <ram:URIUniversalCommunication>'."\n";
-	$xml .= '        <ram:URIID schemeID="'.dolizugferd_xml_encode($scheme).'">'.dolizugferd_xml_encode($value).'</ram:URIID>'."\n";
+	$xml .= '        <ram:URIID schemeID="'.auvoerechnung_xml_encode($scheme).'">'.auvoerechnung_xml_encode($value).'</ram:URIID>'."\n";
 	$xml .= '      </ram:URIUniversalCommunication>'."\n";
 
 	return $xml;
@@ -1279,7 +1279,7 @@ function dolizugferd_build_endpoint_uri($siren, $email, $role = 'Seller')
  * @param object $line Ligne de facture Dolibarr
  * @return string Code UN/ECE (ex: HUR, DAY, MTR, KGM, C62...)
  */
-function dolizugferd_map_unit_code($line)
+function auvoerechnung_map_unit_code($line)
 {
 	static $unitCache = [];
 	static $shortLabelMap = [
@@ -1351,14 +1351,14 @@ function dolizugferd_map_unit_code($line)
  * @param object $mysoc       Société émettrice
  * @return array ['code' => 'S|K|AE|G|O|E|Z', 'exemption' => string|null, 'vatex' => string|null]
  */
-function dolizugferd_resolve_tax_category($line, $invoice, $thirdparty, $mysoc)
+function auvoerechnung_resolve_tax_category($line, $invoice, $thirdparty, $mysoc)
 {
 	// Société émettrice non assujettie (franchise en base 293 B CGI, micro-entreprise) :
 	// catégorie E (Exempt from tax). Le code 'O' (Services hors champ) déclencherait
 	// BR-O-04/05 sur le taux 0 et n'est sémantiquement pas le bon (293 B = exonération
 	// française, pas une opération hors champ EU). BR-E-09 demande un identifiant
 	// fiscal vendeur : assuré par SpecifiedTaxRegistration schemeID="FC" (SIREN) dans
-	// dolizugferd_build_trade_party_xml() quand tva_intra est vide.
+	// auvoerechnung_build_trade_party_xml() quand tva_intra est vide.
 	// TVA > 0 : standard — prioritaire sur le statut franchise, car une ligne
 	// qui porte réellement de la TVA (ex. ancienne facture régénérée après un
 	// passage en franchise) en catégorie E violerait BR-E-05 (taux non nul).
@@ -1370,7 +1370,7 @@ function dolizugferd_resolve_tax_category($line, $invoice, $thirdparty, $mysoc)
 	// intracommunautaires (acheteur UE d'un autre pays) et à choisir la langue
 	// du motif d'exonération (droit français ou allemand). Les DOM restent
 	// rattachés à FR, comportement historique du module.
-	$sellerCountry = dolizugferd_seller_is_fr($mysoc) ? 'FR' : strtoupper($mysoc->country_code);
+	$sellerCountry = auvoerechnung_seller_is_fr($mysoc) ? 'FR' : strtoupper($mysoc->country_code);
 	$sellerIsDE    = ($sellerCountry === 'DE');
 	$isService     = ((int) ($line->product_type ?? 0) === 1);
 
@@ -1387,10 +1387,10 @@ function dolizugferd_resolve_tax_category($line, $invoice, $thirdparty, $mysoc)
 
 	// TVA = 0 : qualifier selon le contexte
 	$buyerCountry = strtoupper(!empty($thirdparty->country_code) ? $thirdparty->country_code : $sellerCountry);
-	$buyerVat     = dolizugferd_party_vat_id($thirdparty);
+	$buyerVat     = auvoerechnung_party_vat_id($thirdparty);
 
 	// Export hors UE : G
-	if (!in_array($buyerCountry, DOLIZUGFERD_EU_COUNTRIES, true)) {
+	if (!in_array($buyerCountry, AUVOERECHNUNG_EU_COUNTRIES, true)) {
 		if ($sellerIsDE) {
 			$reason = $isService
 				? 'Nicht im Inland steuerbare Leistung (§ 3a Abs. 2 UStG)'
@@ -1432,7 +1432,7 @@ function dolizugferd_resolve_tax_category($line, $invoice, $thirdparty, $mysoc)
  * @param array  $buildWarnings  (sortie) avertissements
  * @return string '380' (standard), '381' (avoir), '384' (rectificative), '386' (acompte)
  */
-function dolizugferd_resolve_document_type($invoice, &$buildWarnings = [])
+function auvoerechnung_resolve_document_type($invoice, &$buildWarnings = [])
 {
 	$type = (int) $invoice->type;
 
@@ -1444,7 +1444,7 @@ function dolizugferd_resolve_document_type($invoice, &$buildWarnings = [])
 		case 3: // Facture::TYPE_DEPOSIT
 			return '386'; // EN16931 : prepayment / advance invoice
 		case 5: // Facture::TYPE_SITUATION
-			$buildWarnings[] = dolizugferd_trans('DoliZugferdWarnSituationInvoice');
+			$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnSituationInvoice');
 			return '380';
 		default:
 			return '380';
@@ -1457,7 +1457,7 @@ function dolizugferd_resolve_document_type($invoice, &$buildWarnings = [])
  * @param object $invoice Facture Dolibarr
  * @return float Montant prépayé ≥ 0
  */
-function dolizugferd_get_prepaid_amount($invoice)
+function auvoerechnung_get_prepaid_amount($invoice)
 {
 	if (!method_exists($invoice, 'getSumDepositsUsed')) {
 		return 0.0;
@@ -1481,7 +1481,7 @@ function dolizugferd_get_prepaid_amount($invoice)
  * @param string $typeCode TypeCode BT-3 émis ('380', '384', '381'...) ; '' = pas de restriction
  * @return array Liste de ['ref' => string, 'date' => 'YYYYMMDD'|'']
  */
-function dolizugferd_get_preceding_invoices($invoice, $typeCode = '')
+function auvoerechnung_get_preceding_invoices($invoice, $typeCode = '')
 {
 	$out = [];
 	$seen = [];
@@ -1539,7 +1539,7 @@ function dolizugferd_get_preceding_invoices($invoice, $typeCode = '')
  * @param object $invoice Facture Dolibarr
  * @return string Réf de commande ou chaîne vide
  */
-function dolizugferd_get_linked_order_ref($invoice)
+function auvoerechnung_get_linked_order_ref($invoice)
 {
 	$db = $invoice->db ?? null;
 	if (!is_object($db) || empty($invoice->id)) {
@@ -1566,7 +1566,7 @@ function dolizugferd_get_linked_order_ref($invoice)
  * règles de calcul BR-CO-10/11/13/14/15/16. Un écart avec le total_ttc Dolibarr
  * (taxes locales par ex.) est signalé en avertissement.
  */
-function dolizugferd_build_monetary_summation_xml($invoice, $currency, $sign, $prepared, $breakdown, &$buildWarnings)
+function auvoerechnung_build_monetary_summation_xml($invoice, $currency, $sign, $prepared, $breakdown, &$buildWarnings)
 {
 	$lineTotal = 0.0;
 	foreach ($prepared['lines'] as $pl) {
@@ -1589,28 +1589,28 @@ function dolizugferd_build_monetary_summation_xml($invoice, $currency, $sign, $p
 	$taxTotal = round($taxTotal, 2); // BR-CO-14
 
 	$grandTotal   = round($taxBasisTotal + $taxTotal, 2); // BR-CO-15
-	$totalPrepaid = dolizugferd_get_prepaid_amount($invoice);
+	$totalPrepaid = auvoerechnung_get_prepaid_amount($invoice);
 	$duePayable   = round($grandTotal - $totalPrepaid, 2); // BR-CO-16, sans écrêtage
 
 	// Cohérence avec les totaux Dolibarr (PDF visible) : un écart signale des
 	// données hors périmètre (taxes locales, incohérence de lignes).
 	$invoiceTtc = round($sign * (float) $invoice->total_ttc, 2);
 	if (abs($grandTotal - $invoiceTtc) > 0.005) {
-		$buildWarnings[] = dolizugferd_trans('DoliZugferdWarnTotalsMismatch', dolizugferd_format_amount($grandTotal), dolizugferd_format_amount($invoiceTtc));
+		$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnTotalsMismatch', auvoerechnung_format_amount($grandTotal), auvoerechnung_format_amount($invoiceTtc));
 	}
 
 	$xml  = '    <ram:SpecifiedTradeSettlementHeaderMonetarySummation>'."\n";
-	$xml .= '      <ram:LineTotalAmount>'.dolizugferd_format_amount($lineTotal).'</ram:LineTotalAmount>'."\n";
+	$xml .= '      <ram:LineTotalAmount>'.auvoerechnung_format_amount($lineTotal).'</ram:LineTotalAmount>'."\n";
 	if ($allowanceTotal > 0) {
-		$xml .= '      <ram:AllowanceTotalAmount>'.dolizugferd_format_amount($allowanceTotal).'</ram:AllowanceTotalAmount>'."\n";
+		$xml .= '      <ram:AllowanceTotalAmount>'.auvoerechnung_format_amount($allowanceTotal).'</ram:AllowanceTotalAmount>'."\n";
 	}
-	$xml .= '      <ram:TaxBasisTotalAmount>'.dolizugferd_format_amount($taxBasisTotal).'</ram:TaxBasisTotalAmount>'."\n";
-	$xml .= '      <ram:TaxTotalAmount currencyID="'.dolizugferd_xml_encode($currency).'">'.dolizugferd_format_amount($taxTotal).'</ram:TaxTotalAmount>'."\n";
-	$xml .= '      <ram:GrandTotalAmount>'.dolizugferd_format_amount($grandTotal).'</ram:GrandTotalAmount>'."\n";
+	$xml .= '      <ram:TaxBasisTotalAmount>'.auvoerechnung_format_amount($taxBasisTotal).'</ram:TaxBasisTotalAmount>'."\n";
+	$xml .= '      <ram:TaxTotalAmount currencyID="'.auvoerechnung_xml_encode($currency).'">'.auvoerechnung_format_amount($taxTotal).'</ram:TaxTotalAmount>'."\n";
+	$xml .= '      <ram:GrandTotalAmount>'.auvoerechnung_format_amount($grandTotal).'</ram:GrandTotalAmount>'."\n";
 	if ($totalPrepaid > 0) {
-		$xml .= '      <ram:TotalPrepaidAmount>'.dolizugferd_format_amount($totalPrepaid).'</ram:TotalPrepaidAmount>'."\n";
+		$xml .= '      <ram:TotalPrepaidAmount>'.auvoerechnung_format_amount($totalPrepaid).'</ram:TotalPrepaidAmount>'."\n";
 	}
-	$xml .= '      <ram:DuePayableAmount>'.dolizugferd_format_amount($duePayable).'</ram:DuePayableAmount>'."\n";
+	$xml .= '      <ram:DuePayableAmount>'.auvoerechnung_format_amount($duePayable).'</ram:DuePayableAmount>'."\n";
 	$xml .= '    </ram:SpecifiedTradeSettlementHeaderMonetarySummation>'."\n";
 
 	return $xml;
@@ -1619,7 +1619,7 @@ function dolizugferd_build_monetary_summation_xml($invoice, $currency, $sign, $p
 /**
  * Extrait le SIREN (9 premiers chiffres) d'un SIRET
  */
-function dolizugferd_extract_siren($siret)
+function auvoerechnung_extract_siren($siret)
 {
 	if (empty($siret)) {
 		return '';
@@ -1638,7 +1638,7 @@ function dolizugferd_extract_siren($siret)
  * @param Facture $invoice  Facture Dolibarr (thirdparty et array_options chargés)
  * @return bool
  */
-function dolizugferd_is_chorus_invoice($invoice)
+function auvoerechnung_is_chorus_invoice($invoice)
 {
 	$ao = (is_object($invoice) && !empty($invoice->array_options)) ? $invoice->array_options : [];
 
@@ -1651,7 +1651,7 @@ function dolizugferd_is_chorus_invoice($invoice)
 		}
 	}
 	// Filet auto : acheteur = secteur public détecté par le SIRET.
-	return dolizugferd_is_public_sector_siret($invoice);
+	return auvoerechnung_is_public_sector_siret($invoice);
 }
 
 /**
@@ -1664,7 +1664,7 @@ function dolizugferd_is_chorus_invoice($invoice)
  * @param Facture $invoice
  * @return bool
  */
-function dolizugferd_is_public_sector_siret($invoice)
+function auvoerechnung_is_public_sector_siret($invoice)
 {
 	$buyer = (is_object($invoice) && !empty($invoice->thirdparty)) ? $invoice->thirdparty : null;
 	if (is_object($buyer) && !empty($buyer->idprof2)) {
@@ -1682,9 +1682,9 @@ function dolizugferd_is_public_sector_siret($invoice)
  * BT-10, n° engagement BT-13, n° marché BT-12).
  *
  * @param Facture $invoice
- * @return array  options pour dolizugferd_build_xml()
+ * @return array  options pour auvoerechnung_build_xml()
  */
-function dolizugferd_chorus_options($invoice)
+function auvoerechnung_chorus_options($invoice)
 {
 	$ao = (is_object($invoice) && !empty($invoice->array_options)) ? $invoice->array_options : [];
 	return [
@@ -1703,7 +1703,7 @@ function dolizugferd_chorus_options($invoice)
  *
  * @return array  code => libellé
  */
-function dolizugferd_chorus_frameworks()
+function auvoerechnung_chorus_frameworks()
 {
 	return [
 		'A1'  => 'A1 — Dépôt d\'une facture par un fournisseur',
@@ -1755,7 +1755,7 @@ function dolizugferd_chorus_frameworks()
  * @param DoliDB $db
  * @return int
  */
-function dolizugferd_fix_chorus_extrafields_display($db)
+function auvoerechnung_fix_chorus_extrafields_display($db)
 {
 	$names = "'lfxchorus','lfxcadre','lfxservicecode','lfxengagement','lfxmarche'";
 	$sql = "UPDATE ".MAIN_DB_PREFIX."extrafields SET printable = 0, list = '0'";
@@ -1765,21 +1765,21 @@ function dolizugferd_fix_chorus_extrafields_display($db)
 	return $res ? $db->affected_rows($res) : 0;
 }
 
-function dolizugferd_append_notes_to_footer($db, $overwrite = null)
+function auvoerechnung_append_notes_to_footer($db, $overwrite = null)
 {
 	global $conf, $mysoc;
 	// Depuis Dolibarr 17, la « Mention complémentaire sur les factures » est
 	// stockée dans INVOICE_FREE_TEXT (ex-FACTURE_FREE_TEXT) — c'est CETTE
 	// constante que le PDF imprime. On vise donc INVOICE_FREE_TEXT.
-	$constName = dolizugferd_invoice_freetext_const();
+	$constName = auvoerechnung_invoice_freetext_const();
 	if ($overwrite === null) {
-		$overwrite = (getDolGlobalInt('DOLIZUGFERD_NOTES_OVERWRITE', 0) === 1);
+		$overwrite = (getDolGlobalInt('AUVOERECHNUNG_NOTES_OVERWRITE', 0) === 1);
 	}
 	$freeText = getDolGlobalString($constName, '');
 	// Mêmes mentions que dans le XML : pas de défaut français imposé au PDF
-	// d'un vendeur étranger (seules ses constantes DOLIZUGFERD_NOTE_* comptent).
+	// d'un vendeur étranger (seules ses constantes AUVOERECHNUNG_NOTE_* comptent).
 	$mentions = array();
-	foreach (dolizugferd_resolve_legal_notes(dolizugferd_seller_is_fr($mysoc ?? null)) as $m) {
+	foreach (auvoerechnung_resolve_legal_notes(auvoerechnung_seller_is_fr($mysoc ?? null)) as $m) {
 		$m = trim($m);
 		if ($m !== '') {
 			$mentions[] = $m;
@@ -1828,7 +1828,7 @@ function dolizugferd_append_notes_to_footer($db, $overwrite = null)
  *
  * @return string
  */
-function dolizugferd_invoice_freetext_const()
+function auvoerechnung_invoice_freetext_const()
 {
 	return 'INVOICE_FREE_TEXT';
 }
@@ -1850,7 +1850,7 @@ function dolizugferd_invoice_freetext_const()
  *
  * @return array
  */
-function dolizugferd_list_pdf_fonts()
+function auvoerechnung_list_pdf_fonts()
 {
 	$dir = DOL_DOCUMENT_ROOT.'/includes/tecnickcom/tcpdf/fonts/';
 	if (!is_dir($dir)) {
@@ -1906,7 +1906,7 @@ function dolizugferd_list_pdf_fonts()
  *
  * @return string  '5', '72' ou '' (omis)
  */
-function dolizugferd_resolve_vat_due_date_code()
+function auvoerechnung_resolve_vat_due_date_code()
 {
 	$mode = getDolGlobalInt('TAX_MODE', 0);
 	if ($mode === 1) {
@@ -1927,31 +1927,31 @@ function dolizugferd_resolve_vat_due_date_code()
 
 /**
  * Résout le binaire PHP CLI pour le subprocess d'injection.
- *  1. surcharge manuelle (DOLIZUGFERD_PHP_CLI_PATH non vide) → utilisée telle quelle ;
- *  2. cache (DOLIZUGFERD_PHP_CLI_CACHE) encore valide → réutilisé ;
+ *  1. surcharge manuelle (AUVOERECHNUNG_PHP_CLI_PATH non vide) → utilisée telle quelle ;
+ *  2. cache (AUVOERECHNUNG_PHP_CLI_CACHE) encore valide → réutilisé ;
  *  3. sinon auto-détection puis mise en cache.
  *
  * @param DoliDB $db
  * @return string  Chemin/commande du binaire PHP CLI ('php' en dernier recours)
  */
-function dolizugferd_resolve_php_cli($db)
+function auvoerechnung_resolve_php_cli($db)
 {
 	// 'php' nu (ancien défaut) = pas une vraie surcharge → on auto-détecte (qui
 	// fera mieux, et retombe sur 'php' au pire). Une surcharge = un chemin précis.
-	$manual = trim(getDolGlobalString('DOLIZUGFERD_PHP_CLI_PATH', ''));
+	$manual = trim(getDolGlobalString('AUVOERECHNUNG_PHP_CLI_PATH', ''));
 	if ($manual !== '' && $manual !== 'php') {
 		return $manual;
 	}
-	$cache = trim(getDolGlobalString('DOLIZUGFERD_PHP_CLI_CACHE', ''));
-	if ($cache !== '' && dolizugferd_php_cli_is_valid($cache)) {
+	$cache = trim(getDolGlobalString('AUVOERECHNUNG_PHP_CLI_CACHE', ''));
+	if ($cache !== '' && auvoerechnung_php_cli_is_valid($cache)) {
 		return $cache;
 	}
-	$detected = dolizugferd_detect_php_cli();
+	$detected = auvoerechnung_detect_php_cli();
 	// Mise en cache best-effort : dolibarr_set_const() vit dans admin.lib.php,
 	// chargée par main.inc.php en contexte web/hook mais pas dans un bootstrap CLI
 	// minimal — on ne casse pas la résolution si elle est absente.
 	if ($detected !== '' && is_object($db) && function_exists('dolibarr_set_const')) {
-		dolibarr_set_const($db, 'DOLIZUGFERD_PHP_CLI_CACHE', $detected, 'chaine', 0, '', 0);
+		dolibarr_set_const($db, 'AUVOERECHNUNG_PHP_CLI_CACHE', $detected, 'chaine', 0, '', 0);
 	}
 	return $detected !== '' ? $detected : 'php';
 }
@@ -1966,7 +1966,7 @@ function dolizugferd_resolve_php_cli($db)
  *
  * @return string
  */
-function dolizugferd_detect_php_cli()
+function auvoerechnung_detect_php_cli()
 {
 	if (!function_exists('exec')) {
 		return '';
@@ -1992,7 +1992,7 @@ function dolizugferd_detect_php_cli()
 			continue;
 		}
 		$seen[$cand] = true;
-		if (dolizugferd_php_cli_is_valid($cand, $want)) {
+		if (auvoerechnung_php_cli_is_valid($cand, $want)) {
 			return $cand;
 		}
 	}
@@ -2007,7 +2007,7 @@ function dolizugferd_detect_php_cli()
  * @param string $wantVersion  major.minor attendu, ou '' pour ne pas vérifier
  * @return bool
  */
-function dolizugferd_php_cli_is_valid($cand, $wantVersion = '')
+function auvoerechnung_php_cli_is_valid($cand, $wantVersion = '')
 {
 	if (!function_exists('exec')) {
 		return false;
@@ -2050,11 +2050,11 @@ function dolizugferd_php_cli_is_valid($cand, $wantVersion = '')
  * @param object $party  mysoc ou Societe (champs idprof1 / idprof2)
  * @return string        SIREN à 9 chiffres, ou ''
  */
-function dolizugferd_party_siren($party)
+function auvoerechnung_party_siren($party)
 {
-	$siren = dolizugferd_extract_siren($party->idprof1 ?? '');
+	$siren = auvoerechnung_extract_siren($party->idprof1 ?? '');
 	if ($siren === '') {
-		$siren = dolizugferd_extract_siren($party->idprof2 ?? '');
+		$siren = auvoerechnung_extract_siren($party->idprof2 ?? '');
 	}
 	return (strlen($siren) === 9) ? $siren : '';
 }
@@ -2070,7 +2070,7 @@ function dolizugferd_party_siren($party)
  * @param string|null $vat  Valeur du champ tva_intra
  * @return bool
  */
-function dolizugferd_is_vat_id($vat)
+function auvoerechnung_is_vat_id($vat)
 {
 	$vat = preg_replace('/[\s.\-]/', '', (string) $vat);
 	return (bool) preg_match('/^[A-Za-z]{2}[0-9A-Za-z+*]{2,13}$/', $vat);
@@ -2078,15 +2078,15 @@ function dolizugferd_is_vat_id($vat)
 
 /**
  * N° de TVA intra d'un tiers, seulement s'il a la forme d'un n° de TVA
- * (cf. dolizugferd_is_vat_id), sinon ''.
+ * (cf. auvoerechnung_is_vat_id), sinon ''.
  *
  * @param object $party  mysoc ou Societe
  * @return string
  */
-function dolizugferd_party_vat_id($party)
+function auvoerechnung_party_vat_id($party)
 {
 	$vat = trim((string) ($party->tva_intra ?? ''));
-	return dolizugferd_is_vat_id($vat) ? $vat : '';
+	return auvoerechnung_is_vat_id($vat) ? $vat : '';
 }
 
 /**
@@ -2106,10 +2106,10 @@ function dolizugferd_party_vat_id($party)
  * @param object $party  mysoc ou Societe
  * @return string        Steuernummer telle que saisie, ou ''
  */
-function dolizugferd_party_steuernummer($party)
+function auvoerechnung_party_steuernummer($party)
 {
 	$candidates = [$party->idprof1 ?? '', $party->idprof2 ?? ''];
-	if (!dolizugferd_is_vat_id($party->tva_intra ?? '')) {
+	if (!auvoerechnung_is_vat_id($party->tva_intra ?? '')) {
 		$candidates[] = $party->tva_intra ?? '';
 	}
 	foreach ($candidates as $candidate) {
@@ -2127,7 +2127,7 @@ function dolizugferd_party_steuernummer($party)
  * équivalent (contrairement à la Steuernummer qui réutilise idprof2, les
  * idprof* sont déjà occupés par les conventions allemandes existantes).
  */
-function dolizugferd_party_leitwegid($party)
+function auvoerechnung_party_leitwegid($party)
 {
 	$ao = (is_object($party) && !empty($party->array_options)) ? $party->array_options : [];
 	return trim((string) ($ao['options_lfxleitwegid'] ?? ''));
@@ -2136,7 +2136,7 @@ function dolizugferd_party_leitwegid($party)
 /**
  * Cherche l'email d'un tiers : d'abord sur la fiche, sinon sur le 1er contact
  */
-function dolizugferd_get_buyer_email($buyer, $db)
+function auvoerechnung_get_buyer_email($buyer, $db)
 {
 	if (!empty($buyer->email)) {
 		return $buyer->email;
@@ -2170,7 +2170,7 @@ function dolizugferd_get_buyer_email($buyer, $db)
  * @param string $lastMainDoc  Valeur de llx_facture.last_main_doc (optionnel)
  * @return string|null
  */
-function dolizugferd_invoice_pdf_path($ref, $entity, $lastMainDoc = '')
+function auvoerechnung_invoice_pdf_path($ref, $entity, $lastMainDoc = '')
 {
 	global $conf;
 
@@ -2217,7 +2217,7 @@ function dolizugferd_invoice_pdf_path($ref, $entity, $lastMainDoc = '')
  * @param string $pdfPath Chemin du PDF
  * @return string|null    XML, ou null si absent/illisible
  */
-function dolizugferd_extract_xml_from_pdf($pdfPath)
+function auvoerechnung_extract_xml_from_pdf($pdfPath)
 {
 	require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 	try {
@@ -2231,7 +2231,7 @@ function dolizugferd_extract_xml_from_pdf($pdfPath)
 /**
  * Tronque un IBAN pour affichage : "FR76...0185". Vide si IBAN absent.
  */
-function dolizugferd_iban_short($iban)
+function auvoerechnung_iban_short($iban)
 {
 	if (empty($iban)) {
 		return '';
@@ -2239,21 +2239,21 @@ function dolizugferd_iban_short($iban)
 	return substr($iban, 0, 4).'...'.substr($iban, -4);
 }
 
-if (!function_exists('dolizugferd_xml_encode')) {
+if (!function_exists('auvoerechnung_xml_encode')) {
 	/**
 	 * Échappe une valeur pour insertion dans le XML (ENT_XML1).
 	 */
-	function dolizugferd_xml_encode($str)
+	function auvoerechnung_xml_encode($str)
 	{
 		return htmlspecialchars((string) $str, ENT_XML1 | ENT_QUOTES, 'UTF-8');
 	}
 }
 
-if (!function_exists('dolizugferd_format_amount')) {
+if (!function_exists('auvoerechnung_format_amount')) {
 	/**
 	 * Formate un montant à 2 décimales (AmountType EN16931).
 	 */
-	function dolizugferd_format_amount($amount)
+	function auvoerechnung_format_amount($amount)
 	{
 		return number_format((float) $amount, 2, '.', '');
 	}
@@ -2262,7 +2262,7 @@ if (!function_exists('dolizugferd_format_amount')) {
 /**
  * Formate une quantité (BT-129) : jusqu'à 4 décimales, zéros traînants retirés.
  */
-function dolizugferd_format_qty($qty)
+function auvoerechnung_format_qty($qty)
 {
 	$s = number_format((float) $qty, 4, '.', '');
 	$s = rtrim($s, '0');
@@ -2273,7 +2273,7 @@ function dolizugferd_format_qty($qty)
  * Formate un prix unitaire net (BT-146) : 2 décimales, étendu à 4 quand la
  * précision le justifie (ex. 100/3 = 33.3333) pour limiter l'écart qty x prix.
  */
-function dolizugferd_format_unit_price($price)
+function auvoerechnung_format_unit_price($price)
 {
 	$price = (float) $price;
 	if (abs(round($price, 2) - round($price, 4)) < 0.0000001) {
@@ -2292,10 +2292,10 @@ function dolizugferd_format_unit_price($price)
  * @return array|null              ['version' => 'x.y.z', 'url' => 'https://...']
  *                                 si une version plus récente existe, null sinon
  */
-function dolizugferd_check_latest_release($db, $currentVersion)
+function auvoerechnung_check_latest_release($db, $currentVersion)
 {
 	$now = time();
-	$cacheRaw = getDolGlobalString('DOLIZUGFERD_UPDATE_CHECK_CACHE', '');
+	$cacheRaw = getDolGlobalString('AUVOERECHNUNG_UPDATE_CHECK_CACHE', '');
 	$cache = !empty($cacheRaw) ? json_decode($cacheRaw, true) : null;
 
 	$latest = null;
@@ -2307,10 +2307,10 @@ function dolizugferd_check_latest_release($db, $currentVersion)
 		$latest = null;
 		$htmlUrl = '';
 		if (function_exists('curl_init')) {
-			$url = 'https://api.github.com/repos/Fips81/dolibarr_zugferd/releases/latest';
+			$url = 'https://api.github.com/repos/Fips81/dolibarr-auvo-erechnung/releases/latest';
 			$ch = curl_init($url);
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-			curl_setopt($ch, CURLOPT_USERAGENT, 'DoliZUGFeRD-UpdateCheck');
+			curl_setopt($ch, CURLOPT_USERAGENT, 'AuvoERechnung-UpdateCheck');
 			curl_setopt($ch, CURLOPT_TIMEOUT, 5);
 			curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 			curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
@@ -2325,8 +2325,8 @@ function dolizugferd_check_latest_release($db, $currentVersion)
 					$latest  = ltrim($data['tag_name'], 'v');
 					$htmlUrl = $data['html_url'] ?? '';
 					// Validation défensive : on n'accepte qu'une URL github.com officielle du repo
-					if (!preg_match('#^https://github\.com/Fips81/dolibarr_zugferd/#', $htmlUrl)) {
-						$htmlUrl = 'https://github.com/Fips81/dolibarr_zugferd/releases';
+					if (!preg_match('#^https://github\.com/Fips81/dolibarr-auvo-erechnung/#', $htmlUrl)) {
+						$htmlUrl = 'https://github.com/Fips81/dolibarr-auvo-erechnung/releases';
 					}
 				}
 			}
@@ -2334,7 +2334,7 @@ function dolizugferd_check_latest_release($db, $currentVersion)
 
 		// Cacher aussi l'échec (version null) : GitHub injoignable ne doit pas
 		// ralentir la page admin de 5s à chaque ouverture pendant 24h.
-		dolibarr_set_const($db, 'DOLIZUGFERD_UPDATE_CHECK_CACHE', json_encode([
+		dolibarr_set_const($db, 'AUVOERECHNUNG_UPDATE_CHECK_CACHE', json_encode([
 			'ts'      => $now,
 			'version' => $latest,
 			'url'     => $htmlUrl,

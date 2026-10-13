@@ -1,6 +1,6 @@
 # Einschränkungen und nicht behandelte Fälle
 
-Dieses Dokument listet die Fälle, die DoliZUGFeRD **nicht** (oder nur
+Dieses Dokument listet die Fälle, die AuVo E-Rechnung **nicht** (oder nur
 teilweise) behandelt, das beobachtete Verhalten und den Grund für diese
 Entscheidung. Im Zweifel über den Funktionsumfang des Moduls ist es maßgeblich.
 
@@ -157,7 +157,7 @@ README.
 `Alternative`, ICC sRGB, `/F 4`) und **prüft** `MAIN_PDF_FORCE_FONT`
 (Diagnose + Warnung). Ein eigenes PDF-Template (CMYK-Bilder, nicht
 eingebettete Schriften eines Fremdmoduls) kann die Konformität aber brechen:
-Die optionale Nachprüfung mit veraPDF (`DOLIZUGFERD_VERAPDF_PATH`) erkennt das.
+Die optionale Nachprüfung mit veraPDF (`AUVOERECHNUNG_VERAPDF_PATH`) erkennt das.
 
 ### Strikt-Modus ≠ Löschen der PDF
 Der Hook `afterPDFCreation` greift **nach** der Erzeugung der normalen PDF

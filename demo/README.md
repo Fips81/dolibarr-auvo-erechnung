@@ -1,4 +1,4 @@
-# Demo-Daten — DoliZUGFeRD
+# Demo-Daten — AuVo E-Rechnung
 
 `fixtures.php` legt in einer Dolibarr-**Testinstanz** einen festen Satz an Stammdaten und Rechnungen an. Die Integrationstests (`tests/run-tests.php`) bauen darauf auf.
 
@@ -10,10 +10,10 @@ Der Ordner `demo/` ist nicht im Release-ZIP enthalten (`.gitattributes` → `exp
 
 ```bash
 # In einer frisch installierten Dolibarr-Testinstanz mit aktiviertem Modul
-php htdocs/custom/dolizugferd/demo/fixtures.php
+php htdocs/custom/auvoerechnung/demo/fixtures.php
 
 # Danach die PDFs der Rechnungen F001–F010 in Dolibarr erzeugen und prüfen:
-php htdocs/custom/dolizugferd/tests/run-tests.php
+php htdocs/custom/auvoerechnung/tests/run-tests.php
 ```
 
 Die Integrationstests erwarten die Rechnungen unter den IDs 1 bis 10, also eine leere Datenbank vor dem Lauf.

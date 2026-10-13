@@ -1,6 +1,6 @@
 {
-    "name": "auvo-design/dolizugferd",
-    "description": "Vendor dependency lock for the DoliZUGFeRD Dolibarr module",
+    "name": "auvo-design/auvoerechnung",
+    "description": "Vendor dependency lock for the AuVo E-Rechnung Dolibarr module",
     "type": "project",
     "license": "GPL-3.0-or-later",
     "require": {

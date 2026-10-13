@@ -1,6 +1,6 @@
 <?php
 /*
- * DoliZUGFeRD - Fixtures de démo
+ * AuVo E-Rechnung - Fixtures de démo
  *
  * Crée : société émettrice, compte bancaire, 6 tiers variés,
  * 10 factures couvrant tous les cas métier Factur-X
@@ -8,7 +8,7 @@
  *  UE autoliquidation, acompte TYPE_DEPOSIT, finale avec acompte imputé).
  *
  * À lancer UNIQUEMENT sur une instance Dolibarr de test (écrit dans la base) :
- *   php htdocs/custom/dolizugferd/demo/fixtures.php
+ *   php htdocs/custom/auvoerechnung/demo/fixtures.php
  */
 
 // Sécurité : ce script écrit des données de démo — exécution CLI uniquement.
@@ -17,7 +17,7 @@ if (PHP_SAPI !== 'cli') {
 	die('CLI only');
 }
 
-// Localisation de master.inc.php : 3 niveaux au-dessus du module (htdocs/custom/dolizugferd/demo)
+// Localisation de master.inc.php : 3 niveaux au-dessus du module (htdocs/custom/auvoerechnung/demo)
 $res = @include __DIR__.'/../../../master.inc.php';
 if (!$res) {
 	die("Impossible de charger master.inc.php\n");
@@ -67,7 +67,7 @@ if ($bankId <= 0) {
 	exit(1);
 }
 echo "  compte id=$bankId (IBAN ".$bank->iban.")\n";
-dolibarr_set_const($db, 'DOLIZUGFERD_BANK_ACCOUNT', $bankId, 'int', 0, '', 1);
+dolibarr_set_const($db, 'AUVOERECHNUNG_BANK_ACCOUNT', $bankId, 'int', 0, '', 1);
 
 echo "=== Tiers ===\n";
 function createTier($db, $user, $p)

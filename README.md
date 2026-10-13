@@ -1,38 +1,40 @@
-# DoliZUGFeRD
+# AuVo E-Rechnung
 
-[![Neueste Version](https://img.shields.io/github/v/release/Fips81/dolibarr_zugferd?label=version&sort=semver)](https://github.com/Fips81/dolibarr_zugferd/releases/latest)
+[![Neueste Version](https://img.shields.io/github/v/release/Fips81/dolibarr-auvo-erechnung?label=version&sort=semver)](https://github.com/Fips81/dolibarr-auvo-erechnung/releases/latest)
 
-Dolibarr-Modul zur automatischen Erzeugung von **Factur-X EN16931**-Rechnungen (PDF/A-3 mit eingebettetem CrossIndustryInvoice-XML) — unter ihrem anderen Namen auch bekannt als **ZUGFeRD 2.x Profil EN16931 (COMFORT)**.
+**E-Rechnungen für Dolibarr**: Das Modul erzeugt aus jeder Kundenrechnung automatisch eine **ZUGFeRD-Rechnung im Profil EN16931 (COMFORT)**, also eine PDF/A-3 mit eingebettetem CrossIndustryInvoice-XML. Dieses Format heißt in Frankreich **Factur-X** und ist dort identisch. XRechnung ist für eine spätere Version geplant.
 
-Jede in Dolibarr erzeugte Kundenrechnung wird automatisch ins Factur-X-Format konvertiert, konform zu den **BR-FR**-Regeln (Norm XP Z12-012, Ausgabe Juni 2026) für die französische elektronische Rechnungsstellung.
+Für Verkäufer in Deutschland gibt es deutsche Befreiungsgründe (§ 19 UStG, Reverse Charge, innergemeinschaftliche Lieferung, Ausfuhr), Steuernummer und Leitweg-ID. Für Verkäufer in Frankreich deckt das Modul zusätzlich die **BR-FR**-Regeln der französischen Reform ab (Norm XP Z12-012, Ausgabe Juni 2026).
 
-Ein Fork von [LemonFacturX](https://hellolemon.fr) (Lemon, Webagentur aus Clermont-Ferrand), weiterentwickelt und für den Einsatz in Deutschland angepasst von [auvo-design](https://auvo-design.de) (bis Version 3.9.x unter dem Namen AuvoZugferd) — siehe [Lizenz](#lizenz). DoliZUGFeRD ist kein Produkt von Lemon und wird nicht von Lemon unterstützt.
+Ein Fork von [LemonFacturX](https://hellolemon.fr) (Lemon, Webagentur aus Clermont-Ferrand), weiterentwickelt und für den Einsatz in Deutschland angepasst von [auvo-design](https://auvo-design.de) — siehe [Lizenz](#lizenz). Frühere Namen: AuvoZugferd (bis 3.9.x), DoliZUGFeRD (4.0.x).
+
+> AuVo E-Rechnung ist ein unabhängiges Modul für Dolibarr. Es ist kein offizielles Produkt des Forums elektronische Rechnung Deutschland (FeRD), der Dolibarr Foundation oder von Lemon und wird von diesen nicht unterstützt. ZUGFeRD, Factur-X, XRechnung und Dolibarr sind Namen bzw. Marken ihrer jeweiligen Inhaber.
 
 ## Voraussetzungen
 
 - **Dolibarr** 19.0 → 24.x — Mindestversion bei Aktivierung geprüft (`need_dolibarr_version`)
 - **PHP** 8.1+ (getestet auf 8.2/8.4) — bei Aktivierung geprüft (`phpmin`)
-- **Funktion `exec()`**: standardmäßig für die PDF-Injektion genutzt (isolierter PHP-Subprozess, der robusteste Weg). **Nicht zwingend erforderlich**: ist `exec()` deaktiviert (`disable_functions`, gehärtetes Shared Hosting), schaltet das Modul automatisch auf **In-Process**-Injektion um. Der Modus ist einstellbar (`DOLIZUGFERD_INJECTION_MODE`: `auto` / `inprocess` / `subprocess`) — siehe Abschnitt Injektion.
+- **Funktion `exec()`**: standardmäßig für die PDF-Injektion genutzt (isolierter PHP-Subprozess, der robusteste Weg). **Nicht zwingend erforderlich**: ist `exec()` deaktiviert (`disable_functions`, gehärtetes Shared Hosting), schaltet das Modul automatisch auf **In-Process**-Injektion um. Der Modus ist einstellbar (`AUVOERECHNUNG_INJECTION_MODE`: `auto` / `inprocess` / `subprocess`) — siehe Abschnitt Injektion.
 - **Eine PDF-Schriftart mit eingebetteten Glyphen** (für PDF/A-3-Gültigkeit erforderlich). Keine Konstante von Hand zu setzen: das Modul liefert einen **Selektor „Schriftart der erzeugten PDF"** in seiner Konfiguration, der jede Schriftart mit ✓ (eingebettet, konform) oder ⚠ (Base-14, nicht konform) markiert. `pdfahelvetica` ist standardmäßig vorgeschlagen.
 
 ## Installation
 
 1. **Das Archiv der letzten Release herunterladen** von
-   [github.com/Fips81/dolibarr_zugferd/releases/latest](https://github.com/Fips81/dolibarr_zugferd/releases/latest).
+   [github.com/Fips81/dolibarr-auvo-erechnung/releases/latest](https://github.com/Fips81/dolibarr-auvo-erechnung/releases/latest).
 
-   Das an die Release angehängte Asset `module_dolizugferd-X.Y.Z.zip` herunterladen (und **nicht** den
+   Das an die Release angehängte Asset `module_auvoerechnung-X.Y.Z.zip` herunterladen (und **nicht** den
    "Download ZIP"-Button des Quellcodes — siehe Warnung weiter unten).
 
-2. Entpacken und den Ordner `dolizugferd/` in das Custom-Verzeichnis von Dolibarr kopieren:
+2. Entpacken und den Ordner `auvoerechnung/` in das Custom-Verzeichnis von Dolibarr kopieren:
 
    ```bash
-   unzip module_dolizugferd-X.Y.Z.zip
-   cp -r dolizugferd/ /var/www/html/custom/
-   chown -R www-data:www-data /var/www/html/custom/dolizugferd
+   unzip module_auvoerechnung-X.Y.Z.zip
+   cp -r auvoerechnung/ /var/www/html/custom/
+   chown -R www-data:www-data /var/www/html/custom/auvoerechnung
    ```
 
 3. Modul aktivieren: **Start > Konfiguration > Module**
-4. Konfigurieren über **Start > Konfiguration > Module > DoliZUGFeRD**:
+4. Konfigurieren über **Start > Konfiguration > Module > AuVo E-Rechnung**:
    - Bankkonto (IBAN/BIC)
    - Standard-Zahlungsart (Überweisung, SEPA-Überweisung, SEPA-Lastschrift, Lastschrift)
    - Verkäufer-/Käufer-Kennungen: SIRET in BT-29/BT-46 (schemeID 0009), SIREN in BT-30/BT-47 (schemeID 0002)
@@ -43,28 +45,28 @@ Ein Fork von [LemonFacturX](https://hellolemon.fr) (Lemon, Webagentur aus Clermo
 6. Die **Diagnose** unten auf der Konfigurationsseite des Moduls prüfen (grüne Häkchen = OK)
 
 > **Achtung** — Verwenden Sie nicht den "Download ZIP"-Button der Startseite des Repos
-> (der rohe Quellcode). Dieses Archiv entpackt sich zu `dolibarr_zugferd-main/`
-> statt zu `dolizugferd/`, was die Dolibarr-Installation kaputt macht (Fehler *"You requested
+> (der rohe Quellcode). Dieses Archiv entpackt sich zu `dolibarr-auvo-erechnung-main/`
+> statt zu `auvoerechnung/`, was die Dolibarr-Installation kaputt macht (Fehler *"You requested
 > a website or a page that does not exists"* beim Öffnen der Modul-Konfigurationsseite).
 > Laden Sie das ZIP-Asset der Release herunter, oder klonen Sie direkt mit `git clone`
-> in einen Ordner namens `dolizugferd` (siehe Abschnitt [Update](#update)) – das Repo
-> heißt `dolibarr_zugferd`, der Modulordner muss aber `dolizugferd` heißen.
+> in einen Ordner namens `auvoerechnung` (siehe Abschnitt [Update](#update)) – das Repo
+> heißt `dolibarr-auvo-erechnung`, der Modulordner muss aber `auvoerechnung` heißen.
 
 ## Update
 
 ```bash
 # Alte Version sichern (zur Sicherheit)
-cp -r /var/www/html/custom/dolizugferd /var/www/html/custom/dolizugferd.bak
+cp -r /var/www/html/custom/auvoerechnung /var/www/html/custom/auvoerechnung.bak
 
 # Neue Version holen
-git clone https://github.com/Fips81/dolibarr_zugferd.git /tmp/dolizugferd-new
-rm -rf /var/www/html/custom/dolizugferd
-mv /tmp/dolizugferd-new /var/www/html/custom/dolizugferd
-chown -R www-data:www-data /var/www/html/custom/dolizugferd
+git clone https://github.com/Fips81/dolibarr-auvo-erechnung.git /tmp/auvoerechnung-new
+rm -rf /var/www/html/custom/auvoerechnung
+mv /tmp/auvoerechnung-new /var/www/html/custom/auvoerechnung
+chown -R www-data:www-data /var/www/html/custom/auvoerechnung
 ```
 
 > **Nach jedem Update: Modul einmal deaktivieren und wieder aktivieren**
-> (**Start > Einstellungen > Module > DoliZUGFeRD**). Zusatzfelder wie die
+> (**Start > Einstellungen > Module > AuVo E-Rechnung**). Zusatzfelder wie die
 > **Leitweg-ID** am Geschäftspartner (seit 3.9.5) und die Chorus-Pro-Felder an der
 > Rechnung werden nur bei der Aktivierung angelegt — nicht schon durch das
 > Kopieren der neuen Dateien. Wer von einer älteren Version ohne Leitweg-ID
@@ -72,43 +74,44 @@ chown -R www-data:www-data /var/www/html/custom/dolizugferd
 > verloren: Einstellungen und bereits eingetragene Werte (z. B. Leitweg-IDs)
 > bleiben erhalten.
 
-### Umstieg von AuvoZugferd (Version 3.x) auf DoliZUGFeRD 4.0
+### Umstieg von DoliZUGFeRD (4.0.x) oder AuvoZugferd (3.x) auf AuVo E-Rechnung 5.0
 
-Mit Version 4.0 heißt das Modul **DoliZUGFeRD**, der Modulordner `dolizugferd` statt `auvozugferd`. Für Dolibarr ist das ein neues Modul; beim ersten Aktivieren übernimmt es die bisherigen Einstellungen automatisch.
+Das Modul hieß bis 3.9.x **AuvoZugferd** (Ordner `auvozugferd`) und in 4.0.x **DoliZUGFeRD** (Ordner `dolizugferd`). Seit 5.0 heißt es **AuVo E-Rechnung**, der Modulordner ist `auvoerechnung`. Für Dolibarr ist das ein neues Modul. Beim ersten Aktivieren übernimmt es die bisherigen Einstellungen automatisch, von beiden früheren Namen.
 
-1. **AuvoZugferd deaktivieren** (Start > Einstellungen > Module). Nicht zuerst löschen — beide Module tragen dieselbe Modulnummer und dürfen nicht gleichzeitig aktiv sein.
-2. Den alten Ordner **aus `custom/` heraus** verschieben (ein umbenannter Ordner innerhalb von `custom/` würde weiter erkannt):
+1. **Das alte Modul deaktivieren** (Start > Einstellungen > Module). Nicht zuerst löschen: Alle Versionen tragen dieselbe Modulnummer und dürfen nicht gleichzeitig aktiv sein.
+2. Den alten Ordner **aus `custom/` heraus** verschieben. Ein umbenannter Ordner innerhalb von `custom/` würde weiter erkannt.
    ```bash
-   mv /var/www/html/custom/auvozugferd /root/auvozugferd.alt
+   mv /var/www/html/custom/dolizugferd /root/dolizugferd.alt     # bzw. custom/auvozugferd
    ```
-3. DoliZUGFeRD wie unter [Installation](#installation) beschrieben nach `custom/dolizugferd` kopieren und **aktivieren**.
+3. AuVo E-Rechnung wie unter [Installation](#installation) beschrieben nach `custom/auvoerechnung` kopieren und **aktivieren**.
 
 Dabei passiert automatisch:
-- Alle Einstellungen `AUVOZUGFERD_*` werden als `DOLIZUGFERD_*` übernommen (Bankkonto, Zahlungsart, Hinweistexte usw.). Die alten Einträge bleiben in der Datenbank stehen, ein Zurückwechseln ist also möglich.
+- Die Einstellungen `DOLIZUGFERD_*` bzw. `AUVOZUGFERD_*` werden als `AUVOERECHNUNG_*` übernommen (Bankkonto, Zahlungsart, Hinweistexte usw.). Die alten Einträge bleiben in der Datenbank stehen, ein Zurückwechseln ist also möglich.
 - Die Zusatzfelder **Leitweg-ID** (Geschäftspartner) und **Chorus Pro** (Rechnung) werden auf das neue Modul umgehängt. Die eingetragenen Werte bleiben unverändert.
 
 Bitte beachten:
-- Die **REST-API** liegt jetzt unter `/api/index.php/dolizugferd/…` statt `/auvozugferd/…`.
+- Die **REST-API** liegt jetzt unter `/api/index.php/auvoerechnung/…`.
 - Bereits erzeugte Rechnungs-PDFs bleiben unverändert gültig.
+- Das GitHub-Repo heißt jetzt `dolibarr-auvo-erechnung`. Alte Links auf `dolibarr_zugferd` leitet GitHub weiter.
 
 Dolibarr benachrichtigt nicht automatisch über Updates eines Custom-Moduls; die Konfigurationsseite des Moduls zeigt jedoch ein Banner an, wenn eine neuere Release auf GitHub veröffentlicht wurde (Check alle 24h, Cache in der DB). Siehe Abschnitt **Changelog** am Ende dieser README für Änderungen und eventuelle Migrationen.
 
 ## Architektur
 
 ```
-dolizugferd/
-├── core/modules/modDoliZugferd.class.php   # Modul-Deskriptor (Nr. 194202)
+auvoerechnung/
+├── core/modules/modAuvoERechnung.class.php   # Modul-Deskriptor (Nr. 194202)
 ├── core/lib/
-│   ├── dolizugferd.lib.php                 # XML-Generator EN16931
-│   └── dolizugferd_rules.php               # Validator für Geschäftsregeln (BR-*)
+│   ├── auvoerechnung.lib.php                 # XML-Generator EN16931
+│   └── auvoerechnung_rules.php               # Validator für Geschäftsregeln (BR-*)
 ├── class/
-│   ├── actions_dolizugferd.class.php       # Hooks afterPDFCreation + invoicecard
-│   └── api_dolizugferd.class.php           # REST-API (xml / status)
+│   ├── actions_auvoerechnung.class.php       # Hooks afterPDFCreation + invoicecard
+│   └── api_auvoerechnung.class.php           # REST-API (xml / status)
 ├── scripts/
 │   ├── inject_facturx.php                   # PDF-Injektion (Subprozess, nur CLI)
 │   └── export_facturx_batch.php             # Stapelexport der eingebetteten XML
 ├── admin/setup.php                          # Konfigurationsseite + Diagnose
-├── langs/fr_FR + en_US + de_DE/dolizugferd.lang    # Übersetzungen
+├── langs/fr_FR + en_US + de_DE/auvoerechnung.lang    # Übersetzungen
 ├── tests/
 │   ├── unit-tests.php                       # Standalone-Tests (ohne Dolibarr, CI)
 │   └── run-tests.php                        # Integrationstests (Fixtures aus demo/)
@@ -127,7 +130,7 @@ Das Modul klinkt sich in den Hook `afterPDFCreation` (Kontext `pdfgeneration`) e
 5. **Injektion** des XML in die PDF über die Lib `atgp/factur-x` (standardmäßig isolierter Subprozess, In-Process falls `exec()` nicht verfügbar; atomares Schreiben, `AFRelationship=Alternative`)
 6. **Optionale Post-Validierung mit veraPDF** (PDF/A-3b)
 
-#### Injektionsmodus (`DOLIZUGFERD_INJECTION_MODE`)
+#### Injektionsmodus (`AUVOERECHNUNG_INJECTION_MODE`)
 
 | Modus | Verhalten |
 |------|--------------|
@@ -152,7 +155,7 @@ Seit 3.8.0 klinkt sich das Modul auch in den Hook `afterODTCreation` (Kontext `o
 | `MAIN_ODT_AS_PDF` | `libreoffice` | Konvertiert die `.odt` bei der Erzeugung in eine `.pdf` (erfordert **auf dem Server installiertes LibreOffice**, erreichbares Binary `soffice`) |
 | `MAIN_ODT_AS_PDFA` | `1` | Erzwingt den Export als **PDF/A-1** (PDF 1.4). Unverzichtbar: ohne das erzeugt LibreOffice eine PDF ≥ 1.5 (komprimierte Xref-Tabelle), die die Injektionsbibliothek (FPDI) nicht lesen kann, und die Injektion schlägt sauber mit einer Warnung fehl |
 
-**Best-Effort**-Verhalten: fehlt eine dieser Voraussetzungen (Konvertierung deaktiviert, PDF/A nicht erzwungen, PDF nicht auffindbar, LibreOffice fehlt), **injiziert das Modul nicht**, behält die klassische PDF/ODT und zeigt eine **klare Warnung** mit der zu setzenden Konstante — nie eine Fatal Error oder eine beschädigte PDF. Der Strikt-Modus (`DOLIZUGFERD_STRICT_MODE`) macht aus dieser Warnung einen blockierenden Fehler, wie beim TCPDF-Ablauf.
+**Best-Effort**-Verhalten: fehlt eine dieser Voraussetzungen (Konvertierung deaktiviert, PDF/A nicht erzwungen, PDF nicht auffindbar, LibreOffice fehlt), **injiziert das Modul nicht**, behält die klassische PDF/ODT und zeigt eine **klare Warnung** mit der zu setzenden Konstante — nie eine Fatal Error oder eine beschädigte PDF. Der Strikt-Modus (`AUVOERECHNUNG_STRICT_MODE`) macht aus dieser Warnung einen blockierenden Fehler, wie beim TCPDF-Ablauf.
 
 > **Status** — die Injektionskette wurde **intern auf LibreOffice 7.4 validiert** (die von LibreOffice erzeugte PDF/A-1 wird von der Injektionsbibliothek (FPDI) gelesen, das ZUGFeRD/Factur-X wird darin eingebettet, der Handler `afterODTCreation` leitet die richtige PDF ab und injiziert) **und unter realen Bedingungen**: ein Nutzer hat die Erzeugung einer Rechnung über ein ODT-Template auf seinem Dolibarr bestätigt, mit dem Factur-X-XML in der PDF vorhanden (Haupt-Factur-X + 2. PDF Chorus). Bei unterschiedlichen Vorlagen (`.odt`/`.ods`) bleibt es ratsam, die PDF mit einem Factur-X-Validator zu prüfen (Button **ZUGFeRD prüfen** der Rechnungsfiche, oder ein Online-Validator wie FNFE-MPE), um das PDF/A-3-Niveau zu bestätigen. Probleme bitte über [SECURITY.md](SECURITY.md) / r.vogel@auvo-design.de melden.
 >
@@ -161,10 +164,10 @@ Seit 3.8.0 klinkt sich das Modul auch in den Hook `afterODTCreation` (Kontext `o
 ### Sicherheit
 
 - CLI-Skripte (`scripts/`, `tests/`, `demo/`) geschützt durch `PHP_SAPI === 'cli'` **und** `.htaccess` `Require all denied`
-- **`exec()` nicht zwingend**: auf einem gehärteten Hosting, das es deaktiviert, schaltet das Modul auf In-Process-Injektion um und bleibt funktionsfähig (Kompatibilität mit Shared Hosting). Wird der Subprozess genutzt (Standardfall), ist der Befehl abgesichert: `escapeshellarg()` auf allen Tokens, PHP-CLI-Binary konfigurierbar über `DOLIZUGFERD_PHP_CLI_PATH`, per Regex und `is_executable()` validiert, falls absolut angegeben
+- **`exec()` nicht zwingend**: auf einem gehärteten Hosting, das es deaktiviert, schaltet das Modul auf In-Process-Injektion um und bleibt funktionsfähig (Kompatibilität mit Shared Hosting). Wird der Subprozess genutzt (Standardfall), ist der Befehl abgesichert: `escapeshellarg()` auf allen Tokens, PHP-CLI-Binary konfigurierbar über `AUVOERECHNUNG_PHP_CLI_PATH`, per Regex und `is_executable()` validiert, falls absolut angegeben
 - **Atomares** Schreiben der PDF (temporäre Datei + `rename()`), unabhängig vom Modus
 - Interne XML-Validierung vor PDF-Injektion (well-formed + XSD EN16931 + Geschäftsregeln)
-- Modus `DOLIZUGFERD_STRICT_MODE`: Wahl zwischen fail-open (best-effort) und fail-closed (strikt)
+- Modus `AUVOERECHNUNG_STRICT_MODE`: Wahl zwischen fail-open (best-effort) und fail-closed (strikt)
 - CSRF-Schutz beim Admin-POST und bei den Aktionen der Rechnungsfiche (`currentToken()`)
 - REST-API: Rechte `facture->lire` + `_checkAccessToResource()`; Buttons der Fiche: Rechte `lire`/`creer`
 - Nur ein ausgehender HTTP-Aufruf: GitHub-Versionscheck alle 24h (Cache in der DB, auch Fehlschläge)
@@ -256,7 +259,7 @@ Die französische Reform beruht auf **zwei getrennten, dauerhaften Netzwerken**,
 - **PDP / B2B** (Netzwerk der Plateformes Agréées): **SIREN** (9 Ziffern), konform zu EN16931 / Regel BR-FR-10;
 - **Chorus Pro / B2G** (öffentlicher Sektor): **SIRET** (14 Ziffern), Routing-Schlüssel seines Verzeichnisses.
 
-Dasselbe XML kann nicht beide erfüllen. DoliZUGFeRD löst das, **ohne jemals die Haupt-PDF zu beeinträchtigen**:
+Dasselbe XML kann nicht beide erfüllen. AuVo E-Rechnung löst das, **ohne jemals die Haupt-PDF zu beeinträchtigen**:
 
 - Die **PDF der Rechnung bleibt das Standard-Factur-X EN16931** (Profil PDP, SIREN) — das ist der Zweck des Moduls, immer konform.
 - Fällt die Rechnung unter den öffentlichen Sektor, erzeugt das Modul **zusätzlich** eine zweite Datei **`{ref}-CHORUS.pdf`** in der Dokumentenliste, im Profil Chorus Pro (SIRET-14 in `SpecifiedLegalOrganization` + Felder BT-10/12/13). Diese reichen Sie bei Chorus Pro ein, die andere bei Ihrer PDP.
@@ -293,32 +296,32 @@ Das XML enthält automatisch die Pflichthinweise:
 
 ## Modulkonstanten
 
-Alle sind über den Administrationsbildschirm des Moduls konfigurierbar (**Start > Konfiguration > Module > DoliZUGFeRD**).
+Alle sind über den Administrationsbildschirm des Moduls konfigurierbar (**Start > Konfiguration > Module > AuVo E-Rechnung**).
 
 | Konstante | Typ | Standard | Beschreibung |
 |---|---|---|---|
-| `DOLIZUGFERD_BANK_ACCOUNT` | int | 0 | ID des Dolibarr-Bankkontos |
-| `DOLIZUGFERD_PAYMENT_MEANS` | string | 30 | UNTDID-4461-Code: 30 Überweisung, 58 SEPA-Überweisung, 59 SEPA-Lastschrift, 49 Lastschrift |
-| `DOLIZUGFERD_STRICT_MODE` | int | 0 | 0 = best-effort (Standard), 1 = strikt (siehe unten) |
-| `DOLIZUGFERD_BR_CHECK` | int | 1 | Interne Prüfung der EN16931-Geschäftsregeln vor der Injektion |
-| `DOLIZUGFERD_INJECTION_MODE` | string | auto | Injektionsmodus: `auto` (In-Process + Rückfall auf Subprozess), `inprocess` (ohne exec), `subprocess` (nur exec) |
-| `DOLIZUGFERD_PHP_CLI_PATH` | string | *(leer)* | Pfad zum PHP-CLI-Binary, **nur** vom Modus `subprocess` genutzt (leer = Auto-Erkennung; siehe Hinweis unten) |
-| `DOLIZUGFERD_VERAPDF_PATH` | string | *(leer)* | Pfad zu veraPDF: Post-Validierung PDF/A-3b jeder erzeugten PDF (nicht blockierend) |
-| `DOLIZUGFERD_ENDPOINT_SUFFIX_SELLER` | string | *(leer)* | Suffix, das der Verkäufer-SIREN im elektronischen Endpoint BT-34 angehängt wird (z. B. `_Status`) — von manchen PA gefordert; leer = reine SIREN |
-| `DOLIZUGFERD_NOTE_PMD/PMT/AAB` | text | FR-Hinweise | Gesetzliche Pflichtangaben BR-FR-05 (der Standardtext gilt, wenn das Feld leer gelassen wird) |
-| `DOLIZUGFERD_NOTES_IN_FOOTER` | int | 0 | BR-FR-05-Hinweise in die Rechnungsfußzeile kopieren (`INVOICE_FREE_TEXT`) |
-| `DOLIZUGFERD_NOTES_OVERWRITE` | int | 0 | Kopie in die Fußzeile: bestehenden Dolibarr-Hinweis überschreiben (1) statt unsere Hinweise anzuhängen (0) |
-| `DOLIZUGFERD_CHORUS_ENABLED` | int | 0 | Chorus-Pro-Funktionen aktivieren (Reiter, Menü, 2. PDF) — opt-in |
+| `AUVOERECHNUNG_BANK_ACCOUNT` | int | 0 | ID des Dolibarr-Bankkontos |
+| `AUVOERECHNUNG_PAYMENT_MEANS` | string | 30 | UNTDID-4461-Code: 30 Überweisung, 58 SEPA-Überweisung, 59 SEPA-Lastschrift, 49 Lastschrift |
+| `AUVOERECHNUNG_STRICT_MODE` | int | 0 | 0 = best-effort (Standard), 1 = strikt (siehe unten) |
+| `AUVOERECHNUNG_BR_CHECK` | int | 1 | Interne Prüfung der EN16931-Geschäftsregeln vor der Injektion |
+| `AUVOERECHNUNG_INJECTION_MODE` | string | auto | Injektionsmodus: `auto` (In-Process + Rückfall auf Subprozess), `inprocess` (ohne exec), `subprocess` (nur exec) |
+| `AUVOERECHNUNG_PHP_CLI_PATH` | string | *(leer)* | Pfad zum PHP-CLI-Binary, **nur** vom Modus `subprocess` genutzt (leer = Auto-Erkennung; siehe Hinweis unten) |
+| `AUVOERECHNUNG_VERAPDF_PATH` | string | *(leer)* | Pfad zu veraPDF: Post-Validierung PDF/A-3b jeder erzeugten PDF (nicht blockierend) |
+| `AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER` | string | *(leer)* | Suffix, das der Verkäufer-SIREN im elektronischen Endpoint BT-34 angehängt wird (z. B. `_Status`) — von manchen PA gefordert; leer = reine SIREN |
+| `AUVOERECHNUNG_NOTE_PMD/PMT/AAB` | text | FR-Hinweise | Gesetzliche Pflichtangaben BR-FR-05 (der Standardtext gilt, wenn das Feld leer gelassen wird) |
+| `AUVOERECHNUNG_NOTES_IN_FOOTER` | int | 0 | BR-FR-05-Hinweise in die Rechnungsfußzeile kopieren (`INVOICE_FREE_TEXT`) |
+| `AUVOERECHNUNG_NOTES_OVERWRITE` | int | 0 | Kopie in die Fußzeile: bestehenden Dolibarr-Hinweis überschreiben (1) statt unsere Hinweise anzuhängen (0) |
+| `AUVOERECHNUNG_CHORUS_ENABLED` | int | 0 | Chorus-Pro-Funktionen aktivieren (Reiter, Menü, 2. PDF) — opt-in |
 
-> **Hinweis PHP CLI**: nur **im Modus `subprocess`** relevant (die Standard-Injektion ist In-Process und nutzt kein externes Binary). In diesem Modus erkennt das Modul das richtige PHP-CLI-Binary automatisch. Auf Servern mit mehreren PHP-Versionen, oder wenn die Auto-Erkennung fehlschlägt, `DOLIZUGFERD_PHP_CLI_PATH` mit dem vollständigen Pfad konfigurieren (z. B. `/usr/bin/php8.2`). **Nicht** `PHP_BINARY` verwenden: im php-fpm-Kontext zeigt diese Konstante auf das fpm-Binary, nicht auf die CLI.
+> **Hinweis PHP CLI**: nur **im Modus `subprocess`** relevant (die Standard-Injektion ist In-Process und nutzt kein externes Binary). In diesem Modus erkennt das Modul das richtige PHP-CLI-Binary automatisch. Auf Servern mit mehreren PHP-Versionen, oder wenn die Auto-Erkennung fehlschlägt, `AUVOERECHNUNG_PHP_CLI_PATH` mit dem vollständigen Pfad konfigurieren (z. B. `/usr/bin/php8.2`). **Nicht** `PHP_BINARY` verwenden: im php-fpm-Kontext zeigt diese Konstante auf das fpm-Binary, nicht auf die CLI.
 
 > **Hinweis SEPA-Lastschrift (59)**: das Modul veröffentlicht die Gläubiger-ID (Dolibarr-Konstante `PRELEVEMENT_ICS`, BT-90), die Mandatsreferenz (Standard-Bankverbindung des Tiers, BT-89) und den Debitor-IBAN (BT-91). Fehlende Daten werden per Warnung gemeldet.
 
 ### Strikt-Modus vs. best-effort
 
-Standardmäßig läuft das Modul im **best-effort**-Modus: ist das Factur-X-XML ungültig oder schlägt die PDF-Injektion fehl, wird dem Nutzer eine Warnung angezeigt und die klassische PDF (ohne eingebettetes Factur-X) bleibt erhalten. Fehler werden im `syslog` mit dem Tag `DoliZUGFeRD` protokolliert.
+Standardmäßig läuft das Modul im **best-effort**-Modus: ist das Factur-X-XML ungültig oder schlägt die PDF-Injektion fehl, wird dem Nutzer eine Warnung angezeigt und die klassische PDF (ohne eingebettetes Factur-X) bleibt erhalten. Fehler werden im `syslog` mit dem Tag `AuVo E-Rechnung` protokolliert.
 
-Im **Strikt-Modus** (`DOLIZUGFERD_STRICT_MODE=1`) liefert dieselbe Situation einen sichtbaren, blockierenden Fehler, und Verstöße gegen Geschäftsregeln (BR-\*) werden blockierend. **Bewusste Einschränkung**: da der Hook erst nach der PDF-Erzeugung durch Dolibarr greift, bleibt die bereits erzeugte klassische PDF auch im Strikt-Modus auf der Festplatte erhalten — vor dem Versand „ZUGFeRD prüfen" nutzen, um eine Datei zu kontrollieren.
+Im **Strikt-Modus** (`AUVOERECHNUNG_STRICT_MODE=1`) liefert dieselbe Situation einen sichtbaren, blockierenden Fehler, und Verstöße gegen Geschäftsregeln (BR-\*) werden blockierend. **Bewusste Einschränkung**: da der Hook erst nach der PDF-Erzeugung durch Dolibarr greift, bleibt die bereits erzeugte klassische PDF auch im Strikt-Modus auf der Festplatte erhalten — vor dem Versand „ZUGFeRD prüfen" nutzen, um eine Datei zu kontrollieren.
 
 ### Interne Validierung
 
@@ -326,7 +329,7 @@ Vor der PDF-Injektion validiert das Modul das XML systematisch:
 
 1. **Well-formed**: `DOMDocument::loadXML()`
 2. **XSD EN16931**: `DOMDocument::schemaValidate()` gegen die eingebettete XSD
-3. **Geschäftsregeln** (`DOLIZUGFERD_BR_CHECK`, standardmäßig aktiviert): Teilmenge der EN16931-Schematron-Regeln in PHP geprüft — Berechnungsregeln BR-CO-10..17, BR-27 (negative Preise), BR-61 (IBAN), BR-16, BR-IC-02/11/12 (innergemeinschaftlich), BR-AE-02, Befreiungsgründe BR-\*-10, BR-CO-25/26, BR-09/11 — **plus das Regelwerk Frankreich BR-FR** (siehe nächster Abschnitt)
+3. **Geschäftsregeln** (`AUVOERECHNUNG_BR_CHECK`, standardmäßig aktiviert): Teilmenge der EN16931-Schematron-Regeln in PHP geprüft — Berechnungsregeln BR-CO-10..17, BR-27 (negative Preise), BR-61 (IBAN), BR-16, BR-IC-02/11/12 (innergemeinschaftlich), BR-AE-02, Befreiungsgründe BR-\*-10, BR-CO-25/26, BR-09/11 — **plus das Regelwerk Frankreich BR-FR** (siehe nächster Abschnitt)
 
 Das vollständige offizielle Schematron (XSLT 2.0) ist in PHP nicht ausführbar: für eine erschöpfende Validierung einen externen Validator nutzen — siehe [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
@@ -347,7 +350,7 @@ Regeln des Reform-Grundgerüsts Frankreich, vom Modul geprüft oder ausgegeben. 
 | BR-FR-23 / BR-FR-25 | Elektronische Adresse 0225: nur alphanumerisch + `- _ .` (das konfigurierte Verkäufer-Suffix wird bei der Ausgabe bereinigt), max. 125 Zeichen | Blockierender Verstoß (Zeichensatz) + Warnung (Länge) |
 | BR-FR-MAP-03 / MAP-29 | USt-Fälligkeit (BT-8): `5` = Soll-Versteuerung (einziger vom PPF erwarteter CII-Wert), `72` = Ist-Versteuerung, abgeleitet von `TAX_MODE` | Automatisch ausgegeben |
 
-Zur Erinnerung: „blockierende Verstöße" unterbrechen die Erzeugung nur im Strikt-Modus (`DOLIZUGFERD_STRICT_MODE=1`); im best-effort-Modus werden sie in der Warnmeldung und im Syslog konsolidiert.
+Zur Erinnerung: „blockierende Verstöße" unterbrechen die Erzeugung nur im Strikt-Modus (`AUVOERECHNUNG_STRICT_MODE=1`); im best-effort-Modus werden sie in der Warnmeldung und im Syslog konsolidiert.
 
 **Bewusste Einschränkungen**:
 - das Profil **EXTENDED-CTC-FR wird nicht ausgegeben** (das Modul erzeugt EN16931) — angestrebtes Ziel für 2027; die Variante „Positionsreferenz" einer Gutschrift (EXT-FR-FE-136, BR-FR-CO-05) ist damit gegenstandslos;
@@ -362,7 +365,7 @@ Trägt die Firmenfiche (`$mysoc`) ein anderes Land als Frankreich (gleichgestell
 
 | Element | Verkäufer FR | Verkäufer außerhalb FR |
 |---|---|---|
-| Hinweise **PMD / PMT / AAB** (BR-FR-05) | Standardtexte aus dem Code de commerce, überschreibbar | **kein Standard** — nur explizit gesetzte `DOLIZUGFERD_NOTE_*`-Konstanten werden ausgegeben |
+| Hinweise **PMD / PMT / AAB** (BR-FR-05) | Standardtexte aus dem Code de commerce, überschreibbar | **kein Standard** — nur explizit gesetzte `AUVOERECHNUNG_NOTE_*`-Konstanten werden ausgegeben |
 | Hinweis **BAR** (BR-FR-07/20/31) | ausgegeben (`B2B` / `B2BINT` / `B2C`) | **nicht ausgegeben** (qualifiziert einen Vorgang der FR-Reform) |
 | Rechnungsstellungsrahmen **BT-23** (BR-FR-08) | ausgegeben (`B1`/`S1`/`M1`…) | **nicht ausgegeben** (optional in EN16931, XP-Z12-012-eigene Codes) |
 | Vorgelagerte **SIREN/SIRET**-Prüfung | aktiv | deaktiviert (französische Kennungen) |
@@ -380,8 +383,8 @@ Mit aktiviertem Dolibarr-REST-API-Modul (Benutzer-API-Schlüssel, Rechnungsrecht
 
 | Endpoint | Beschreibung |
 |---|---|
-| `GET /api/index.php/dolizugferd/invoice/{id}/xml` | Neu erzeugtes Factur-X-XML + Warnungen + BR-Verstöße |
-| `GET /api/index.php/dolizugferd/invoice/{id}/status` | PDF vorhanden? XML eingebettet? BR-Verstöße des eingebetteten XML |
+| `GET /api/index.php/auvoerechnung/invoice/{id}/xml` | Neu erzeugtes Factur-X-XML + Warnungen + BR-Verstöße |
+| `GET /api/index.php/auvoerechnung/invoice/{id}/status` | PDF vorhanden? XML eingebettet? BR-Verstöße des eingebetteten XML |
 
 ## Stapelexport
 
@@ -408,7 +411,7 @@ Die PDF/A-3-Konformität wird sichergestellt durch:
 - **AFRelationship `Alternative`**: konform zur Factur-X-Spezifikation für das Profil EN16931 (in 3.0.0 korrigiert, vorher `Data`)
 - **Annotationen /F-Flag**: Patch angewendet in `vendor/setasign/fpdf/fpdf.php` (Ergänzung `/F 4` bei Links)
 - **ICC-Profil sRGB** + **XMP-Metadaten**: von der Lib `atgp/factur-x` verwaltet
-- **Optionale Post-Validierung mit veraPDF** (`DOLIZUGFERD_VERAPDF_PATH`), um nicht konforme Custom-PDF-Vorlagen zu erkennen
+- **Optionale Post-Validierung mit veraPDF** (`AUVOERECHNUNG_VERAPDF_PATH`), um nicht konforme Custom-PDF-Vorlagen zu erkennen
 
 > **Hinweis**: hardcodiert ein Drittmodul (z. B. Meilensteine) die Schriftart `'Helvetica'`, muss es gepatcht werden, um `pdf_getPDFFont($outputlangs)` zu nutzen.
 
@@ -451,13 +454,20 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 
 ## Changelog
 
+### 5.0.0 — Umbenennung in AuVo E-Rechnung (Oktober 2026)
+
+- **Neuer Name**: DoliZUGFeRD heißt jetzt **AuVo E-Rechnung** (Modulordner `auvoerechnung`, Konstanten `AUVOERECHNUNG_*`, REST-API `/auvoerechnung/…`, Release-Asset `module_auvoerechnung-X.Y.Z.zip`, Repo `Fips81/dolibarr-auvo-erechnung`). Der Name nennt das Thema statt eines Standards: Er passt zur geplanten XRechnung-Erweiterung und vermeidet fremde Marken im Modulnamen.
+- **Migration** von DoliZUGFeRD 4.0.x und AuvoZugferd 3.x bei der ersten Aktivierung — siehe [Umstieg](#umstieg-von-dolizugferd-40x-oder-auvozugferd-3x-auf-auvo-e-rechnung-50).
+- Hinweis im README, dass das Modul kein offizielles Produkt von FeRD, der Dolibarr Foundation oder von Lemon ist.
+- Modulnummer bleibt **194202**.
+
 ### 4.0.1 — Offizielle Modulnummer (Oktober 2026)
 
 - Modulnummer von 486213 auf **194202** geändert, die erste Nummer des im Dolibarr-Wiki (*List of modules id*) für AuVo Design reservierten Blocks 194202–194211. Damit sind Kollisionen mit Modulen anderer Anbieter ausgeschlossen. Dolibarr speichert die Aktivierung über den Modulnamen, deshalb bleibt das Modul nach dem Update aktiv, und Einstellungen sowie Daten bleiben erhalten. Eine erneute Aktivierung ist nicht nötig.
 
 ### 4.0.0 — Umbenennung in DoliZUGFeRD (Oktober 2026)
 
-- **Neuer Name**: AuvoZugferd heißt jetzt **DoliZUGFeRD** (Modulordner `dolizugferd`, Konstanten `DOLIZUGFERD_*`, REST-API `/dolizugferd/…`, Release-Asset `module_dolizugferd-X.Y.Z.zip`). Automatische Übernahme der Einstellungen und Zusatzfelder bei der ersten Aktivierung — siehe [Umstieg von AuvoZugferd](#umstieg-von-auvozugferd-version-3x-auf-dolizugferd-40).
+- **Neuer Name**: AuvoZugferd heißt jetzt **DoliZUGFeRD** (Modulordner `dolizugferd`, Konstanten `DOLIZUGFERD_*`, REST-API `/dolizugferd/…`, Release-Asset `module_dolizugferd-X.Y.Z.zip`). Automatische Übernahme der Einstellungen und Zusatzfelder bei der ersten Aktivierung — siehe [Umstieg von AuvoZugferd](#umstieg-von-auvozugferd-version-3x-auf-auvoerechnung-40).
 - **Steuernummer aus dem richtigen Feld**: In Dolibarr ist bei deutschen Firmen Prof-ID 1 die Steuernummer und Prof-ID 2 das Amtsgericht. Das Modul las bisher Prof-ID 2 — ein dort eingetragenes Amtsgericht wäre als Steuernummer (BT-32) ausgegeben worden. Jetzt wird Prof-ID 1 gelesen (Prof-ID 2 nur noch, wenn sie wie eine Steuernummer aussieht).
 - **Keine Steuernummer mehr als USt-IdNr.**: Ein Wert ohne Ländercode im Feld USt-IdNr. (z. B. eine dort eingetragene Steuernummer) wird nicht mehr als USt-IdNr. (BT-31, `schemeID="VA"`) ausgegeben, sondern — wenn es eine Steuernummer ist — als BT-32. Neue Warnung bei der Rechnungserzeugung und in der Diagnose; neue Prüfregel BR-CO-09.
 - **Diagnose ohne Frankreich-Ballast**: SIRET/SIREN-Prüfung und der Block „Adressierung über zugelassene Plattform (PA)“ erscheinen nur noch bei Verkäufern in Frankreich. Bei deutschen Verkäufern prüft die Diagnose stattdessen Steuernummer bzw. USt-IdNr.
@@ -477,11 +487,11 @@ Fork, umbenannt von LemonFacturX zu AuvoZugferd (siehe [Lizenz](#lizenz) für di
 
 ### 3.9.2 (Juli 2026)
 
-**Das Bankkonto des XML folgt dem der Rechnung** ([issue #16](https://github.com/Fips81/dolibarr_zugferd/issues/16)). Das Modul veröffentlichte stets den in der Konfiguration fest eingestellten IBAN/BIC, auch wenn auf Tiers- oder Rechnungsebene ein anderes Konto gewählt war (die PDF zeigte dagegen das richtige) — daher ein inkonsistenter IBAN zwischen PDF und XML. Die Auflösungsreihenfolge ist nun: **auf der Rechnung gewähltes Konto (`fk_account`) → in der Modulkonfiguration eingestelltes Konto (Rückfall)**. Abwärtskompatibel: ohne Konto auf der Rechnung bleibt das bisherige Verhalten erhalten.
+**Das Bankkonto des XML folgt dem der Rechnung** ([issue #16](https://github.com/Fips81/dolibarr-auvo-erechnung/issues/16)). Das Modul veröffentlichte stets den in der Konfiguration fest eingestellten IBAN/BIC, auch wenn auf Tiers- oder Rechnungsebene ein anderes Konto gewählt war (die PDF zeigte dagegen das richtige) — daher ein inkonsistenter IBAN zwischen PDF und XML. Die Auflösungsreihenfolge ist nun: **auf der Rechnung gewähltes Konto (`fk_account`) → in der Modulkonfiguration eingestelltes Konto (Rückfall)**. Abwärtskompatibel: ohne Konto auf der Rechnung bleibt das bisherige Verhalten erhalten.
 
 ### 3.9.1 (Juli 2026)
 
-`ActionsDoliZugferd::verifyInvoicePdf()` wird **öffentlich**: sie wird auch von externen Modulen aufgerufen (z. B. aus einem Reiter „Elektronische Rechnungsstellung" mit Button „Factur-X prüfen"), um das Ergebnis anzuzeigen, ohne den Reiter zu verlassen. Keine weitere Änderung.
+`ActionsAuvoERechnung::verifyInvoicePdf()` wird **öffentlich**: sie wird auch von externen Modulen aufgerufen (z. B. aus einem Reiter „Elektronische Rechnungsstellung" mit Button „Factur-X prüfen"), um das Ergebnis anzuzeigen, ohne den Reiter zu verlassen. Keine weitere Änderung.
 
 ### 3.9.0 (Juli 2026)
 
@@ -512,7 +522,7 @@ Fork, umbenannt von LemonFacturX zu AuvoZugferd (siehe [Lizenz](#lizenz) für di
 
 ### 3.7.0 (Juni 2026)
 
-Einstellbarer Injektionsmodus (`DOLIZUGFERD_INJECTION_MODE`) mit In-Process-Injektion ohne `exec()`. **Nicht so verwenden — in 3.7.1 korrigiert** (FPDF/TCPDF-Konflikt über die `tcpdi`-Engine von Dolibarr).
+Einstellbarer Injektionsmodus (`AUVOERECHNUNG_INJECTION_MODE`) mit In-Process-Injektion ohne `exec()`. **Nicht so verwenden — in 3.7.1 korrigiert** (FPDF/TCPDF-Konflikt über die `tcpdi`-Engine von Dolibarr).
 
 ### 3.6.3 (Juni 2026)
 
@@ -592,7 +602,7 @@ Große Konformitäts-Überarbeitung — **vor dem Update die Verhaltensänderung
 **Werkzeuge**:
 - Interner Validator für **EN16931-Geschäftsregeln** (Teilmenge des Schematron in PHP) vor der Injektion — blockierend im Strikt-Modus.
 - Buttons **„Factur-X prüfen"** / **„Factur-X neu erzeugen"** auf der Rechnungsfiche.
-- **REST-API** (`/dolizugferd/invoice/{id}/xml` und `/status`) und **Stapelexport** (`scripts/export_facturx_batch.php`).
+- **REST-API** (`/auvoerechnung/invoice/{id}/xml` und `/status`) und **Stapelexport** (`scripts/export_facturx_batch.php`).
 - Optionale Post-Validierung mit **veraPDF**; erweiterte Diagnose (`MAIN_PDF_FORCE_FONT`, `exec()`, PHP-CLI-Binary, Multiwährungs-Hinweis).
 - Suite von **Standalone-Unit-Tests** (ohne Dolibarr) + **GitHub-CI** (Lint + Tests bei jedem Push/PR, und vor jeder Release).
 - Vollständige **en_US**-Übersetzung; Hook- und Kontrollmeldungen internationalisiert.
@@ -602,7 +612,7 @@ Große Konformitäts-Überarbeitung — **vor dem Update die Verhaltensänderung
 - CLI-Schutz auf `demo/*` und `tests/*` (die Fixtures erzeugten einen per HTTP erreichbaren Demo-Admin, falls das Repo unter dem Web-Root geklont war) + `.htaccess`-Zugriffsverweigerung auf `demo/`, `tests/`, `scripts/`.
 - GitHub Actions per SHA gepinnt; Cache der Fehlschläge beim Versionscheck (Admin-Seite hakt nicht mehr, wenn GitHub nicht erreichbar ist); `curl_init`-Absicherung; `entity`-Filter auf Bankkonten (Multicompany) und Kontakte.
 - Voraussetzungen im Deskriptor hinterlegt (`phpmin` 8.1, `need_dolibarr_version` 16).
-- Präfigierte globale Funktionen (`xmlEncode`/`formatAmount` → `dolizugferd_xml_encode`/`dolizugferd_format_amount`).
+- Präfigierte globale Funktionen (`xmlEncode`/`formatAmount` → `auvoerechnung_xml_encode`/`auvoerechnung_format_amount`).
 
 **Migration**: keine DB-Migration, aber **Modul deaktivieren und wieder aktivieren** nach dem Update, um den neuen Hook `invoicecard` (Buttons der Rechnungsfiche) zu registrieren. Danach prüfen: (1) die Zahlungsart-Einstellung, falls „58" für Lastschrift gewählt war → auf 59 umstellen; (2) kürzlich nicht übermittelte Gutschriften neu erzeugen, um von der Korrektur zu profitieren. Die gesetzliche Kennung BT-30/BT-47 ist jetzt immer SIRET/0009 (keine Einstellung mehr).
 
@@ -620,12 +630,12 @@ Chorus-Pro-Korrektur — gesetzliche Kennung **SIRET** (statt SIREN) in `Specifi
 
 ### 2.1.0 (Mai 2026)
 
-- **Endpoint BT-34 / BT-49**: SIREN mit `schemeID="0225"` (PPF-Verzeichnis) statt E-Mail — vom Routing des Plateformes-Agréées-Netzwerks gefordert. Konfigurierbares Schema (`DOLIZUGFERD_ENDPOINT_SCHEME`), Rückfall auf E-Mail für Tiers ohne SIREN.
+- **Endpoint BT-34 / BT-49**: SIREN mit `schemeID="0225"` (PPF-Verzeichnis) statt E-Mail — vom Routing des Plateformes-Agréées-Netzwerks gefordert. Konfigurierbares Schema (`AUVOERECHNUNG_ENDPOINT_SCHEME`), Rückfall auf E-Mail für Tiers ohne SIREN.
 
 ### 2.0.2 (Mai 2026)
 
-- **Windows-Kompatibilität** ([#4](https://github.com/Fips81/dolibarr_zugferd/issues/4), [PR #5](https://github.com/Fips81/dolibarr_zugferd/pull/5) von [@Charlymd](https://github.com/Charlymd)): temporäres XML in `DOL_DATA_ROOT/facturx/temp/`, Regex `DOLIZUGFERD_PHP_CLI_PATH` erweitert.
-- **Kleinunternehmerregelung** ([#6](https://github.com/Fips81/dolibarr_zugferd/issues/6)): Kategorie `E` (statt `O`), SIREN als `SpecifiedTaxRegistration schemeID="FC"` veröffentlicht (BR-CO-26/BR-E-09).
+- **Windows-Kompatibilität** ([#4](https://github.com/Fips81/dolibarr-auvo-erechnung/issues/4), [PR #5](https://github.com/Fips81/dolibarr-auvo-erechnung/pull/5) von [@Charlymd](https://github.com/Charlymd)): temporäres XML in `DOL_DATA_ROOT/facturx/temp/`, Regex `AUVOERECHNUNG_PHP_CLI_PATH` erweitert.
+- **Kleinunternehmerregelung** ([#6](https://github.com/Fips81/dolibarr-auvo-erechnung/issues/6)): Kategorie `E` (statt `O`), SIREN als `SpecifiedTaxRegistration schemeID="FC"` veröffentlicht (BR-CO-26/BR-E-09).
 
 ### 2.0.1 (Mai 2026)
 
@@ -645,8 +655,8 @@ Erste Version: EN16931-XML-Erzeugung, PDF/A-3-Injektion, B2Brouter-Konformität 
 
 ## Lizenz
 
-Dieses Modul steht unter der Lizenz [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) — Copyright (C) 2026 [SASU Lemon](https://hellolemon.fr), Copyright (C) 2026 [auvo-design](https://auvo-design.de) (Fork, umbenannt und verändert als DoliZUGFeRD).
+Dieses Modul steht unter der Lizenz [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) — Copyright (C) 2026 [SASU Lemon](https://hellolemon.fr), Copyright (C) 2026 [auvo-design](https://auvo-design.de) (Fork, umbenannt und verändert als AuVo E-Rechnung).
 
 ## Über dieses Projekt
 
-DoliZUGFeRD wird von auvo-design gepflegt und steht allen Dolibarr-Nutzern frei zur Verfügung. Ursprüngliche Basis entwickelt von [Lemon](https://hellolemon.fr) als LemonFacturX. Fehler und Wünsche bitte als [GitHub-Issue](https://github.com/Fips81/dolibarr_zugferd/issues) melden; Kontakt: r.vogel@auvo-design.de
+AuVo E-Rechnung wird von auvo-design gepflegt und steht allen Dolibarr-Nutzern frei zur Verfügung. Ursprüngliche Basis entwickelt von [Lemon](https://hellolemon.fr) als LemonFacturX. Fehler und Wünsche bitte als [GitHub-Issue](https://github.com/Fips81/dolibarr-auvo-erechnung/issues) melden; Kontakt: r.vogel@auvo-design.de
