@@ -295,6 +295,14 @@ AuvoERechnungRuleDE31 = Lastschrift ohne belastetes Konto (BT-91)
 AuvoERechnungRuleDE16 = Weder USt-IdNr. (BT-31) noch Steuernummer (BT-32) des Verkäufers
 AuvoERechnungRuleDE14 = Steuersatz (BT-119) fehlt für Kategorie %s
 AuvoERechnungRuleDE18 = Skonto-Zeile „%s“ entspricht nicht der Syntax #SKONTO#TAGE=n#PROZENT=n.nn#
+AuvoERechnungRuleDE18Newline = nach der letzten Skonto-Zeile in BT-20 fehlt der Zeilenumbruch
+AuvoERechnungSecSkonto = Skonto
+AuvoERechnungSkontoInfo = Skonto je Zahlungsbedingung, bis zu zwei Stufen (Tage ab Rechnungsdatum und Prozent). Das Modul schreibt die Angabe in BT-20 im von der KoSIT vorgeschriebenen Format #SKONTO#TAGE=7#PROZENT=2.00#, in der XRechnung und im ZUGFeRD-XML. Gutschriften erhalten kein Skonto. Leer = kein Skonto.
+AuvoERechnungSkontoNetDays = netto %s Tage
+AuvoERechnungSkontoGuess = Vorschlag aus der Bezeichnung: %s Tage, %s %% (zum Übernehmen eintragen und speichern)
+AuvoERechnungSkontoAfterDue = Achtung: Skontofrist %s Tage liegt nicht vor dem Zahlungsziel (%s Tage). Bitte Zahlungsbedingung unter Einstellungen > Wörterbücher prüfen.
+AuvoERechnungSkontoDays = Tage
+AuvoERechnungSkontoInvalid = Skonto für „%s“ nicht gespeichert: Tage 1–365 und Prozent größer 0 und kleiner 100 angeben.
 AuvoERechnungSecXRechnung = XRechnung
 AuvoERechnungXrVersion = XRechnung-Version
 AuvoERechnungXrVersionHint = Version der KoSIT-Spezifikation für die Kennung BT-24, z. B. 3.0. Die KoSIT veröffentlicht zum 01.02. und 01.07.; nur ändern, wenn eine neue Version gilt.
@@ -311,3 +319,18 @@ AuvoERechnungDiagXrPhoneMissing = Keine Telefonnummer für den Ansprechpartner (
 AuvoERechnungDiagXrEmailMissing = Keine E-Mail-Adresse der Firma: Pflicht für jede XRechnung (BT-34)
 AuvoERechnungDiagXrVersion = Kennung %s
 AuvoERechnungDiagXrCustomers = %s Kunde(n) erhalten automatisch eine XRechnung (Leitweg-ID oder Format „XRechnung“)
+AuvoERechnungBtnOzgRe = XRechnung an OZG-RE senden
+AuvoERechnungOzgReEmail = OZG-RE: Einreichungsadresse
+AuvoERechnungOzgReEmailHint = Persönliche E-Mail-Adresse Ihres OZG-RE-Kontos (OZG-RE, Startseite, „Extern erstellte XRechnung via E-Mail senden“, „E-Mail-Adresse in Zwischenablage kopieren“). Damit erscheint auf der Rechnung „XRechnung an OZG-RE senden“. Leer = kein Versand aus Dolibarr.
+AuvoERechnungOzgReConfirm = XRechnung zur Rechnung %s jetzt an die OZG-RE senden?<br>Empfänger: %s<br>Leitweg-ID: %s<br>Die XRechnung wird vorher neu erzeugt und geprüft.
+AuvoERechnungOzgReNoLeitwegId = Beim Kunden ist keine Leitweg-ID eingetragen. Ohne Leitweg-ID kann die OZG-RE die Rechnung nicht zuordnen.
+AuvoERechnungOzgReAlreadySent = Diese Rechnung wurde schon an die OZG-RE gesendet. Ein zweiter Versand kann beim Empfänger als doppelte Rechnung ankommen.
+AuvoERechnungOzgReNoAddress = Keine gültige OZG-RE-Einreichungsadresse in den Moduleinstellungen eingetragen.
+AuvoERechnungOzgReMailsDisabled = Der E-Mail-Versand ist in Dolibarr abgeschaltet (MAIN_DISABLE_ALL_MAILS).
+AuvoERechnungOzgReNotSent = Die XRechnung wurde nicht an die OZG-RE gesendet.
+AuvoERechnungOzgReTooLarge = Die XRechnung ist größer als 10 MB, die OZG-RE nimmt per E-Mail höchstens 10 MB an. Bitte über die Weboberfläche der OZG-RE hochladen.
+AuvoERechnungOzgReMailBody = XRechnung %s
+AuvoERechnungOzgReEvent = XRechnung %s an OZG-RE gesendet
+AuvoERechnungOzgReSent = XRechnung %s an die OZG-RE gesendet. Ob sie angenommen wurde, zeigt die OZG-RE unter „Status eingereichter Rechnungen“.
+AuvoERechnungDiagOzgReOn = Versand an die OZG-RE eingerichtet (Absender %s; diese Adresse muss Mails versenden können)
+AuvoERechnungDiagOzgReOff = Keine OZG-RE-Einreichungsadresse eingetragen: XRechnungen müssen von Hand bei der OZG-RE hochgeladen werden

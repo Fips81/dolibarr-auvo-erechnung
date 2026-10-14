@@ -295,6 +295,14 @@ AuvoERechnungRuleDE31 = prélèvement sans compte débité (BT-91)
 AuvoERechnungRuleDE16 = ni n° de TVA (BT-31) ni identifiant fiscal (BT-32) du vendeur
 AuvoERechnungRuleDE14 = taux de TVA (BT-119) manquant pour la catégorie %s
 AuvoERechnungRuleDE18 = ligne d'escompte « %s » non conforme à #SKONTO#TAGE=n#PROZENT=n.nn#
+AuvoERechnungRuleDE18Newline = saut de ligne manquant après la dernière ligne d'escompte de BT-20
+AuvoERechnungSecSkonto = Escompte (Skonto, Allemagne)
+AuvoERechnungSkontoInfo = Escompte par condition de règlement, deux paliers au maximum (jours depuis la date de facture et pourcentage). Le module l'écrit en BT-20 au format KoSIT #SKONTO#TAGE=7#PROZENT=2.00#, dans la XRechnung et le XML ZUGFeRD. Pas d'escompte sur les avoirs. Vide = pas d'escompte.
+AuvoERechnungSkontoNetDays = net %s jours
+AuvoERechnungSkontoGuess = Suggestion d'après le libellé : %s jours, %s %% (saisir et enregistrer pour appliquer)
+AuvoERechnungSkontoAfterDue = Attention : le délai d'escompte de %s jours n'est pas antérieur à l'échéance (%s jours). Vérifiez la condition de règlement dans Configuration > Dictionnaires.
+AuvoERechnungSkontoDays = jours
+AuvoERechnungSkontoInvalid = Escompte pour « %s » non enregistré : saisir 1 à 365 jours et un pourcentage entre 0 et 100 exclus.
 AuvoERechnungSecXRechnung = XRechnung (Allemagne)
 AuvoERechnungXrVersion = Version XRechnung
 AuvoERechnungXrVersionHint = Version de la spécification KoSIT pour l'identifiant BT-24, ex. 3.0.
@@ -311,3 +319,18 @@ AuvoERechnungDiagXrPhoneMissing = Aucun téléphone de contact (ni réglage ni s
 AuvoERechnungDiagXrEmailMissing = Aucun email de la société : obligatoire pour toute XRechnung (BT-34)
 AuvoERechnungDiagXrVersion = Identifiant %s
 AuvoERechnungDiagXrCustomers = %s client(s) reçoivent automatiquement une XRechnung
+AuvoERechnungBtnOzgRe = Envoyer la XRechnung à l'OZG-RE
+AuvoERechnungOzgReEmail = OZG-RE : adresse de dépôt
+AuvoERechnungOzgReEmailHint = Adresse e-mail personnelle de votre compte OZG-RE (page d'accueil OZG-RE, « Extern erstellte XRechnung via E-Mail senden »). Active « Envoyer la XRechnung à l'OZG-RE » sur la facture. Vide = pas d'envoi depuis Dolibarr.
+AuvoERechnungOzgReConfirm = Envoyer maintenant la XRechnung de la facture %s à l'OZG-RE ?<br>Destinataire : %s<br>Leitweg-ID : %s<br>La XRechnung est régénérée et contrôlée avant l'envoi.
+AuvoERechnungOzgReNoLeitwegId = Le client n'a pas de Leitweg-ID : l'OZG-RE ne peut pas acheminer la facture.
+AuvoERechnungOzgReAlreadySent = Cette facture a déjà été envoyée à l'OZG-RE. Un nouvel envoi peut créer un doublon chez le destinataire.
+AuvoERechnungOzgReNoAddress = Aucune adresse de dépôt OZG-RE valide dans la configuration du module.
+AuvoERechnungOzgReMailsDisabled = L'envoi d'e-mails est désactivé dans Dolibarr (MAIN_DISABLE_ALL_MAILS).
+AuvoERechnungOzgReNotSent = La XRechnung n'a pas été envoyée à l'OZG-RE.
+AuvoERechnungOzgReTooLarge = La XRechnung dépasse 10 Mo, limite du canal e-mail de l'OZG-RE. Déposez-la via l'interface web de l'OZG-RE.
+AuvoERechnungOzgReMailBody = XRechnung %s
+AuvoERechnungOzgReEvent = XRechnung %s envoyée à l'OZG-RE
+AuvoERechnungOzgReSent = XRechnung %s envoyée à l'OZG-RE. L'OZG-RE indique son acceptation dans « Status eingereichter Rechnungen ».
+AuvoERechnungDiagOzgReOn = Envoi à l'OZG-RE configuré (expéditeur %s ; cette adresse doit pouvoir envoyer des e-mails)
+AuvoERechnungDiagOzgReOff = Pas d'adresse de dépôt OZG-RE : les XRechnung doivent être déposées manuellement sur l'OZG-RE

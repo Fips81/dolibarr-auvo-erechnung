@@ -432,6 +432,11 @@ function auvoerechnung_build_xml($invoice, $mysoc, &$buildWarnings = [], $option
 	}
 
 	$xml .= '    <ram:SpecifiedTradePaymentTerms>'."\n";
+	// BT-20 : conditions de paiement avec les lignes Skonto (BR-DE-18)
+	$paymentTermsText = auvoerechnung_build_payment_terms_description($invoice, $isCreditNote);
+	if ($paymentTermsText !== '') {
+		$xml .= '      <ram:Description>'.auvoerechnung_xml_encode($paymentTermsText).'</ram:Description>'."\n";
+	}
 	$xml .= '      <ram:DueDateDateTime>'."\n";
 	$xml .= '        <udt:DateTimeString format="102">'.auvoerechnung_xml_encode($dueDate).'</udt:DateTimeString>'."\n";
 	$xml .= '      </ram:DueDateDateTime>'."\n";
@@ -644,6 +649,130 @@ function auvoerechnung_get_direct_debit_info($db, $buyer, &$buildWarnings)
 	}
 
 	return $info;
+}
+
+/**
+ * Paliers d'escompte (Skonto) configurés pour une condition de règlement.
+ *
+ * Configuration : constante AUVOERECHNUNG_SKONTO, JSON indexé par le code de
+ * la condition de règlement Dolibarr (dictionnaire c_payment_term), ex.
+ * {"7D":[{"days":7,"percent":2}]}. Les entrées invalides sont ignorées.
+ *
+ * @param string $paymentTermCode  Code de la condition de règlement
+ * @return array<int,array{days:int,percent:float}>  Paliers triés par délai
+ */
+function auvoerechnung_get_skonto_terms($paymentTermCode)
+{
+	$code = trim((string) $paymentTermCode);
+	if ($code === '') {
+		return [];
+	}
+	$all = json_decode(getDolGlobalString('AUVOERECHNUNG_SKONTO', ''), true);
+	if (!is_array($all) || empty($all[$code]) || !is_array($all[$code])) {
+		return [];
+	}
+	$terms = [];
+	foreach ($all[$code] as $t) {
+		$days = isset($t['days']) ? (int) $t['days'] : 0;
+		$percent = isset($t['percent']) ? round((float) $t['percent'], 2) : 0.0;
+		if ($days > 0 && $days <= 365 && $percent > 0 && $percent < 100) {
+			$terms[$days] = ['days' => $days, 'percent' => $percent];
+		}
+	}
+	ksort($terms);
+	return array_values($terms);
+}
+
+/**
+ * Lignes Skonto au format imposé par la KoSIT (BR-DE-18), aussi recommandé
+ * par ZUGFeRD : « #SKONTO#TAGE=7#PROZENT=2.00# ». Chaque ligne se termine par
+ * un saut de ligne, y compris la dernière (sinon BR-DE-18 rejette).
+ *
+ * @param array<int,array{days:int,percent:float}> $terms
+ * @return string
+ */
+function auvoerechnung_skonto_lines($terms)
+{
+	$out = '';
+	foreach ($terms as $t) {
+		$out .= '#SKONTO#TAGE='.((int) $t['days']).'#PROZENT='.number_format((float) $t['percent'], 2, '.', '').'#'."\n";
+	}
+	return $out;
+}
+
+/**
+ * Libellé « sur facture » de la condition de règlement (traduction Dolibarr
+ * PaymentCondition<code> si elle existe, sinon le texte du dictionnaire).
+ * Les retours à la ligne sont aplatis et les « # » de tête retirés : en BT-20,
+ * une ligne commençant par « # » serait lue comme une ligne Skonto.
+ *
+ * @param object $invoice
+ * @return string
+ */
+function auvoerechnung_payment_terms_text($invoice)
+{
+	global $langs;
+	$code = (string) ($invoice->cond_reglement_code ?? '');
+	$text = '';
+	if ($code !== '' && is_object($langs) && method_exists($langs, 'transnoentitiesnoconv')) {
+		$tr = $langs->transnoentitiesnoconv('PaymentCondition'.$code);
+		if ($tr !== '' && $tr !== 'PaymentCondition'.$code) {
+			$text = $tr;
+		}
+	}
+	if ($text === '') {
+		$text = (string) ($invoice->cond_reglement_doc ?? '');
+		if (preg_match('/^PaymentCondition\w*$/', $text)) {
+			$text = '';
+		}
+	}
+	return ltrim(trim(preg_replace('/\s+/u', ' ', $text)), '#');
+}
+
+/**
+ * Contenu de BT-20 (Payment terms) : texte de la condition de règlement suivi
+ * des lignes Skonto. Vide (élément non émis) sans escompte configuré, et pour
+ * un avoir, auquel un escompte ne s'applique pas.
+ *
+ * @param object $invoice
+ * @param bool   $isCreditNote
+ * @return string
+ */
+function auvoerechnung_build_payment_terms_description($invoice, $isCreditNote = false)
+{
+	if ($isCreditNote) {
+		return '';
+	}
+	$terms = auvoerechnung_get_skonto_terms($invoice->cond_reglement_code ?? '');
+	if (empty($terms)) {
+		return '';
+	}
+	$text = auvoerechnung_payment_terms_text($invoice);
+	return ($text !== '' ? $text."\n" : '').auvoerechnung_skonto_lines($terms);
+}
+
+/**
+ * Propose un palier Skonto à partir du libellé d'une condition de règlement
+ * (« 7 Tage 2% Skonto », « 2 % Skonto bei Zahlung innerhalb von 10 Tagen »…).
+ * Simple suggestion affichée dans la configuration, jamais appliquée seule.
+ *
+ * @param string $label
+ * @return array{days:int,percent:float}|null
+ */
+function auvoerechnung_guess_skonto($label)
+{
+	$label = (string) $label;
+	if (stripos($label, 'skonto') === false) {
+		return null;
+	}
+	$num = '(\d{1,2}(?:[.,]\d{1,2})?)';
+	if (preg_match('/(\d{1,3})\s*(?:Tage|Tagen|Tg\.?|T\.)\D{0,40}?'.$num.'\s*%/iu', $label, $m)) {
+		return ['days' => (int) $m[1], 'percent' => (float) str_replace(',', '.', $m[2])];
+	}
+	if (preg_match('/'.$num.'\s*%\D{0,40}?(\d{1,3})\s*(?:Tage|Tagen|Tg\.?|T\.)/iu', $label, $m)) {
+		return ['days' => (int) $m[2], 'percent' => (float) str_replace(',', '.', $m[1])];
+	}
+	return null;
 }
 
 /**

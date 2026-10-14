@@ -94,12 +94,16 @@ deutschen Recht nur für Sonderfälle (z. B. § 12 Abs. 3 UStG Photovoltaik);
 derzeit nicht abgebildet. `L`/`M` (Kanaren/Ceuta): außerhalb des
 Anwendungsbereichs.
 
-### Sicherheitseinbehalt, strukturiertes Skonto (BT-20/SKONTO)
-**Verhalten: nur Freitext.**
-Skontobedingungen werden über die Notiz AAB geführt (in Deutschland
-optional, in den Moduleinstellungen hinterlegbar). Die strukturierte
-SKONTO-Syntax ist eine Konvention des ZUGFeRD-Profils EXTENDED bzw. von
-XRechnung und gehört nicht zum hier erzeugten Profil EN16931.
+### Skonto (BT-20)
+**Verhalten: je Zahlungsbedingung, bis zu zwei Stufen.**
+Skonto wird in den Moduleinstellungen je Zahlungsbedingung hinterlegt und in
+BT-20 im KoSIT-Format `#SKONTO#TAGE=n#PROZENT=n.nn#` ausgegeben (XRechnung
+und ZUGFeRD). Nicht abgebildet: Skonto auf einen Teilbetrag (`BASISBETRAG`),
+Skonto je Rechnung oder je Kunde abweichend von der Zahlungsbedingung, und
+die Skonto-Zeilen in Gutschriften. Die Tage zählen ab Rechnungsdatum.
+
+### Sicherheitseinbehalt
+**Verhalten: nicht abgebildet.**
 
 ## Übermittlung
 
@@ -110,9 +114,11 @@ XML-Datei** (`{Rechnung}-XRECHNUNG.xml`, Syntax CII). Noch nicht enthalten:
 - ZUGFeRD-PDF im **Profil XRECHNUNG** (XRechnung-XML in der PDF eingebettet):
   die eingebettete Bibliothek kennt dieses Profil nicht; die PDF bleibt
   ZUGFeRD EN16931. Für die OZG-RE des Bundes die XML-Datei verwenden.
-- **Skonto** in der XRechnung-Syntax (`#SKONTO#TAGE=…#PROZENT=…#`, BT-20).
 - Die Variante **UBL** und die **XRechnung-Extension**.
-- Der Versand (OZG-RE-Upload, E-Mail-Kanal, Peppol) bleibt Handarbeit.
+- Versand: an die OZG-RE des Bundes per E-Mail-Kanal aus der Rechnung heraus
+  (Einreichungsadresse in den Moduleinstellungen). Nicht abgebildet: Peppol,
+  Landesportale mit eigenen Kanälen, der Webservice des Bundes (laut Bund
+  nicht für kommerzielle Nutzung) und das Abholen des Bearbeitungsstatus.
 
 Die interne Prüfung deckt die „fatal“-Regeln BR-DE-1 bis -9, -14 bis -16,
 -18, -23, -31 und PEPPOL-EN16931-R001/R010/R020 ab. Verbindlich ist der

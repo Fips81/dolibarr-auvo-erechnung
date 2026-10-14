@@ -295,6 +295,14 @@ AuvoERechnungRuleDE31 = direct debit without debited account (BT-91)
 AuvoERechnungRuleDE16 = neither seller VAT ID (BT-31) nor tax number (BT-32)
 AuvoERechnungRuleDE14 = VAT rate (BT-119) missing for category %s
 AuvoERechnungRuleDE18 = discount line "%s" does not match #SKONTO#TAGE=n#PROZENT=n.nn#
+AuvoERechnungRuleDE18Newline = the last discount line in BT-20 must be followed by a line break
+AuvoERechnungSecSkonto = Early payment discount (Skonto)
+AuvoERechnungSkontoInfo = Early payment discount per payment term, up to two levels (days from invoice date and percent). The module writes it to BT-20 in the KoSIT format #SKONTO#TAGE=7#PROZENT=2.00#, in XRechnung and in the ZUGFeRD XML. Credit notes get no discount. Empty = no discount.
+AuvoERechnungSkontoNetDays = net %s days
+AuvoERechnungSkontoGuess = Suggestion from the label: %s days, %s %% (enter and save to apply)
+AuvoERechnungSkontoAfterDue = Warning: discount period of %s days is not before the due date (%s days). Please check the payment term in Setup > Dictionaries.
+AuvoERechnungSkontoDays = days
+AuvoERechnungSkontoInvalid = Discount for "%s" not saved: enter 1–365 days and a percentage above 0 and below 100.
 AuvoERechnungSecXRechnung = XRechnung
 AuvoERechnungXrVersion = XRechnung version
 AuvoERechnungXrVersionHint = KoSIT specification version used for the BT-24 identifier, e.g. 3.0. Only change when a new version applies.
@@ -311,3 +319,18 @@ AuvoERechnungDiagXrPhoneMissing = No contact phone number (neither in the setup 
 AuvoERechnungDiagXrEmailMissing = No company e-mail address: mandatory for every XRechnung (BT-34)
 AuvoERechnungDiagXrVersion = Identifier %s
 AuvoERechnungDiagXrCustomers = %s customer(s) automatically receive an XRechnung (Leitweg-ID or format "XRechnung")
+AuvoERechnungBtnOzgRe = Send XRechnung to OZG-RE
+AuvoERechnungOzgReEmail = OZG-RE: submission address
+AuvoERechnungOzgReEmailHint = Personal e-mail address of your OZG-RE account (OZG-RE start page, "Extern erstellte XRechnung via E-Mail senden", "E-Mail-Adresse in Zwischenablage kopieren"). Enables "Send XRechnung to OZG-RE" on the invoice. Empty = no sending from Dolibarr.
+AuvoERechnungOzgReConfirm = Send the XRechnung of invoice %s to the OZG-RE now?<br>Recipient: %s<br>Leitweg-ID: %s<br>The XRechnung is regenerated and checked first.
+AuvoERechnungOzgReNoLeitwegId = The customer has no Leitweg-ID. Without it the OZG-RE cannot route the invoice.
+AuvoERechnungOzgReAlreadySent = This invoice has already been sent to the OZG-RE. Sending it again may create a duplicate at the recipient.
+AuvoERechnungOzgReNoAddress = No valid OZG-RE submission address set in the module setup.
+AuvoERechnungOzgReMailsDisabled = E-mail sending is disabled in Dolibarr (MAIN_DISABLE_ALL_MAILS).
+AuvoERechnungOzgReNotSent = The XRechnung was not sent to the OZG-RE.
+AuvoERechnungOzgReTooLarge = The XRechnung is larger than 10 MB; the OZG-RE accepts at most 10 MB by e-mail. Please upload it in the OZG-RE web interface.
+AuvoERechnungOzgReMailBody = XRechnung %s
+AuvoERechnungOzgReEvent = XRechnung %s sent to OZG-RE
+AuvoERechnungOzgReSent = XRechnung %s sent to the OZG-RE. Check "Status eingereichter Rechnungen" in the OZG-RE to see whether it was accepted.
+AuvoERechnungDiagOzgReOn = Sending to OZG-RE configured (sender %s; this address must be able to send mail)
+AuvoERechnungDiagOzgReOff = No OZG-RE submission address set: XRechnungen have to be uploaded to the OZG-RE manually

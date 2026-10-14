@@ -493,12 +493,21 @@ function auvoerechnung_validate_business_rules($xml)
 				$violations[] = auvoerechnung_rule_msg('BR-DE-14', 'AuvoERechnungRuleDE14', $str('ram:CategoryCode', $tax));
 			}
 		}
-		// BR-DE-18 : lignes Skonto de BT-20 conformes à la syntaxe KoSIT
+		// BR-DE-18 : lignes Skonto de BT-20 conformes à la syntaxe KoSIT, et
+		// saut de ligne obligatoire après la dernière ligne Skonto
 		foreach ($xp->query('//ram:SpecifiedTradePaymentTerms/ram:Description') as $desc) {
+			$hasSkonto = false;
 			foreach (preg_split('/\r?\n/', $desc->textContent) as $l) {
-				if (strpos($l, '#') === 0 && !preg_match('/^#SKONTO#TAGE=[0-9]+#PROZENT=[0-9]+\.[0-9]{2}(#BASISBETRAG=-?[0-9]+\.[0-9]{2})?#$/', trim($l))) {
-					$violations[] = auvoerechnung_rule_msg('BR-DE-18', 'AuvoERechnungRuleDE18', trim($l));
+				if (strpos(trim($l), '#') === 0) {
+					$hasSkonto = true;
+					if (!preg_match('/^#SKONTO#TAGE=[0-9]+#PROZENT=[0-9]+\.[0-9]{2}(#BASISBETRAG=-?[0-9]+\.[0-9]{2})?#$/', trim($l))) {
+						$violations[] = auvoerechnung_rule_msg('BR-DE-18', 'AuvoERechnungRuleDE18', trim($l));
+					}
 				}
+			}
+			$parts = preg_split('/#.+#/', $desc->textContent);
+			if ($hasSkonto && !preg_match('/^\s*\n/', (string) end($parts))) {
+				$violations[] = auvoerechnung_rule_msg('BR-DE-18', 'AuvoERechnungRuleDE18Newline');
 			}
 		}
 	}

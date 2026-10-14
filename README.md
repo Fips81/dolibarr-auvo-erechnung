@@ -53,7 +53,7 @@ Das Modul arbeitet mit den **aktuellen Fassungen** der deutschen und französisc
    - Standard-Zahlungsart (30 Überweisung, 58 SEPA-Überweisung, 59 SEPA-Lastschrift, 49 Lastschrift)
    - Für XRechnung: Ansprechpartner, Telefon, E-Mail (leer = Ersteller der Rechnung)
    - Fehlerbehandlungsmodus (best-effort / strikt), Prüfung der Geschäftsregeln
-   - Optional: Pflichthinweise (Verzug, Mahnpauschale, Skonto), Pfad zur PHP-CLI, Pfad zu veraPDF; Chorus Pro nur für Verkäufer in Frankreich
+   - Optional: Skonto je Zahlungsbedingung, Pflichthinweise (Verzug, Mahnpauschale, Skonto), Pfad zur PHP-CLI, Pfad zu veraPDF; Chorus Pro nur für Verkäufer in Frankreich
 
    Kennungen wie Steuernummer, USt-IdNr. und Handelsregisternummer kommen aus den Firmendaten (**Start > Einstellungen > Firma oder Institution**), die Soll-/Ist-Versteuerung (BT-8) aus den Steuereinstellungen von Dolibarr. Dafür gibt es keine eigenen Moduleinstellungen.
 5. Eine **eingebettete Schriftart** im Selektor **„Schriftart der erzeugten PDF"** der Modulkonfiguration wählen (`pdfahelvetica` standardmäßig, mit ✓ markiert)
@@ -203,7 +203,8 @@ Für öffentliche Auftraggeber in Deutschland (und Firmenkunden, die es verlange
 - **Pflichtangaben:** Ansprechpartner mit Telefon und E-Mail (Moduleinstellungen, Block „XRechnung“; leer = Ersteller der Rechnung), E-Mail der Firma, PLZ/Ort von Firma und Kunde, IBAN bei Überweisung, Leitweg-ID oder „Ihr Zeichen“ der Rechnung. Fehlt etwas, erscheint beim Erzeugen der PDF eine Liste der fehlenden Angaben, und es wird keine XRechnung geschrieben.
 - **Wenn vom Auftraggeber mitgeteilt** (§ 5 E-RechV): die **Bestellnummer** in „Ihr Zeichen“ (am Auftrag oder an der Rechnung) und die **Lieferantennummer** im Feld **„Unsere Lieferantennummer beim Kunden“** am Geschäftspartner (BT-29).
 - **Bedienung:** Im Menü **ZUGFeRD ▾** auf der Rechnung gibt es **„XRechnung erzeugen“** (auch für Kunden ohne Leitweg-ID, für einzelne Rechnungen) und, sobald die Datei existiert, **„XRechnung herunterladen“**. Die Datei liegt außerdem bei den Dokumenten der Rechnung. Die **Diagnose** auf der Einstellungsseite zeigt, ob die Firmendaten für XRechnung reichen und wie viele Kunden automatisch eine XRechnung erhalten.
-- **Bund (OZG-RE):** Die Datei über die Weboberfläche hochladen oder über den freigeschalteten E-Mail-Kanal senden (eine Rechnung pro E-Mail, von der bei der OZG-RE hinterlegten Absenderadresse). Keine zusätzliche PDF-Kopie schicken.
+- **Bund (OZG-RE):** Mit der persönlichen Einreichungsadresse des OZG-RE-Kontos in den Moduleinstellungen (Block „XRechnung“; zu finden in der OZG-RE unter „Extern erstellte XRechnung via E-Mail senden“) gibt es auf der Rechnung **„XRechnung an OZG-RE senden“**. Das Modul erzeugt und prüft die XRechnung neu, fragt nach (Empfänger, Leitweg-ID, Hinweis bei erneutem Versand) und schickt genau diese eine Datei über den Mailversand von Dolibarr, wie es die OZG-RE verlangt (eine XRechnung pro E-Mail, höchstens 10 MB, keine weiteren Anhänge). Der Versand erscheint wie ein normaler Rechnungsversand in den Ereignissen der Rechnung. Ob die OZG-RE die Rechnung angenommen hat, zeigt sie unter „Status eingereichter Rechnungen“. Ohne Einreichungsadresse: Datei in der Weboberfläche der OZG-RE hochladen. Keine zusätzliche PDF-Kopie schicken. Voraussetzung ist ein (kostenloses) Konto bei der OZG-RE und eine Leitweg-ID beim Kunden.
+- **Skonto:** In den Moduleinstellungen (Block „Skonto“) lassen sich je Zahlungsbedingung bis zu zwei Skontostufen eintragen, z. B. 7 Tage 2 %. Das Modul schreibt sie in BT-20 im vorgeschriebenen Format `#SKONTO#TAGE=7#PROZENT=2.00#` (BR-DE-18), hinter den Text der Zahlungsbedingung, in der XRechnung und im ZUGFeRD-XML. Steht „Skonto“ in der Bezeichnung einer Zahlungsbedingung, zeigt die Einstellungsseite einen Vorschlag an.
 - **Aktualität:** Die KoSIT veröffentlicht zum 01.02. und 01.07. Die Version der Kennung (Standard `3.0`) ist in den Moduleinstellungen einstellbar.
 
 Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrechnung).
@@ -219,6 +220,7 @@ Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrech
 | BT-9 Due date | `$invoice->date_lim_reglement` |
 | BT-10 Buyer reference | Leitweg-ID des Kunden, falls eingetragen; sonst „Ihr Zeichen“ der Rechnung (`ref_client`); Chorus-Profil: Service-Code |
 | BT-13 Order reference | „Ihr Zeichen“ (Kunden-BestellNr.) des verknüpften Kundenauftrags; hat der Kunde eine Leitweg-ID, ersatzweise „Ihr Zeichen“ der Rechnung; Chorus-Profil: Verpflichtungsnummer |
+| BT-20 Payment terms | Nur bei konfiguriertem Skonto: Text der Zahlungsbedingung und Skonto-Zeilen `#SKONTO#TAGE=n#PROZENT=n.nn#` (nicht bei Gutschriften) |
 | BT-23 Business process | Verkäufer in Frankreich: Rechnungsstellungsrahmen `B1`/`S1`/`M1` (`B4`/`S4`/`M4` bei Schlussrechnung), Chorus-Profil `A1`–`A25` pro Rechnung; XRechnung: `urn:fdc:peppol.eu:2017:poacc:billing:01:1.0`; sonst weggelassen |
 | BT-24 Specification | `urn:cen.eu:en16931:2017`; XRechnung: `urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0` |
 | BT-25/BG-3 Preceding invoice | `fk_facture_source` (Gutschrift/Korrektur) + verrechnete Anzahlungen |
@@ -358,6 +360,8 @@ Alle sind über den Administrationsbildschirm des Moduls konfigurierbar (**Start
 | `AUVOERECHNUNG_CONTACT_NAME` | string | *(leer)* | XRechnung: Ansprechpartner (BT-41); leer = Ersteller der Rechnung |
 | `AUVOERECHNUNG_CONTACT_PHONE` | string | *(leer)* | XRechnung: Telefon (BT-42); leer = Ersteller der Rechnung, sonst Firma |
 | `AUVOERECHNUNG_CONTACT_EMAIL` | string | *(leer)* | XRechnung: E-Mail (BT-43); leer = Ersteller der Rechnung, sonst Firma |
+| `AUVOERECHNUNG_OZGRE_EMAIL` | string | *(leer)* | XRechnung: persönliche Einreichungsadresse des OZG-RE-Kontos; aktiviert „XRechnung an OZG-RE senden“ |
+| `AUVOERECHNUNG_SKONTO` | JSON | *(leer)* | Skonto je Zahlungsbedingung (Code aus dem Wörterbuch), z. B. `{"7D":[{"days":7,"percent":2}]}`; wird über die Einstellungsseite gepflegt |
 
 > **Hinweis PHP CLI**: relevant, sobald der **Subprozess** genutzt wird, also im Standardmodus `auto` mit verfügbarem `exec()` und im Modus `subprocess`. Das Modul erkennt das richtige PHP-CLI-Binary automatisch. Auf Servern mit mehreren PHP-Versionen, oder wenn die Auto-Erkennung fehlschlägt, `AUVOERECHNUNG_PHP_CLI_PATH` mit dem vollständigen Pfad konfigurieren (z. B. `/usr/bin/php8.2`). **Nicht** `PHP_BINARY` verwenden: im php-fpm-Kontext zeigt diese Konstante auf das fpm-Binary, nicht auf die CLI.
 
@@ -509,6 +513,15 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 ## Changelog
 
 > Hinweis: Das Modul hieß früher LemonFacturX, AuvoZugferd und DoliZUGFeRD. In älteren Einträgen sind Klassen-, Konstanten-, Datei- und Repo-Namen an die heutigen Namen (`auvoerechnung`, `AUVOERECHNUNG_*`) angepasst.
+
+### 5.2.0 — Skonto und Versand an die OZG-RE (noch nicht veröffentlicht)
+
+- **Versand an die OZG-RE:** Neue Einstellung „OZG-RE: Einreichungsadresse“ und Menüpunkt „XRechnung an OZG-RE senden“ auf der Rechnung. Die XRechnung wird vor dem Versand neu erzeugt und geprüft, nach Rückfrage über den Mailversand von Dolibarr verschickt (genau eine Datei, höchstens 10 MB) und in den Ereignissen der Rechnung festgehalten. Ohne Leitweg-ID beim Kunden wird nicht gesendet; ein erneuter Versand wird in der Rückfrage angezeigt.
+
+- **Skonto:** Neuer Block „Skonto“ in den Moduleinstellungen. Je Zahlungsbedingung bis zu zwei Stufen (Tage, Prozent); Ausgabe in BT-20 im KoSIT-Format `#SKONTO#TAGE=7#PROZENT=2.00#` mit abschließendem Zeilenumbruch, in XRechnung und ZUGFeRD. Gutschriften erhalten kein Skonto. Vorschlag aus der Bezeichnung der Zahlungsbedingung, Warnung, wenn die Skontofrist nicht vor dem Zahlungsziel liegt.
+- **Interne Prüfung BR-DE-18:** prüft jetzt auch den Zeilenumbruch nach der letzten Skonto-Zeile, wie der KoSIT-Validator.
+- **CI:** Das Prüfskript erkennt die Ablehnung durch den KoSIT-Validator 1.6 jetzt direkt am Ergebnis (`reject`), nicht nur an den einzelnen Fehlermeldungen. GitHub Actions auf Node 24.
+- Kein erneutes Aktivieren des Moduls nötig.
 
 ### 5.1.1 — PDF/A-Korrektur und Dokumentation (Oktober 2026)
 

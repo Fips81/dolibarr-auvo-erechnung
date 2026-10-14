@@ -102,6 +102,8 @@ class modAuvoERechnung extends DolibarrModules
 			array('AUVOERECHNUNG_CONTACT_NAME', 'chaine', '', 'XRechnung: Ansprechpartner (BT-41); leer = Ersteller der Rechnung', 1, 'current', 0),
 			array('AUVOERECHNUNG_CONTACT_PHONE', 'chaine', '', 'XRechnung: Telefon des Ansprechpartners (BT-42); leer = Ersteller, sonst Firma', 1, 'current', 0),
 			array('AUVOERECHNUNG_CONTACT_EMAIL', 'chaine', '', 'XRechnung: E-Mail des Ansprechpartners (BT-43); leer = Ersteller, sonst Firma', 1, 'current', 0),
+			array('AUVOERECHNUNG_OZGRE_EMAIL', 'chaine', '', 'XRechnung: persönliche Einreichungsadresse des OZG-RE-Kontos (E-Mail-Kanal); leer = kein Versand', 1, 'current', 0),
+			array('AUVOERECHNUNG_SKONTO', 'chaine', '', 'Skonto je Zahlungsbedingung (JSON, BT-20 #SKONTO#); Einstellung auf der Modulseite', 1, 'current', 0),
 			array('AUVOERECHNUNG_CHORUS_ENABLED', 'int', '0', 'Chorus-Pro-Funktionen aktivieren (Reiter, Menü, 2. PDF; nur Frankreich) — opt-in', 1, 'current', 0),
 		);
 

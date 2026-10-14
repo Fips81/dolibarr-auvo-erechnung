@@ -106,6 +106,8 @@ class LfxFakeInvoice
 	public $id = 0;
 	public $ref = 'TEST';
 	public $ref_client = '';
+	public $cond_reglement_code = '';
+	public $cond_reglement_doc = '';
 	public $type = 0;
 	public $date;
 	public $date_lim_reglement = null;

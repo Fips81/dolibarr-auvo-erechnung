@@ -41,6 +41,16 @@ auvoerechnung_fix_chorus_extrafields_display($db);
 
 $action = GETPOST('action', 'aZ09');
 
+// Conditions de règlement actives (dictionnaire c_payment_term), pour la
+// configuration des paliers Skonto.
+$paymentTerms = [];
+$resql = $db->query("SELECT rowid, code, libelle, libelle_facture, type_cdr, nbjour FROM ".MAIN_DB_PREFIX."c_payment_term WHERE active = 1 AND entity IN (".getEntity('c_payment_term').") ORDER BY sortorder, rowid");
+if ($resql) {
+	while ($obj = $db->fetch_object($resql)) {
+		$paymentTerms[$obj->code] = $obj;
+	}
+}
+
 // Les valeurs par défaut des mentions légales BR-FR sont définies dans la lib
 // (AUVOERECHNUNG_DEFAULT_NOTE_*) pour rester synchronisées avec le builder XML.
 
@@ -71,12 +81,34 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		['AUVOERECHNUNG_CONTACT_NAME', trim(GETPOST('AUVOERECHNUNG_CONTACT_NAME', 'alphanohtml')), 'chaine'],
 		['AUVOERECHNUNG_CONTACT_PHONE', trim(GETPOST('AUVOERECHNUNG_CONTACT_PHONE', 'alphanohtml')), 'chaine'],
 		['AUVOERECHNUNG_CONTACT_EMAIL', trim(GETPOST('AUVOERECHNUNG_CONTACT_EMAIL', 'email')), 'chaine'],
+		['AUVOERECHNUNG_OZGRE_EMAIL', isValidEmail(trim(GETPOST('AUVOERECHNUNG_OZGRE_EMAIL', 'email'))) ? trim(GETPOST('AUVOERECHNUNG_OZGRE_EMAIL', 'email')) : '', 'chaine'],
 		['AUVOERECHNUNG_NOTE_PMD',     trim(GETPOST('AUVOERECHNUNG_NOTE_PMD', 'restricthtml')),    'chaine'],
 		['AUVOERECHNUNG_NOTE_PMT',     trim(GETPOST('AUVOERECHNUNG_NOTE_PMT', 'restricthtml')),    'chaine'],
 		['AUVOERECHNUNG_NOTE_AAB',     trim(GETPOST('AUVOERECHNUNG_NOTE_AAB', 'restricthtml')),    'chaine'],
 		['AUVOERECHNUNG_NOTES_IN_FOOTER', GETPOSTINT('AUVOERECHNUNG_NOTES_IN_FOOTER'), 'int'],
 		['AUVOERECHNUNG_NOTES_OVERWRITE', GETPOSTINT('AUVOERECHNUNG_NOTES_OVERWRITE'), 'int'],
 	];
+	// Paliers Skonto par condition de règlement (2 maximum), stockés en JSON.
+	// Une ligne incomplète ou hors bornes est ignorée avec un avertissement.
+	$skonto = [];
+	$skontoDays = GETPOST('skonto_days', 'array');
+	$skontoPct = GETPOST('skonto_pct', 'array');
+	foreach ($paymentTerms as $ptCode => $pt) {
+		for ($i = 0; $i < 2; $i++) {
+			$d = trim((string) ($skontoDays[$ptCode][$i] ?? ''));
+			$p = str_replace(',', '.', trim((string) ($skontoPct[$ptCode][$i] ?? '')));
+			if ($d === '' && $p === '') {
+				continue;
+			}
+			if (!preg_match('/^\d{1,3}$/', $d) || (int) $d < 1 || (int) $d > 365 || !is_numeric($p) || (float) $p <= 0 || (float) $p >= 100) {
+				setEventMessages($langs->trans('AuvoERechnungSkontoInvalid', $pt->libelle), null, 'warnings');
+				continue;
+			}
+			$skonto[$ptCode][] = ['days' => (int) $d, 'percent' => round((float) $p, 2)];
+		}
+	}
+	$updates[] = ['AUVOERECHNUNG_SKONTO', empty($skonto) ? '' : json_encode($skonto), 'chaine'];
+
 	// Le bloc PA (suffixe d'endpoint BT-34) n'est affiché que pour un vendeur
 	// FR : ne pas écraser la valeur enregistrée quand le champ est absent du POST.
 	if (GETPOSTISSET('AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER')) {
@@ -229,6 +261,44 @@ foreach ([
 }
 print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungXrVersion").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungXrVersionHint").'</span></td><td>';
 print '<input type="text" name="AUVOERECHNUNG_XRECHNUNG_VERSION" class="flat width75" value="'.dol_escape_htmltag(getDolGlobalString('AUVOERECHNUNG_XRECHNUNG_VERSION', '3.0')).'"></td></tr>';
+// Adresse e-mail individuelle du compte OZG-RE (canal e-mail de la plateforme
+// du Bund) : active l'entrée « XRechnung an OZG-RE senden » de la fiche facture.
+print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungOzgReEmail").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungOzgReEmailHint").'</span></td><td>';
+print '<input type="text" name="AUVOERECHNUNG_OZGRE_EMAIL" class="flat minwidth300" value="'.dol_escape_htmltag(getDolGlobalString('AUVOERECHNUNG_OZGRE_EMAIL', '')).'"></td></tr>';
+
+// ---- Bloc 2c : Skonto (escompte) par condition de règlement ----
+// Émis en BT-20 au format KoSIT #SKONTO#TAGE=n#PROZENT=n.nn# (BR-DE-18), dans
+// la XRechnung comme dans le ZUGFeRD. Le libellé de la condition n'est
+// qu'une suggestion (placeholder) : rien n'est appliqué sans saisie.
+print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("AuvoERechnungSecSkonto").'</td></tr>';
+print '<tr class="oddeven"><td colspan="2"><span class="opacitymedium small">'.$langs->trans("AuvoERechnungSkontoInfo").'</span></td></tr>';
+foreach ($paymentTerms as $ptCode => $pt) {
+	$ptLabel = $langs->trans('PaymentConditionShort'.$ptCode) !== 'PaymentConditionShort'.$ptCode ? $langs->trans('PaymentConditionShort'.$ptCode) : $pt->libelle;
+	$terms = auvoerechnung_get_skonto_terms($ptCode);
+	$guess = empty($terms) ? auvoerechnung_guess_skonto($pt->libelle.' '.$pt->libelle_facture) : null;
+	print '<tr class="oddeven"><td>'.dol_escape_htmltag($ptLabel);
+	if ((int) $pt->nbjour > 0) {
+		print ' <span class="opacitymedium small">('.$langs->trans('AuvoERechnungSkontoNetDays', (int) $pt->nbjour).')</span>';
+	}
+	if ($guess) {
+		print '<br><span class="opacitymedium small">'.$langs->trans('AuvoERechnungSkontoGuess', $guess['days'], price($guess['percent'])).'</span>';
+	}
+	foreach ($terms as $t) {
+		if ((int) $pt->type_cdr === 0 && (int) $pt->nbjour > 1 && $t['days'] >= (int) $pt->nbjour) {
+			print '<br><span class="warning small">'.$langs->trans('AuvoERechnungSkontoAfterDue', $t['days'], (int) $pt->nbjour).'</span>';
+		}
+	}
+	print '</td><td class="nowraponall">';
+	for ($i = 0; $i < 2; $i++) {
+		$t = $terms[$i] ?? null;
+		$phDays = ($i === 0 && $guess) ? ' placeholder="'.$guess['days'].'"' : '';
+		$phPct = ($i === 0 && $guess) ? ' placeholder="'.dol_escape_htmltag(price($guess['percent'])).'"' : '';
+		print '<input type="text" name="skonto_days['.dol_escape_htmltag($ptCode).']['.$i.']" class="flat width50 right" value="'.($t ? $t['days'] : '').'"'.$phDays.'> '.$langs->trans('AuvoERechnungSkontoDays').' ';
+		print '<input type="text" name="skonto_pct['.dol_escape_htmltag($ptCode).']['.$i.']" class="flat width50 right" value="'.($t ? dol_escape_htmltag(price($t['percent'])) : '').'"'.$phPct.'> %';
+		print $i === 0 ? ' &nbsp; &nbsp; ' : '';
+	}
+	print '</td></tr>';
+}
 
 // ---- Bloc 3 : Secteur public (Chorus Pro) ----
 print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("AuvoERechnungSecPublic").'</td></tr>';
@@ -532,6 +602,11 @@ if (strtoupper((string) ($mysoc->country_code ?? '')) === 'DE') {
 	$resXr = $db->query($sqlXr);
 	$nbXr = ($resXr && ($o = $db->fetch_object($resXr))) ? (int) $o->nb : 0;
 	$diagOk[] = $xrPrefix.$langs->trans("AuvoERechnungDiagXrCustomers", $nbXr);
+	if (getDolGlobalString('AUVOERECHNUNG_OZGRE_EMAIL') !== '') {
+		$diagOk[] = $xrPrefix.$langs->trans("AuvoERechnungDiagOzgReOn", dol_escape_htmltag(getDolGlobalString('MAIN_MAIL_EMAIL_FROM', getDolGlobalString('MAIN_INFO_SOCIETE_MAIL'))));
+	} elseif ($nbXr > 0) {
+		$diagWarnings[] = ['msg' => $xrPrefix.$langs->trans("AuvoERechnungDiagOzgReOff")];
+	}
 }
 
 print '<table class="noborder centpercent">';

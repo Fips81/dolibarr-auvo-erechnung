@@ -676,6 +676,11 @@ class ActionsAuvoERechnung
 			// XRechnung à la demande : aussi pour un client sans Leitweg-ID ni
 			// format choisi (envoi ponctuel à un destinataire qui l'exige).
 			$items[] = array('href' => $url.'&action=auvoerechnung_xrechnung', 'label' => $langs->trans('AuvoERechnungBtnXRechnung'));
+			// Envoi à l'OZG-RE (canal e-mail) : seulement si l'adresse du compte
+			// OZG-RE est configurée ; confirmation via le hook formConfirm.
+			if (getDolGlobalString('AUVOERECHNUNG_OZGRE_EMAIL') !== '' && $this->userCanSend($user)) {
+				$items[] = array('href' => $url.'&action=auvoerechnung_ozgre', 'label' => $langs->trans('AuvoERechnungBtnOzgRe'));
+			}
 		}
 		if ($canRead) {
 			$xrFile = auvoerechnung_xrechnung_path($object->ref, (int) ($object->entity ?? 1));
@@ -707,7 +712,7 @@ class ActionsAuvoERechnung
 		if (!in_array('invoicecard', $contexts, true)) {
 			return 0;
 		}
-		if (!in_array($action, ['auvoerechnung_verify', 'auvoerechnung_regenerate', 'auvoerechnung_generatechorus', 'auvoerechnung_xrechnung'], true)) {
+		if (!in_array($action, ['auvoerechnung_verify', 'auvoerechnung_regenerate', 'auvoerechnung_generatechorus', 'auvoerechnung_xrechnung', 'auvoerechnung_confirm_ozgre'], true)) {
 			return 0;
 		}
 		if (!is_object($object) || !($object instanceof Facture) || empty($object->id)) {
@@ -762,6 +767,18 @@ class ActionsAuvoERechnung
 			return 0;
 		}
 
+		if ($action === 'auvoerechnung_confirm_ozgre') {
+			if (GETPOST('confirm', 'alpha') === 'yes') {
+				if (!$this->userCanSend($user)) {
+					setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+				} else {
+					$this->sendXRechnungToOzgRe($object);
+				}
+			}
+			$action = '';
+			return 0;
+		}
+
 		if ($action === 'auvoerechnung_generatechorus') {
 			if (!$this->userCanWrite($user)) {
 				setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
@@ -779,6 +796,171 @@ class ActionsAuvoERechnung
 		}
 		$this->verifyInvoicePdf($object);
 		$action = '';
+		return 0;
+	}
+
+	/**
+	 * Hook formConfirm — contexte invoicecard.
+	 * Demande confirmation avant l'envoi de la XRechnung à l'OZG-RE, en
+	 * rappelant le destinataire et la Leitweg-ID de la facture.
+	 */
+	public function formConfirm($parameters, &$object, &$action, $hookmanager)
+	{
+		global $langs, $user;
+
+		$contexts = explode(':', $parameters['context'] ?? '');
+		if ($action !== 'auvoerechnung_ozgre' || !in_array('invoicecard', $contexts, true) || !($object instanceof Facture)) {
+			return 0;
+		}
+		if (!$this->userCanSend($user)) {
+			return 0;
+		}
+		$langs->loadLangs(['auvoerechnung@auvoerechnung']);
+		require_once dirname(__DIR__).'/core/lib/auvoerechnung.lib.php';
+		if (empty($object->thirdparty) || !is_object($object->thirdparty)) {
+			$object->fetch_thirdparty();
+		}
+		if (is_object($object->thirdparty) && empty($object->thirdparty->array_options) && method_exists($object->thirdparty, 'fetch_optionals')) {
+			$object->thirdparty->fetch_optionals();
+		}
+		$leitwegId = trim((string) ($object->thirdparty->array_options['options_lfxleitwegid'] ?? ''));
+		$question = $langs->trans('AuvoERechnungOzgReConfirm', $object->ref, getDolGlobalString('AUVOERECHNUNG_OZGRE_EMAIL'), $leitwegId !== '' ? $leitwegId : '—');
+		if ($leitwegId === '') {
+			$question .= '<br><span class="warning">'.$langs->trans('AuvoERechnungOzgReNoLeitwegId').'</span>';
+		}
+		if ($this->countOzgReSendings($object) > 0) {
+			$question .= '<br><span class="warning">'.$langs->trans('AuvoERechnungOzgReAlreadySent').'</span>';
+		}
+		$form = new Form($this->db);
+		$this->resPrint = $form->formconfirm($_SERVER['PHP_SELF'].'?facid='.((int) $object->id), $langs->trans('AuvoERechnungBtnOzgRe'), $question, 'auvoerechnung_confirm_ozgre', '', 'yes', 1);
+		return 0;
+	}
+
+	/**
+	 * Envoie la XRechnung de la facture à l'OZG-RE du Bund par e-mail.
+	 *
+	 * Canal e-mail de l'OZG-RE (Leitfaden Rechnungsversender, Bundesdruckerei) :
+	 * adresse individuelle propre au compte OZG-RE du fournisseur, exactement
+	 * UNE XRechnung par e-mail, 10 Mo maximum, aucune autre pièce jointe ; objet
+	 * et corps ne sont pas exploités. La XRechnung est régénérée juste avant
+	 * l'envoi : on n'envoie jamais un fichier périmé ou non conforme.
+	 * L'envoi est tracé comme un envoi de facture par e-mail du cœur
+	 * (trigger BILL_SENTBYMAIL → événement agenda, compteur d'envois).
+	 *
+	 * @param Facture $invoice
+	 * @return bool
+	 */
+	protected function sendXRechnungToOzgRe($invoice)
+	{
+		global $conf, $langs, $mysoc, $user;
+
+		$modulePath = dirname(__DIR__);
+		require_once $modulePath.'/core/lib/auvoerechnung.lib.php';
+		require_once $modulePath.'/core/lib/auvoerechnung_rules.php';
+		require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
+		$langs->loadLangs(['mails', 'auvoerechnung@auvoerechnung']);
+
+		$to = getDolGlobalString('AUVOERECHNUNG_OZGRE_EMAIL');
+		if ($to === '' || !isValidEmail($to)) {
+			setEventMessages($langs->trans('AuvoERechnungOzgReNoAddress'), null, 'errors');
+			return false;
+		}
+		if (getDolGlobalInt('MAIN_DISABLE_ALL_MAILS')) {
+			setEventMessages($langs->trans('AuvoERechnungOzgReMailsDisabled'), null, 'errors');
+			return false;
+		}
+		if (empty($invoice->thirdparty) || !is_object($invoice->thirdparty)) {
+			$invoice->fetch_thirdparty();
+		}
+		if (is_object($invoice->thirdparty) && empty($invoice->thirdparty->array_options) && method_exists($invoice->thirdparty, 'fetch_optionals')) {
+			$invoice->thirdparty->fetch_optionals();
+		}
+		if (empty($invoice->lines)) {
+			$invoice->fetch_lines();
+		}
+		// La plateforme route la facture sur la Leitweg-ID (BT-10) : sans elle,
+		// l'OZG-RE ne peut pas l'attribuer.
+		if (trim((string) ($invoice->thirdparty->array_options['options_lfxleitwegid'] ?? '')) === '') {
+			setEventMessages($langs->trans('AuvoERechnungOzgReNoLeitwegId'), null, 'errors');
+			return false;
+		}
+
+		$res = $this->generateXRechnungXml($invoice, $mysoc, $modulePath, true);
+		if (empty($res['ok'])) {
+			$msgs = $res['msgs'] ?? [];
+			setEventMessages($langs->trans('AuvoERechnungOzgReNotSent'), $msgs, 'errors');
+			return false;
+		}
+		$file = auvoerechnung_xrechnung_path($invoice->ref, (int) ($invoice->entity ?? $conf->entity));
+		if (!is_file($file) || filesize($file) > 10 * 1024 * 1024) {
+			setEventMessages($langs->trans('AuvoERechnungOzgReNotSent'), [$langs->trans('AuvoERechnungOzgReTooLarge')], 'errors');
+			return false;
+		}
+
+		$fromAddr = getDolGlobalString('MAIN_MAIL_EMAIL_FROM', getDolGlobalString('MAIN_INFO_SOCIETE_MAIL'));
+		$from = dol_string_nospecial($mysoc->name, ' ', array(',')).' <'.$fromAddr.'>';
+		$subject = 'XRechnung '.$invoice->ref;
+		$message = $langs->transnoentitiesnoconv('AuvoERechnungOzgReMailBody', $invoice->ref);
+		$trackid = 'inv'.((int) $invoice->id);
+		$mail = new CMailFile($subject, $to, $from, $message, [$file], ['application/xml'], [basename($file)], '', '', 0, 0, '', '', $trackid, '', 'standard');
+		if (!empty($mail->error) || !$mail->sendfile()) {
+			dol_syslog('AuVo E-Rechnung: OZG-RE sending failed for '.$invoice->ref.': '.$mail->error, LOG_ERR);
+			setEventMessages($langs->trans('AuvoERechnungOzgReNotSent'), [$mail->error], 'errors');
+			return false;
+		}
+		dol_syslog('AuVo E-Rechnung: XRechnung '.$invoice->ref.' sent to OZG-RE', LOG_INFO);
+
+		// Traçabilité identique à un envoi de facture par e-mail du cœur
+		$this->db->begin();
+		$this->db->query('UPDATE '.MAIN_DB_PREFIX.'facture SET email_sent_counter = email_sent_counter + 1 WHERE rowid = '.((int) $invoice->id));
+		$invoice->socid = $invoice->socid ?: $invoice->thirdparty->id;
+		$invoice->sendtoid = [];
+		$invoice->actiontypecode = 'AC_EMAIL';
+		$invoice->actionmsg2 = $langs->transnoentitiesnoconv('AuvoERechnungOzgReEvent', $invoice->ref);
+		$invoice->actionmsg = $langs->transnoentitiesnoconv('MailFrom').': '.dol_escape_htmltag($from)."\n".$langs->transnoentitiesnoconv('MailTo').': '.dol_escape_htmltag($to)."\n".$langs->transnoentitiesnoconv('MailTopic').': '.$subject."\n".$langs->transnoentitiesnoconv('AttachedFiles').': '.basename($file);
+		$invoice->trackid = $trackid;
+		$invoice->fk_element = $invoice->id;
+		$invoice->elementtype = $invoice->element;
+		$invoice->attachedfiles = ['paths' => [$file], 'names' => [basename($file)], 'mimes' => ['application/xml']];
+		$invoice->email_msgid = $mail->msgid;
+		$invoice->email_from = $from;
+		$invoice->email_subject = $subject;
+		$invoice->email_to = $to;
+		$invoice->context['email_msgid'] = $mail->msgid;
+		$invoice->context['email_from'] = $from;
+		$invoice->context['email_subject'] = $subject;
+		$invoice->context['email_to'] = $to;
+		$invoice->context['auvoerechnung_ozgre'] = 1;
+		if ($invoice->call_trigger('BILL_SENTBYMAIL', $user) < 0) {
+			$this->db->rollback();
+			setEventMessages($langs->trans('AuvoERechnungOzgReSent', $invoice->ref), $invoice->errors, 'warnings');
+			return true;
+		}
+		$this->db->commit();
+		setEventMessages($langs->trans('AuvoERechnungOzgReSent', $invoice->ref), null, 'mesgs');
+		return true;
+	}
+
+	/**
+	 * Nombre d'envois déjà tracés de cette facture vers l'adresse OZG-RE
+	 * configurée (événements agenda e-mail liés à la facture).
+	 *
+	 * @param Facture $invoice
+	 * @return int
+	 */
+	protected function countOzgReSendings($invoice)
+	{
+		$to = getDolGlobalString('AUVOERECHNUNG_OZGRE_EMAIL');
+		if ($to === '') {
+			return 0;
+		}
+		$sql = "SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."actioncomm";
+		$sql .= " WHERE elementtype = '".$this->db->escape($invoice->element)."' AND fk_element = ".((int) $invoice->id);
+		$sql .= " AND email_to = '".$this->db->escape($to)."'";
+		$resql = $this->db->query($sql);
+		if ($resql && ($obj = $this->db->fetch_object($resql))) {
+			return (int) $obj->nb;
+		}
 		return 0;
 	}
 
@@ -899,6 +1081,18 @@ class ActionsAuvoERechnung
 			return (bool) $user->hasRight('facture', 'creer');
 		}
 		return !empty($user->rights->facture->creer);
+	}
+
+	/**
+	 * Droit d'envoyer la facture (comme le bouton « Envoyer email » du cœur :
+	 * droit d'écriture, plus le droit avancé d'envoi si MAIN_USE_ADVANCED_PERMS).
+	 */
+	protected function userCanSend($user)
+	{
+		if (!$this->userCanWrite($user)) {
+			return false;
+		}
+		return !getDolGlobalString('MAIN_USE_ADVANCED_PERMS') || (method_exists($user, 'hasRight') && $user->hasRight('facture', 'invoice_advance', 'send'));
 	}
 
 	/**

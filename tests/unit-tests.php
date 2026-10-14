@@ -1322,6 +1322,73 @@ lfx_assert_eq('/data/facture/RE2026-0300/RE2026-0300-XRECHNUNG.xml', auvoerechnu
 echo "U40 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U41 Skonto (BT-20, format KoSIT BR-DE-18)';
+lfx_reset([
+	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
+	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
+	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
+	'AUVOERECHNUNG_SKONTO' => json_encode([
+		'7D' => [['days' => 7, 'percent' => 2]],
+		'SK2' => [['days' => 14, 'percent' => 2], ['days' => 7, 'percent' => 3.5], ['days' => 0, 'percent' => 5], ['days' => 10, 'percent' => 150]],
+	]),
+], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+lfx_assert_eq([['days' => 7, 'percent' => 3.5], ['days' => 14, 'percent' => 2.0]], auvoerechnung_get_skonto_terms('SK2'), 'paliers triés, entrées invalides ignorées');
+lfx_assert_eq([], auvoerechnung_get_skonto_terms('30D'), 'pas de Skonto sans configuration');
+lfx_assert_eq("#SKONTO#TAGE=7#PROZENT=3.50#\n#SKONTO#TAGE=14#PROZENT=2.00#\n", auvoerechnung_skonto_lines(auvoerechnung_get_skonto_terms('SK2')), 'syntaxe KoSIT, saut de ligne final');
+lfx_assert_eq(['days' => 7, 'percent' => 2.0], auvoerechnung_guess_skonto('7 Tage 2% Skonto 14 Tage netto'), 'suggestion « 7 Tage 2% Skonto »');
+lfx_assert_eq(['days' => 10, 'percent' => 2.5], auvoerechnung_guess_skonto('2,5 % Skonto bei Zahlung innerhalb von 10 Tagen'), 'suggestion « 2,5 % Skonto … 10 Tagen »');
+lfx_assert_eq(null, auvoerechnung_guess_skonto('Zahlbar innerhalb 30 Tagen'), 'pas de suggestion sans Skonto');
+
+$seller = lfx_make_party([
+	'name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen',
+	'address' => 'Hauptstr. 1', 'email' => 'rechnung@muster.example', 'phone' => '06772 99',
+	'tva_intra' => 'DE811111111', 'idprof1' => '22/180/80394', 'tva_assuj' => 1,
+]);
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-0400';
+$inv->ref_client = 'BEST-4712';
+$inv->cond_reglement_code = '7D';
+$inv->cond_reglement_doc = "Zahlbar innerhalb 14 Tagen.\n#Bei Zahlung innerhalb 7 Tagen 2 % Skonto.";
+$inv->thirdparty = lfx_make_party(['name' => 'Bundesamt für Beispiele', 'country_code' => 'DE', 'zip' => '53113', 'town' => 'Bonn',
+	'address' => 'Amtsweg 1', 'email' => '', 'tva_intra' => '', 'idprof1' => '',
+	'array_options' => ['options_lfxleitwegid' => '991-33333TEST-33']]);
+$inv->date_lim_reglement = mktime(0, 0, 0, 6, 15, 2026);
+$inv->lines = [lfx_make_line(1000.00, 19.0, 190.00, 1.0, 'Beratung', 1)];
+$inv->total_ht = 1000.00;
+$inv->total_tva = 190.00;
+$inv->total_ttc = 1190.00;
+foreach (['xrechnung' => ['profile' => 'xrechnung'], 'zugferd' => []] as $label => $opt) {
+	$w = [];
+	$xml = auvoerechnung_build_xml($inv, $seller, $w, $opt);
+	lfx_std_validate($xml, $xsdPath);
+	lfx_assert_eq("Zahlbar innerhalb 14 Tagen. #Bei Zahlung innerhalb 7 Tagen 2 % Skonto.\n#SKONTO#TAGE=7#PROZENT=2.00#\n",
+		lfx_xpath($xml)->query('//ram:SpecifiedTradePaymentTerms/ram:Description')->item(0)->textContent ?? null,
+		$label.' : BT-20 = texte de la condition + ligne Skonto');
+	lfx_dump('xr-05-skonto-'.$label, $xml);
+}
+// Deux paliers
+$inv2 = clone $inv;
+$inv2->cond_reglement_code = 'SK2';
+$inv2->cond_reglement_doc = '';
+$w = [];
+$xml2 = auvoerechnung_build_xml($inv2, $seller, $w, ['profile' => 'xrechnung']);
+lfx_std_validate($xml2, $xsdPath);
+lfx_assert_eq("#SKONTO#TAGE=7#PROZENT=3.50#\n#SKONTO#TAGE=14#PROZENT=2.00#\n", lfx_xpath($xml2)->query('//ram:SpecifiedTradePaymentTerms/ram:Description')->item(0)->textContent ?? null, 'deux paliers sans texte');
+lfx_dump('xr-06-skonto-2-stufen', $xml2);
+// Sans Skonto configuré : pas de BT-20 (comportement antérieur inchangé)
+$inv3 = clone $inv;
+$inv3->cond_reglement_code = '30D';
+lfx_assert_eq(0, lfx_xpath(auvoerechnung_build_xml($inv3, $seller, $w, ['profile' => 'xrechnung']))->query('//ram:SpecifiedTradePaymentTerms/ram:Description')->length, 'pas de BT-20 sans Skonto');
+// Avoir : pas d'escompte
+lfx_assert_eq('', auvoerechnung_build_payment_terms_description($inv, true), 'pas de Skonto sur un avoir');
+// Règle interne BR-DE-18 : syntaxe et saut de ligne final
+$bad = str_replace('#SKONTO#TAGE=7#PROZENT=3.50#', '#SKONTO#TAGE=7#PROZENT=3.5#', $xml2);
+lfx_assert(lfx_contains(auvoerechnung_validate_business_rules($bad), 'BR-DE-18'), 'BR-DE-18 : pourcentage sans deux décimales');
+$noNl = str_replace("#SKONTO#TAGE=14#PROZENT=2.00#\n</ram:Description>", '#SKONTO#TAGE=14#PROZENT=2.00#</ram:Description>', $xml2);
+lfx_assert($noNl !== $xml2 && lfx_contains(auvoerechnung_validate_business_rules($noNl), 'BR-DE-18'), 'BR-DE-18 : saut de ligne final manquant');
+echo "U41 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

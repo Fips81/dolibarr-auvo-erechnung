@@ -71,7 +71,8 @@ errors, warnings = [], []
 for f in sorted(glob.glob(sys.argv[1] + '/*-report.xml')):
     doc = f.rsplit('/', 1)[-1].replace('-report.xml', '.xml')
     s = open(f, encoding='utf-8').read()
-    if '<rep:acceptRecommendation>REJECT' in s:
+    # Validator 1.6 : <rep:assessment><rep:reject> ; anciennes versions : acceptRecommendation
+    if '<rep:reject>' in s or '<rep:acceptRecommendation>REJECT' in s:
         errors.append(f'{doc}: REJECT')
     for level, code, text in re.findall(r'<rep:message[^>]*level="(\w+)"[^>]*code="([^"]+)"[^>]*>([^<]*)', s):
         line = f'{doc}: [{level}] {code} {text.strip()[:200]}'
