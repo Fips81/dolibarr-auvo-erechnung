@@ -1495,6 +1495,50 @@ lfx_std_validate(auvoerechnung_build_xml($sampleKu, $ku, $w, ['profile' => 'xrec
 echo "U42 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U43 modèle sémantique EN16931 (indépendant de la syntaxe)';
+lfx_reset([
+	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
+	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
+	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
+], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+$seller = lfx_make_party([
+	'name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen',
+	'address' => 'Hauptstr. 1', 'email' => 'rechnung@muster.example', 'phone' => '06772 99',
+	'tva_intra' => 'DE811111111', 'idprof1' => '22/180/80394', 'tva_assuj' => 1,
+]);
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-0600';
+$inv->ref_client = 'BEST-9';
+$inv->thirdparty = lfx_make_party(['name' => 'Bundesamt für Beispiele', 'country_code' => 'DE', 'zip' => '53113', 'town' => 'Bonn',
+	'address' => 'Amtsweg 1', 'email' => '', 'tva_intra' => '', 'idprof1' => '',
+	'array_options' => ['options_lfxleitwegid' => '991-33333TEST-33']]);
+$inv->lines = [
+	lfx_make_line(1000.00, 19.0, 190.00, 8.0, 'Beratung', 1),
+	lfx_make_line(-100.00, 19.0, -19.00, 1.0, 'Nachlass', 1),
+];
+$inv->total_ht = 900.00;
+$inv->total_tva = 171.00;
+$inv->total_ttc = 1071.00;
+$w = [];
+$m = auvoerechnung_build_model($inv, $seller, $w, ['profile' => 'xrechnung']);
+lfx_assert_eq('RE2026-0600', $m['document']['id'], 'BT-1');
+lfx_assert_eq('380', $m['document']['type_code'], 'BT-3');
+lfx_assert_eq('991-33333TEST-33', $m['document']['buyer_reference'], 'BT-10 Leitweg-ID');
+lfx_assert_eq('BEST-9', $m['document']['order_reference'], 'BT-13');
+lfx_assert_eq(['scheme' => '0204', 'id' => '991-33333TEST-33'], $m['buyer']['endpoint'], 'BT-49');
+lfx_assert_eq('DE811111111', $m['seller']['vat_id'], 'BT-31');
+lfx_assert_eq('Erika Mustermann', $m['seller']['contact']['name'] ?? null, 'BG-6');
+lfx_assert_eq(1, count($m['lines']), 'une ligne, la remise passe en BG-20');
+lfx_assert_eq(125.0, $m['lines'][0]['net_price'], 'BT-146');
+lfx_assert_eq(100.0, $m['allowances'][0]['amount'], 'BT-92');
+lfx_assert_eq(['line_total' => 1000.0, 'allowance_total' => 100.0, 'tax_basis' => 900.0, 'tax_total' => 171.0, 'grand_total' => 1071.0, 'prepaid' => 0.0, 'due_payable' => 1071.0], $m['totals'], 'BG-22');
+lfx_assert_eq('S', $m['vat_breakdown'][0]['category'], 'BG-23 catégorie');
+lfx_assert_eq('58', $m['payment']['means_code'], 'BT-81');
+// La sérialisation CII est une fonction pure du modèle
+lfx_assert_eq(auvoerechnung_build_xml($inv, $seller, $w, ['profile' => 'xrechnung']), auvoerechnung_model_to_cii($m), 'build_xml = model_to_cii(build_model)');
+echo "U43 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

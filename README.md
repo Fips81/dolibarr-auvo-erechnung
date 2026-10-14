@@ -119,7 +119,8 @@ Dolibarr benachrichtigt nicht automatisch über Updates eines Custom-Moduls; die
 auvoerechnung/
 ├── core/modules/modAuvoERechnung.class.php   # Modul-Deskriptor (Nr. 194202)
 ├── core/lib/
-│   ├── auvoerechnung.lib.php                 # XML-Generator EN16931 (ZUGFeRD/Factur-X + XRechnung)
+│   ├── auvoerechnung.lib.php                 # Fachlogik: Daten aus Dolibarr, Steuerkategorien, XRechnung, Anlagen
+│   ├── auvoerechnung_model.php               # Datenmodell EN16931 (BT/BG) und Ausgabe als CII
 │   └── auvoerechnung_rules.php               # Validator für Geschäftsregeln (BR-*, BR-FR-*, BR-DE-*)
 ├── class/
 │   ├── actions_auvoerechnung.class.php       # Hooks afterPDFCreation, afterODTCreation, invoicecard
