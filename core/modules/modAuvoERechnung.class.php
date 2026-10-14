@@ -105,6 +105,7 @@ class modAuvoERechnung extends DolibarrModules
 			array('AUVOERECHNUNG_CONTACT_NAME', 'chaine', '', 'XRechnung: Ansprechpartner (BT-41); leer = Ersteller der Rechnung', 1, 'current', 0),
 			array('AUVOERECHNUNG_CONTACT_PHONE', 'chaine', '', 'XRechnung: Telefon des Ansprechpartners (BT-42); leer = Ersteller, sonst Firma', 1, 'current', 0),
 			array('AUVOERECHNUNG_CONTACT_EMAIL', 'chaine', '', 'XRechnung: E-Mail des Ansprechpartners (BT-43); leer = Ersteller, sonst Firma', 1, 'current', 0),
+			array('AUVOERECHNUNG_XRECHNUNG_SYNTAX', 'chaine', 'cii', 'XRechnung: Syntax CII oder UBL (Standard; je Kunde über das Feld E-Rechnungsformat abweichend)', 1, 'current', 0),
 			array('AUVOERECHNUNG_XR_EMBED_PDF', 'int', '0', 'XRechnung: PDF der Rechnung als Anlage einbetten (BG-24)', 1, 'current', 0),
 			array('AUVOERECHNUNG_XR_EMBED_FILES', 'int', '0', 'XRechnung: hochgeladene Dokumente der Rechnung als Anlagen einbetten (BG-24)', 1, 'current', 0),
 			array('AUVOERECHNUNG_MAIL_ATTACH_XR', 'int', '1', 'XRechnung beim Mailversand der Rechnung automatisch anhängen', 1, 'current', 0),
@@ -347,14 +348,21 @@ class modAuvoERechnung extends DolibarrModules
 
 		$extrafields = new ExtraFields($this->db);
 		$extrafields->fetch_name_optionals_label('societe');
-		if (!empty($extrafields->attributes['societe']['label']['lfxeformat'])) {
-			return; // déjà présent
-		}
 		$param = array('options' => array(
-			'auto'      => 'AuvoERechnungEfEFormatAuto',
-			'zugferd'   => 'AuvoERechnungEfEFormatZugferd',
-			'xrechnung' => 'AuvoERechnungEfEFormatXRechnung',
+			'auto'          => 'AuvoERechnungEfEFormatAuto',
+			'zugferd'       => 'AuvoERechnungEfEFormatZugferd',
+			'xrechnung'     => 'AuvoERechnungEfEFormatXRechnung',
+			'xrechnung_cii' => 'AuvoERechnungEfEFormatXRechnungCii',
+			'xrechnung_ubl' => 'AuvoERechnungEfEFormatXRechnungUbl',
 		));
+		if (!empty($extrafields->attributes['societe']['label']['lfxeformat'])) {
+			// Déjà présent : complète la liste des choix (syntaxes CII/UBL,
+			// ajoutées en 5.2.0) sans toucher aux valeurs saisies.
+			$sql = "UPDATE ".MAIN_DB_PREFIX."extrafields SET param = '".$this->db->escape(serialize($param))."'";
+			$sql .= " WHERE name = 'lfxeformat' AND elementtype = 'societe'";
+			$this->db->query($sql);
+			return;
+		}
 		$extrafields->addExtraField(
 			'lfxeformat', 'AuvoERechnungEfEFormat', 'select', 201, '', 'societe',
 			0, 0, '', $param, 1, '', '1', '', '', '',

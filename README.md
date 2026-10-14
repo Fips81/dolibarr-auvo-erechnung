@@ -17,7 +17,7 @@ Das Modul arbeitet mit den **aktuellen Fassungen** der deutschen und französisc
 | Standard | Version im Modul | Stand |
 |---|---|---|
 | **ZUGFeRD / Factur-X**, Profil EN16931 (COMFORT) | **ZUGFeRD 2.5.2 / Factur-X 1.09.2** (XML-Schemata aus `atgp/factur-x` 3.5.0) | neueste Version, veröffentlicht am 04.08.2026, gültig ab 01.09.2026 |
-| **XRechnung** (CIUS der KoSIT), Syntax CII | **XRechnung 3.0.2**, Bundle vom 31.08.2026 | aktuell gültige Version, gilt laut KoSIT mindestens bis 31.07.2027; XRechnung 4.0 liegt bisher nur als Vorversion vor (endgültig voraussichtlich Frühjahr 2027) |
+| **XRechnung** (CIUS der KoSIT), Syntax CII oder UBL 2.1 | **XRechnung 3.0.2**, Bundle vom 31.08.2026 | aktuell gültige Version, gilt laut KoSIT mindestens bis 31.07.2027; XRechnung 4.0 liegt bisher nur als Vorversion vor (endgültig voraussichtlich Frühjahr 2027) |
 | **EN 16931** (europäische Norm), Prüfregeln | CEN-Schematron 1.3.16 | Teil der offiziellen KoSIT-Validator-Konfiguration vom 31.08.2026 |
 
 **Wie das geprüft wird:** Jede Änderung und jedes Release wird automatisch mit dem **offiziellen Validator der KoSIT** (1.6.3) gegen die EN16931- und XRechnung-Regeln geprüft, siehe [Validierung und Tests](#validierung-und-tests).
@@ -120,7 +120,7 @@ auvoerechnung/
 ├── core/modules/modAuvoERechnung.class.php   # Modul-Deskriptor (Nr. 194202)
 ├── core/lib/
 │   ├── auvoerechnung.lib.php                 # Fachlogik: Daten aus Dolibarr, Steuerkategorien, XRechnung, Anlagen
-│   ├── auvoerechnung_model.php               # Datenmodell EN16931 (BT/BG) und Ausgabe als CII
+│   ├── auvoerechnung_model.php               # Datenmodell EN16931 (BT/BG) und Ausgabe als CII und UBL 2.1
 │   └── auvoerechnung_rules.php               # Validator für Geschäftsregeln (BR-*, BR-FR-*, BR-DE-*)
 ├── class/
 │   ├── actions_auvoerechnung.class.php       # Hooks afterPDFCreation, afterODTCreation, invoicecard
@@ -201,6 +201,7 @@ Bedrohungsmodell, detaillierte Schutzmaßnahmen und Meldeprozess: siehe [SECURIT
 Für öffentliche Auftraggeber in Deutschland (und Firmenkunden, die es verlangen) erzeugt das Modul zusätzlich eine **XRechnung 3.0** nach der Spezifikation der KoSIT, als eigene Datei `{Rechnung}-XRECHNUNG.xml` im Dokumentenordner der Rechnung, neben der PDF.
 
 - **Wann:** automatisch, sobald beim Geschäftspartner eine **Leitweg-ID** eingetragen ist. Über das Feld **„E-Rechnungsformat“** am Geschäftspartner lässt sich das erzwingen („XRechnung“) oder abschalten („ZUGFeRD“).
+- **Format (Syntax):** **CII** (Standard) oder **UBL 2.1**, einstellbar in den Moduleinstellungen (Block „XRechnung“) und pro Kunde über das Feld „E-Rechnungsformat“ („XRechnung (CII)“ / „XRechnung (UBL)“). Beide Syntaxen sind für XRechnung gleichwertig zugelassen; UBL ist bei Peppol üblich. Gutschriften werden in UBL als `CreditNote` ausgegeben. Die ZUGFeRD-PDF enthält immer CII.
 - **Pflichtangaben:** Ansprechpartner mit Telefon und E-Mail (Moduleinstellungen, Block „XRechnung“; leer = Ersteller der Rechnung), E-Mail der Firma, PLZ/Ort von Firma und Kunde, IBAN bei Überweisung, Leitweg-ID oder „Ihr Zeichen“ der Rechnung. Fehlt etwas, erscheint beim Erzeugen der PDF eine Liste der fehlenden Angaben, und es wird keine XRechnung geschrieben.
 - **Wenn vom Auftraggeber mitgeteilt** (§ 5 E-RechV): die **Bestellnummer** in „Ihr Zeichen“ (am Auftrag oder an der Rechnung) und die **Lieferantennummer** im Feld **„Unsere Lieferantennummer beim Kunden“** am Geschäftspartner (BT-29).
 - **Bedienung:** Im Menü **ZUGFeRD ▾** auf der Rechnung gibt es **„XRechnung erzeugen“** (auch für Kunden ohne Leitweg-ID, für einzelne Rechnungen) und, sobald die Datei existiert, **„XRechnung herunterladen“**. Die Datei liegt außerdem bei den Dokumenten der Rechnung. Die **Diagnose** auf der Einstellungsseite zeigt, ob die Firmendaten für XRechnung reichen und wie viele Kunden automatisch eine XRechnung erhalten.
@@ -367,6 +368,7 @@ Alle sind über den Administrationsbildschirm des Moduls konfigurierbar (**Start
 | `AUVOERECHNUNG_CONTACT_NAME` | string | *(leer)* | XRechnung: Ansprechpartner (BT-41); leer = Ersteller der Rechnung |
 | `AUVOERECHNUNG_CONTACT_PHONE` | string | *(leer)* | XRechnung: Telefon (BT-42); leer = Ersteller der Rechnung, sonst Firma |
 | `AUVOERECHNUNG_CONTACT_EMAIL` | string | *(leer)* | XRechnung: E-Mail (BT-43); leer = Ersteller der Rechnung, sonst Firma |
+| `AUVOERECHNUNG_XRECHNUNG_SYNTAX` | string | cii | XRechnung-Syntax: `cii` oder `ubl` (pro Kunde abweichend über „E-Rechnungsformat“) |
 | `AUVOERECHNUNG_XR_EMBED_PDF` | int | 0 | XRechnung: PDF der Rechnung als Anlage einbetten (BG-24) |
 | `AUVOERECHNUNG_XR_EMBED_FILES` | int | 0 | XRechnung: hochgeladene Dokumente der Rechnung als Anlagen einbetten (BG-24) |
 | `AUVOERECHNUNG_MAIL_ATTACH_XR` | int | 1 | XRechnung im Formular „Per E-Mail senden“ automatisch anhängen |
@@ -464,6 +466,7 @@ Der Ordner `vendor/` enthält die benötigten Libs (kein Composer auf dem Server
 - `setasign/fpdf` 1.9.0 — PDF-Engine (von atgp genutzt, **nicht** von Dolibarr; Patch `/F 4`, siehe PDF/A-3-Konformität)
 - `smalot/pdfparser` v2.12.5 — PDF-Parsing
 - `symfony/polyfill-mbstring` v1.43.0 — mbstring-Kompatibilität
+- `oasis/ubl-2.1` — XML-Schemata UBL 2.1 Invoice/CreditNote (OASIS, aus dem KoSIT-Bundle) für die Schema-Prüfung der XRechnung in UBL
 
 ## PDF/A-3-Konformität
 
@@ -524,9 +527,10 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 
 > Hinweis: Das Modul hieß früher LemonFacturX, AuvoZugferd und DoliZUGFeRD. In älteren Einträgen sind Klassen-, Konstanten-, Datei- und Repo-Namen an die heutigen Namen (`auvoerechnung`, `AUVOERECHNUNG_*`) angepasst.
 
-### 5.2.0 — Skonto, Versand an die OZG-RE, Anlagen (noch nicht veröffentlicht)
+### 5.2.0 — Skonto, Versand an die OZG-RE, Anlagen, UBL (noch nicht veröffentlicht)
 
-- **Modul einmal deaktivieren und wieder aktivieren**, damit das neue Feld an der Rechnung und der Mail-Hook angelegt werden.
+- **Modul einmal deaktivieren und wieder aktivieren**, damit das neue Feld an der Rechnung, die neuen Auswahlwerte im Feld „E-Rechnungsformat“ und der Mail-Hook angelegt werden.
+- **XRechnung in UBL 2.1:** wählbar als Standard in den Moduleinstellungen oder pro Kunde („XRechnung (UBL)“); Gutschriften als `CreditNote`. Intern ein syntaxunabhängiges Datenmodell (`core/lib/auvoerechnung_model.php`), aus dem CII und UBL erzeugt werden; die Geschäftsregeln werden an der CII-Fassung desselben Modells geprüft, die UBL-Datei zusätzlich gegen die OASIS-Schemata. In der CI prüft der KoSIT-Validator beide Syntaxen.
 - **XRechnung beim Mailversand:** Im Formular „Per E-Mail senden“ liegt bei XRechnung-Kunden die XRechnung bereits als Anhang bereit (fehlt sie, wird sie erzeugt). Abschaltbar.
 - **Anlagen in der XRechnung (BG-24):** optional die PDF der Rechnung und die bei der Rechnung hochgeladenen Dokumente.
 - **Leitweg-ID pro Rechnung:** neues Feld „Leitweg-ID (abweichend)“ an der Rechnung, überschreibt die Leitweg-ID des Kunden.

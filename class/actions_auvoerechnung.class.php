@@ -523,12 +523,13 @@ class ActionsAuvoERechnung
 		if (empty($problems)) {
 			$xw = [];
 			$attachments = auvoerechnung_collect_attachments($invoice, $attachWarnings);
-			$xml = auvoerechnung_build_xml($invoice, $mysoc, $xw, ['profile' => 'xrechnung', 'attachments' => $attachments]);
+			$xr = auvoerechnung_build_xrechnung($invoice, $mysoc, $xw, ['attachments' => $attachments]);
+			$xml = $xr['xml'];
 			$xsdError = $this->validateXml($xml, $modulePath);
 			if ($xsdError !== null) {
 				$problems[] = $xsdError;
 			}
-			foreach (auvoerechnung_validate_business_rules($xml) as $v) {
+			foreach (auvoerechnung_validate_business_rules($xr['cii']) as $v) {
 				$problems[] = $v;
 			}
 		}
@@ -551,7 +552,7 @@ class ActionsAuvoERechnung
 		}
 		@chmod($target, octdec(getDolGlobalString('MAIN_UMASK', '0664')));
 		dol_syslog('AuVo E-Rechnung: XRechnung generated for '.$invoice->ref.' ('.basename($target).')', LOG_INFO);
-		$msg = auvoerechnung_trans('AuvoERechnungXrGenerated', basename($target));
+		$msg = auvoerechnung_trans('AuvoERechnungXrGenerated', basename($target)).' ('.strtoupper($xr['syntax']).')';
 		if (!empty($attachments)) {
 			$msg .= ' '.auvoerechnung_trans('AuvoERechnungXrAttachments', count($attachments));
 		}

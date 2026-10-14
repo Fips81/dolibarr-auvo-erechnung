@@ -1904,7 +1904,7 @@ function auvoerechnung_sample_invoice($invoice, $buyer, $mysoc)
  * Faut-il produire une XRechnung pour ce tiers ?
  *
  * Extrafield tiers « E-Rechnungsformat » (lfxeformat) :
- *   'xrechnung' → oui ; 'zugferd' → non ;
+ *   'xrechnung', 'xrechnung_cii', 'xrechnung_ubl' → oui ; 'zugferd' → non ;
  *   vide / 'auto' → oui dès qu'une Leitweg-ID est renseignée (acheteur public
  *   allemand, qui attend XRechnung ou ZUGFeRD au profil XRECHNUNG).
  *
@@ -1918,7 +1918,7 @@ function auvoerechnung_wants_xrechnung($buyer, $invoice = null)
 {
 	$ao = (is_object($buyer) && !empty($buyer->array_options)) ? $buyer->array_options : [];
 	$format = strtolower(trim((string) ($ao['options_lfxeformat'] ?? '')));
-	if ($format === 'xrechnung') {
+	if (in_array($format, ['xrechnung', 'xrechnung_cii', 'xrechnung_ubl'], true)) {
 		return true;
 	}
 	if ($format === 'zugferd') {
@@ -1928,6 +1928,52 @@ function auvoerechnung_wants_xrechnung($buyer, $invoice = null)
 		return true;
 	}
 	return auvoerechnung_party_leitwegid($buyer) !== '';
+}
+
+/**
+ * Syntaxe de la XRechnung pour ce tiers : 'ubl' ou 'cii'. Choix explicite sur
+ * la fiche tiers (« XRechnung (UBL) » / « XRechnung (CII) »), sinon réglage
+ * du module AUVOERECHNUNG_XRECHNUNG_SYNTAX (CII par défaut).
+ *
+ * @param object $buyer  Tiers acheteur (array_options chargés)
+ * @return string 'cii'|'ubl'
+ */
+function auvoerechnung_xrechnung_syntax($buyer)
+{
+	$ao = (is_object($buyer) && !empty($buyer->array_options)) ? $buyer->array_options : [];
+	$format = strtolower(trim((string) ($ao['options_lfxeformat'] ?? '')));
+	if ($format === 'xrechnung_ubl') {
+		return 'ubl';
+	}
+	if ($format === 'xrechnung_cii') {
+		return 'cii';
+	}
+	return strtolower(getDolGlobalString('AUVOERECHNUNG_XRECHNUNG_SYNTAX', 'cii')) === 'ubl' ? 'ubl' : 'cii';
+}
+
+/**
+ * XRechnung d'une facture dans la syntaxe voulue, à partir d'un seul modèle.
+ * La version CII est toujours produite aussi : les règles métier internes
+ * (auvoerechnung_validate_business_rules) s'appliquent à elle — même modèle,
+ * même contenu sémantique ; la syntaxe UBL elle-même est couverte par son XSD.
+ *
+ * @param object      $invoice
+ * @param object      $mysoc
+ * @param array       $buildWarnings  (sortie)
+ * @param array       $options        cf. auvoerechnung_build_model() ('profile' forcé à xrechnung)
+ * @param string|null $syntax         'cii'|'ubl', null = selon le tiers (auvoerechnung_xrechnung_syntax)
+ * @return array{syntax:string,xml:string,cii:string}
+ */
+function auvoerechnung_build_xrechnung($invoice, $mysoc, &$buildWarnings = [], $options = [], $syntax = null)
+{
+	$syntax = $syntax ?? auvoerechnung_xrechnung_syntax($invoice->thirdparty ?? null);
+	$model = auvoerechnung_build_model($invoice, $mysoc, $buildWarnings, array_merge($options, ['profile' => 'xrechnung']));
+	$cii = auvoerechnung_model_to_cii($model);
+	return [
+		'syntax' => $syntax,
+		'xml'    => ($syntax === 'ubl') ? auvoerechnung_model_to_ubl($model) : $cii,
+		'cii'    => $cii,
+	];
 }
 
 /**

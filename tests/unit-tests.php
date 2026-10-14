@@ -1539,6 +1539,143 @@ lfx_assert_eq(auvoerechnung_build_xml($inv, $seller, $w, ['profile' => 'xrechnun
 echo "U43 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U44 XRechnung UBL 2.1 (Invoice et CreditNote)';
+function lfx_ubl_xpath($xml)
+{
+	$dom = new DOMDocument();
+	$dom->loadXML($xml);
+	$xp = new DOMXPath($dom);
+	$xp->registerNamespace('inv', 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2');
+	$xp->registerNamespace('cn', 'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2');
+	$xp->registerNamespace('cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
+	$xp->registerNamespace('cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
+	return $xp;
+}
+function lfx_ubl_check($res, $label)
+{
+	global $xsdPath;
+	lfx_assert_eq('ubl', $res['syntax'], $label.' : syntaxe UBL');
+	lfx_assert(auvoerechnung_validate_xsd($res['xml'], dirname(__DIR__)) === null, $label.' : XSD UBL 2.1 ('.auvoerechnung_validate_xsd($res['xml'], dirname(__DIR__)).')');
+	// Règles métier sur la version CII du même modèle (même contenu)
+	lfx_std_validate($res['cii'], $xsdPath);
+	lfx_dump('ubl-'.$label, $res['xml']);
+	return lfx_ubl_xpath($res['xml']);
+}
+lfx_reset([
+	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
+	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
+	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
+	'AUVOERECHNUNG_SKONTO' => json_encode(['7D' => [['days' => 7, 'percent' => 2]]]),
+], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+$seller = lfx_make_party([
+	'name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen',
+	'address' => 'Hauptstr. 1', 'email' => 'rechnung@muster.example', 'phone' => '06772 99',
+	'tva_intra' => 'DE811111111', 'idprof1' => '22/180/80394', 'idprof3' => 'HRB 12345', 'tva_assuj' => 1,
+]);
+$amt = lfx_make_party(['name' => 'Bundesamt für Beispiele', 'country_code' => 'DE', 'zip' => '53113', 'town' => 'Bonn',
+	'address' => 'Amtsweg 1', 'email' => '', 'tva_intra' => '', 'idprof1' => '',
+	'array_options' => ['options_lfxleitwegid' => '991-33333TEST-33', 'options_lfxsupplierno' => 'K-100234']]);
+
+// Choix de la syntaxe
+lfx_assert_eq('cii', auvoerechnung_xrechnung_syntax($amt), 'CII par défaut');
+lfx_assert_eq('ubl', auvoerechnung_xrechnung_syntax(lfx_make_party(['array_options' => ['options_lfxeformat' => 'xrechnung_ubl']])), 'UBL choisi sur le tiers');
+lfx_assert(auvoerechnung_wants_xrechnung(lfx_make_party(['array_options' => ['options_lfxeformat' => 'xrechnung_ubl']])), 'xrechnung_ubl = XRechnung voulue');
+$GLOBALS['lfx_test_conf']['AUVOERECHNUNG_XRECHNUNG_SYNTAX'] = 'ubl';
+lfx_assert_eq('ubl', auvoerechnung_xrechnung_syntax($amt), 'UBL par réglage du module');
+lfx_assert_eq('cii', auvoerechnung_xrechnung_syntax(lfx_make_party(['array_options' => ['options_lfxeformat' => 'xrechnung_cii']])), 'CII choisi sur le tiers malgré le réglage');
+
+// Facture standard : remise, Skonto, deux taux
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-0700';
+$inv->ref_client = 'BEST-4711';
+$inv->cond_reglement_code = '7D';
+$inv->cond_reglement_doc = 'Zahlbar innerhalb 14 Tagen.';
+$inv->thirdparty = $amt;
+$inv->date_lim_reglement = mktime(0, 0, 0, 6, 15, 2026);
+$inv->lines = [
+	lfx_make_line(760.00, 19.0, 144.40, 8.0, 'Beratung', 1, ['date_start' => mktime(0, 0, 0, 5, 1, 2026), 'date_end' => mktime(0, 0, 0, 5, 31, 2026)]),
+	lfx_make_line(120.00, 7.0, 8.40, 1.0, 'Fachbuch', 0),
+	lfx_make_line(-60.00, 19.0, -11.40, 1.0, 'Nachlass', 1),
+];
+$inv->total_ht = 820.00;
+$inv->total_tva = 141.40;
+$inv->total_ttc = 961.40;
+$w = [];
+$res = auvoerechnung_build_xrechnung($inv, $seller, $w);
+$xp = lfx_ubl_check($res, 'standard');
+lfx_assert_eq(auvoerechnung_build_xml($inv, $seller, $w, ['profile' => 'xrechnung']), $res['cii'], 'CII de build_xrechnung = build_xml(xrechnung)');
+lfx_assert_eq('urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0', lfx_xp_str($xp, '/inv:Invoice/cbc:CustomizationID'), 'BT-24');
+lfx_assert_eq('urn:fdc:peppol.eu:2017:poacc:billing:01:1.0', lfx_xp_str($xp, '/inv:Invoice/cbc:ProfileID'), 'BT-23');
+lfx_assert_eq('2026-06-01', lfx_xp_str($xp, '/inv:Invoice/cbc:IssueDate'), 'BT-2 au format AAAA-MM-JJ');
+lfx_assert_eq('2026-06-15', lfx_xp_str($xp, '/inv:Invoice/cbc:DueDate'), 'BT-9');
+lfx_assert_eq('380', lfx_xp_str($xp, '/inv:Invoice/cbc:InvoiceTypeCode'), 'BT-3');
+lfx_assert_eq('991-33333TEST-33', lfx_xp_str($xp, '/inv:Invoice/cbc:BuyerReference'), 'BT-10');
+lfx_assert_eq('BEST-4711', lfx_xp_str($xp, '/inv:Invoice/cac:OrderReference/cbc:ID'), 'BT-13');
+lfx_assert_eq('2026-05-01', lfx_xp_str($xp, '/inv:Invoice/cac:InvoicePeriod/cbc:StartDate'), 'BT-73');
+lfx_assert_eq('991-33333TEST-33', lfx_xp_str($xp, '//cac:AccountingCustomerParty//cbc:EndpointID[@schemeID="0204"]'), 'BT-49');
+lfx_assert_eq('rechnung@muster.example', lfx_xp_str($xp, '//cac:AccountingSupplierParty//cbc:EndpointID[@schemeID="EM"]'), 'BT-34');
+lfx_assert_eq('K-100234', lfx_xp_str($xp, '//cac:AccountingSupplierParty//cac:PartyIdentification/cbc:ID'), 'BT-29');
+lfx_assert_eq('DE811111111', lfx_xp_str($xp, '//cac:AccountingSupplierParty//cac:PartyTaxScheme[cac:TaxScheme/cbc:ID="VAT"]/cbc:CompanyID'), 'BT-31');
+lfx_assert_eq('HRB 12345', lfx_xp_str($xp, '//cac:AccountingSupplierParty//cac:PartyLegalEntity/cbc:CompanyID'), 'BT-30');
+lfx_assert_eq('MUSTER GMBH', lfx_xp_str($xp, '//cac:AccountingSupplierParty//cac:PartyLegalEntity/cbc:RegistrationName'), 'BT-27');
+lfx_assert_eq('Erika Mustermann', lfx_xp_str($xp, '//cac:AccountingSupplierParty//cac:Contact/cbc:Name'), 'BT-41');
+lfx_assert_eq('DE02120300000000202051', lfx_xp_str($xp, '//cac:PaymentMeans/cac:PayeeFinancialAccount/cbc:ID'), 'BT-84');
+lfx_assert_eq("Zahlbar innerhalb 14 Tagen.\n#SKONTO#TAGE=7#PROZENT=2.00#\n", $xp->query('//cac:PaymentTerms/cbc:Note')->item(0)->textContent ?? null, 'BT-20 Skonto');
+lfx_assert_eq('60.00', lfx_xp_str($xp, '/inv:Invoice/cac:AllowanceCharge/cbc:Amount'), 'BT-92');
+lfx_assert_eq(2, $xp->query('//cac:TaxTotal/cac:TaxSubtotal')->length, 'deux taux');
+lfx_assert_eq('141.40', lfx_xp_str($xp, '//cac:TaxTotal/cbc:TaxAmount'), 'BT-110');
+lfx_assert_eq('961.40', lfx_xp_str($xp, '//cac:LegalMonetaryTotal/cbc:PayableAmount'), 'BT-115');
+lfx_assert_eq('EUR', $xp->query('//cac:LegalMonetaryTotal/cbc:PayableAmount')->item(0)->getAttribute('currencyID'), 'currencyID');
+lfx_assert_eq(2, $xp->query('/inv:Invoice/cac:InvoiceLine')->length, 'deux lignes (remise en BG-20)');
+lfx_assert_eq('95.00', lfx_xp_str($xp, '/inv:Invoice/cac:InvoiceLine[1]/cac:Price/cbc:PriceAmount'), 'BT-146');
+
+// Avoir : CreditNote, BT-9 dans PaymentMeans, BG-3
+lfx_reset([
+	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
+	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
+	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
+	'AUVOERECHNUNG_XRECHNUNG_SYNTAX' => 'ubl',
+], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001'], [
+	'FROM '.MAIN_DB_PREFIX.'facture WHERE rowid = 77' => [(object) ['ref' => 'RE2026-0700', 'datef' => '2026-06-01']],
+]);
+$cn = new LfxFakeInvoice();
+$cn->ref = 'GS2026-0001';
+$cn->type = 2;
+$cn->fk_facture_source = 77;
+$cn->thirdparty = $amt;
+$cn->date_lim_reglement = mktime(0, 0, 0, 6, 30, 2026);
+$cn->lines = [lfx_make_line(-100.00, 19.0, -19.00, 1.0, 'Gutschrift Beratung', 1)];
+$cn->total_ht = -100.00;
+$cn->total_tva = -19.00;
+$cn->total_ttc = -119.00;
+$res = auvoerechnung_build_xrechnung($cn, $seller, $w);
+$xp = lfx_ubl_check($res, 'gutschrift');
+lfx_assert_eq('381', lfx_xp_str($xp, '/cn:CreditNote/cbc:CreditNoteTypeCode'), 'CreditNote 381');
+lfx_assert_eq('1.0000', lfx_xp_str($xp, '/cn:CreditNote/cac:CreditNoteLine/cbc:CreditedQuantity'), 'CreditedQuantity positive');
+lfx_assert_eq('119.00', lfx_xp_str($xp, '//cac:LegalMonetaryTotal/cbc:PayableAmount'), 'montants positifs');
+lfx_assert_eq('2026-06-30', lfx_xp_str($xp, '//cac:PaymentMeans/cbc:PaymentDueDate'), 'BT-9 de l\'avoir');
+lfx_assert_eq('RE2026-0700', lfx_xp_str($xp, '//cac:BillingReference/cac:InvoiceDocumentReference/cbc:ID'), 'BG-3');
+
+// Acompte (326) d'un Kleinunternehmer : catégorie E, Steuernummer (FC), pièce jointe
+$ku = lfx_make_party(['name' => 'KLEIN DESIGN', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen', 'address' => 'Weg 2',
+	'email' => 'info@klein.example', 'tva_intra' => '', 'idprof1' => '22/180/80394', 'idprof2' => '', 'tva_assuj' => 0]);
+$dep = new LfxFakeInvoice();
+$dep->ref = 'RE2026-0701';
+$dep->type = 3;
+$dep->thirdparty = $amt;
+$dep->lines = [lfx_make_line(500.00, 0.0, 0.00, 1.0, 'Abschlag Gestaltung', 1)];
+$dep->total_ht = 500.00;
+$dep->total_ttc = 500.00;
+$res = auvoerechnung_build_xrechnung($dep, $ku, $w, ['attachments' => [['id' => 'RE2026-0701-A1', 'name' => 'Stundennachweis.csv', 'mime' => 'text/csv', 'content' => "Datum;Stunden\n", 'description' => 'Stunden']]]);
+$xp = lfx_ubl_check($res, 'abschlag-kleinunternehmer');
+lfx_assert_eq('326', lfx_xp_str($xp, '/inv:Invoice/cbc:InvoiceTypeCode'), 'acompte 326');
+lfx_assert_eq('E', lfx_xp_str($xp, '//cac:TaxSubtotal/cac:TaxCategory/cbc:ID'), 'catégorie E');
+lfx_assert(lfx_xp_str($xp, '//cac:TaxSubtotal/cac:TaxCategory/cbc:TaxExemptionReason') !== null, 'BT-120');
+lfx_assert_eq('22/180/80394', lfx_xp_str($xp, '//cac:AccountingSupplierParty//cac:PartyTaxScheme[cac:TaxScheme/cbc:ID="FC"]/cbc:CompanyID'), 'BT-32 Steuernummer');
+lfx_assert_eq("Datum;Stunden\n", base64_decode(lfx_xp_str($xp, '//cac:AdditionalDocumentReference/cac:Attachment/cbc:EmbeddedDocumentBinaryObject')), 'BG-24');
+echo "U44 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

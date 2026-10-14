@@ -844,3 +844,327 @@ function auvoerechnung_cii_party($p)
 
 	return $xml;
 }
+
+/**
+ * Sérialise le modèle en UBL 2.1 (Invoice, ou CreditNote pour un avoir 381),
+ * selon la syntaxe UBL de la norme EN 16931-3-2 et l'ordre des XSD OASIS.
+ *
+ * Particularités par rapport à CII :
+ *  - avoir : document CreditNote / CreditNoteLine / CreditedQuantity, et la
+ *    date d'échéance (BT-9) passe dans PaymentMeans/PaymentDueDate ;
+ *  - BT-8 : InvoicePeriod/DescriptionCode, liste UNTDID 2005 (3 = date de
+ *    facture, 35 = livraison, 432 = paiement) au lieu des codes 2475 de CII ;
+ *  - BG-1 : le code sujet (BT-21) n'a pas d'élément propre, convention
+ *    « #CODE#texte » dans cbc:Note ;
+ *  - BT-90 : identifiant créancier SEPA en PartyIdentification du vendeur
+ *    (schemeID SEPA) ; mandat BT-89 et IBAN débiteur BT-91 dans
+ *    PaymentMeans/PaymentMandate ;
+ *  - tous les montants portent currencyID ; éléments vides omis
+ *    (PEPPOL-EN16931-R008).
+ *
+ * @param array $m Modèle (cf. auvoerechnung_build_model)
+ * @return string XML
+ */
+function auvoerechnung_model_to_ubl($m)
+{
+	$e = 'auvoerechnung_xml_encode';
+	$doc = $m['document'];
+	$cur = $e($doc['currency']);
+	$money = function ($v) use ($cur) {
+		return ' currencyID="'.$cur.'">'.auvoerechnung_format_amount($v);
+	};
+	$isCN = !empty($doc['is_credit_note']);
+	$root = $isCN ? 'CreditNote' : 'Invoice';
+	$date = function ($ymd) {
+		return substr($ymd, 0, 4).'-'.substr($ymd, 4, 2).'-'.substr($ymd, 6, 2);
+	};
+
+	$xml  = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
+	$xml .= '<'.$root.' xmlns="urn:oasis:names:specification:ubl:schema:xsd:'.$root.'-2"';
+	$xml .= ' xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"';
+	$xml .= ' xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">'."\n";
+	$xml .= '  <cbc:CustomizationID>'.$e($doc['specification']).'</cbc:CustomizationID>'."\n";      // BT-24
+	if ($doc['business_process'] !== '') {
+		$xml .= '  <cbc:ProfileID>'.$e($doc['business_process']).'</cbc:ProfileID>'."\n";            // BT-23
+	}
+	$xml .= '  <cbc:ID>'.$e($doc['id']).'</cbc:ID>'."\n";                                          // BT-1
+	$xml .= '  <cbc:IssueDate>'.$date($doc['issue_date']).'</cbc:IssueDate>'."\n";                 // BT-2
+	if (!$isCN && $m['payment']['due_date'] !== '') {
+		$xml .= '  <cbc:DueDate>'.$date($m['payment']['due_date']).'</cbc:DueDate>'."\n";          // BT-9
+	}
+	$xml .= '  <cbc:'.$root.'TypeCode>'.$e($doc['type_code']).'</cbc:'.$root.'TypeCode>'."\n";    // BT-3
+	foreach ($doc['notes'] as $note) {
+		$xml .= '  <cbc:Note>'.$e('#'.$note['subject'].'#'.$note['content']).'</cbc:Note>'."\n";  // BG-1
+	}
+	$xml .= '  <cbc:DocumentCurrencyCode>'.$cur.'</cbc:DocumentCurrencyCode>'."\n";               // BT-5
+	if ($doc['buyer_reference'] !== '') {
+		$xml .= '  <cbc:BuyerReference>'.$e($doc['buyer_reference']).'</cbc:BuyerReference>'."\n"; // BT-10
+	}
+	// BG-14 + BT-8 (émis comme en CII : seulement s'il y a une catégorie S)
+	$hasS = in_array('S', array_column($m['vat_breakdown'], 'category'), true);
+	$bt8 = ($hasS && $doc['vat_due_date_code'] !== '') ? (['5' => '3', '29' => '35', '72' => '432'][$doc['vat_due_date_code']] ?? '') : '';
+	if ($doc['period_start'] !== '' || $doc['period_end'] !== '' || $bt8 !== '') {
+		$xml .= '  <cac:InvoicePeriod>'."\n";
+		if ($doc['period_start'] !== '') {
+			$xml .= '    <cbc:StartDate>'.$date($doc['period_start']).'</cbc:StartDate>'."\n";
+		}
+		if ($doc['period_end'] !== '') {
+			$xml .= '    <cbc:EndDate>'.$date($doc['period_end']).'</cbc:EndDate>'."\n";
+		}
+		if ($bt8 !== '') {
+			$xml .= '    <cbc:DescriptionCode>'.$bt8.'</cbc:DescriptionCode>'."\n";
+		}
+		$xml .= '  </cac:InvoicePeriod>'."\n";
+	}
+	if ($doc['order_reference'] !== '') {
+		$xml .= '  <cac:OrderReference>'."\n";
+		$xml .= '    <cbc:ID>'.$e($doc['order_reference']).'</cbc:ID>'."\n";                       // BT-13
+		$xml .= '  </cac:OrderReference>'."\n";
+	}
+	foreach ($m['preceding_invoices'] as $prev) {                                                  // BG-3
+		$xml .= '  <cac:BillingReference>'."\n";
+		$xml .= '    <cac:InvoiceDocumentReference>'."\n";
+		$xml .= '      <cbc:ID>'.$e($prev['ref']).'</cbc:ID>'."\n";
+		if (!empty($prev['date'])) {
+			$xml .= '      <cbc:IssueDate>'.$date($prev['date']).'</cbc:IssueDate>'."\n";
+		}
+		$xml .= '    </cac:InvoiceDocumentReference>'."\n";
+		$xml .= '  </cac:BillingReference>'."\n";
+	}
+	if ($doc['contract_reference'] !== '') {
+		$xml .= '  <cac:ContractDocumentReference>'."\n";
+		$xml .= '    <cbc:ID>'.$e($doc['contract_reference']).'</cbc:ID>'."\n";                    // BT-12
+		$xml .= '  </cac:ContractDocumentReference>'."\n";
+	}
+	foreach ($m['attachments'] as $att) {                                                          // BG-24
+		$xml .= '  <cac:AdditionalDocumentReference>'."\n";
+		$xml .= '    <cbc:ID>'.$e($att['id']).'</cbc:ID>'."\n";
+		if (($att['description'] ?? '') !== '') {
+			$xml .= '    <cbc:DocumentDescription>'.$e($att['description']).'</cbc:DocumentDescription>'."\n";
+		}
+		$xml .= '    <cac:Attachment>'."\n";
+		$xml .= '      <cbc:EmbeddedDocumentBinaryObject mimeCode="'.$e($att['mime']).'" filename="'.$e($att['name']).'">'.base64_encode($att['content']).'</cbc:EmbeddedDocumentBinaryObject>'."\n";
+		$xml .= '    </cac:Attachment>'."\n";
+		$xml .= '  </cac:AdditionalDocumentReference>'."\n";
+	}
+
+	$xml .= '  <cac:AccountingSupplierParty>'."\n".auvoerechnung_ubl_party($m['seller'], $m['payment']['creditor_id']).'  </cac:AccountingSupplierParty>'."\n";
+	$xml .= '  <cac:AccountingCustomerParty>'."\n".auvoerechnung_ubl_party($m['buyer']).'  </cac:AccountingCustomerParty>'."\n";
+
+	// BT-72, BT-80
+	$xml .= '  <cac:Delivery>'."\n";
+	$xml .= '    <cbc:ActualDeliveryDate>'.$date($m['delivery']['date']).'</cbc:ActualDeliveryDate>'."\n";
+	if ($m['delivery']['ship_to_country'] !== '') {
+		$xml .= '    <cac:DeliveryLocation>'."\n";
+		$xml .= '      <cac:Address>'."\n";
+		$xml .= '        <cac:Country>'."\n";
+		$xml .= '          <cbc:IdentificationCode>'.$e($m['delivery']['ship_to_country']).'</cbc:IdentificationCode>'."\n";
+		$xml .= '        </cac:Country>'."\n";
+		$xml .= '      </cac:Address>'."\n";
+		$xml .= '    </cac:DeliveryLocation>'."\n";
+	}
+	$xml .= '  </cac:Delivery>'."\n";
+
+	// BG-16 : moyen de paiement
+	$pay = $m['payment'];
+	if ($pay['means_code'] !== '') {
+		$xml .= '  <cac:PaymentMeans>'."\n";
+		$xml .= '    <cbc:PaymentMeansCode>'.$e($pay['means_code']).'</cbc:PaymentMeansCode>'."\n";      // BT-81
+		if ($isCN && $pay['due_date'] !== '') {
+			$xml .= '    <cbc:PaymentDueDate>'.$date($pay['due_date']).'</cbc:PaymentDueDate>'."\n";     // BT-9 (avoir)
+		}
+		if ($pay['payee_iban'] !== '') {
+			$xml .= '    <cac:PayeeFinancialAccount>'."\n";
+			$xml .= '      <cbc:ID>'.$e($pay['payee_iban']).'</cbc:ID>'."\n";                            // BT-84
+			if ($pay['payee_bic'] !== '') {
+				$xml .= '      <cac:FinancialInstitutionBranch>'."\n";
+				$xml .= '        <cbc:ID>'.$e($pay['payee_bic']).'</cbc:ID>'."\n";                       // BT-86
+				$xml .= '      </cac:FinancialInstitutionBranch>'."\n";
+			}
+			$xml .= '    </cac:PayeeFinancialAccount>'."\n";
+		}
+		if ($pay['mandate_id'] !== '' || $pay['debtor_iban'] !== '') {
+			$xml .= '    <cac:PaymentMandate>'."\n";
+			if ($pay['mandate_id'] !== '') {
+				$xml .= '      <cbc:ID>'.$e($pay['mandate_id']).'</cbc:ID>'."\n";                      // BT-89
+			}
+			if ($pay['debtor_iban'] !== '') {
+				$xml .= '      <cac:PayerFinancialAccount>'."\n";
+				$xml .= '        <cbc:ID>'.$e($pay['debtor_iban']).'</cbc:ID>'."\n";                     // BT-91
+				$xml .= '      </cac:PayerFinancialAccount>'."\n";
+			}
+			$xml .= '    </cac:PaymentMandate>'."\n";
+		}
+		$xml .= '  </cac:PaymentMeans>'."\n";
+	}
+	if ($pay['terms'] !== '') {
+		$xml .= '  <cac:PaymentTerms>'."\n";
+		$xml .= '    <cbc:Note>'.$e($pay['terms']).'</cbc:Note>'."\n";                                // BT-20
+		$xml .= '  </cac:PaymentTerms>'."\n";
+	}
+
+	// BG-20 : remises document
+	foreach ($m['allowances'] as $al) {
+		$xml .= '  <cac:AllowanceCharge>'."\n";
+		$xml .= '    <cbc:ChargeIndicator>false</cbc:ChargeIndicator>'."\n";
+		$xml .= '    <cbc:AllowanceChargeReason>'.$e($al['reason']).'</cbc:AllowanceChargeReason>'."\n";
+		$xml .= '    <cbc:Amount'.$money($al['amount']).'</cbc:Amount>'."\n";
+		$xml .= auvoerechnung_ubl_tax_category('TaxCategory', $al['vat_category'], $al['vat_rate'], '', '', '    ');
+		$xml .= '  </cac:AllowanceCharge>'."\n";
+	}
+
+	// BG-23 : ventilation TVA
+	$t = $m['totals'];
+	$xml .= '  <cac:TaxTotal>'."\n";
+	$xml .= '    <cbc:TaxAmount'.$money($t['tax_total']).'</cbc:TaxAmount>'."\n";                      // BT-110
+	foreach ($m['vat_breakdown'] as $vb) {
+		$xml .= '    <cac:TaxSubtotal>'."\n";
+		$xml .= '      <cbc:TaxableAmount'.$money($vb['basis']).'</cbc:TaxableAmount>'."\n";          // BT-116
+		$xml .= '      <cbc:TaxAmount'.$money($vb['tax']).'</cbc:TaxAmount>'."\n";                    // BT-117
+		$xml .= auvoerechnung_ubl_tax_category('TaxCategory', $vb['category'], $vb['rate'], $vb['exemption_code'], $vb['exemption_reason'], '      ');
+		$xml .= '    </cac:TaxSubtotal>'."\n";
+	}
+	$xml .= '  </cac:TaxTotal>'."\n";
+
+	// BG-22 : totaux
+	$xml .= '  <cac:LegalMonetaryTotal>'."\n";
+	$xml .= '    <cbc:LineExtensionAmount'.$money($t['line_total']).'</cbc:LineExtensionAmount>'."\n";  // BT-106
+	$xml .= '    <cbc:TaxExclusiveAmount'.$money($t['tax_basis']).'</cbc:TaxExclusiveAmount>'."\n";    // BT-109
+	$xml .= '    <cbc:TaxInclusiveAmount'.$money($t['grand_total']).'</cbc:TaxInclusiveAmount>'."\n";  // BT-112
+	if ($t['allowance_total'] > 0) {
+		$xml .= '    <cbc:AllowanceTotalAmount'.$money($t['allowance_total']).'</cbc:AllowanceTotalAmount>'."\n"; // BT-107
+	}
+	if ($t['prepaid'] > 0) {
+		$xml .= '    <cbc:PrepaidAmount'.$money($t['prepaid']).'</cbc:PrepaidAmount>'."\n";            // BT-113
+	}
+	$xml .= '    <cbc:PayableAmount'.$money($t['due_payable']).'</cbc:PayableAmount>'."\n";          // BT-115
+	$xml .= '  </cac:LegalMonetaryTotal>'."\n";
+
+	// BG-25 : lignes
+	$lineTag = $isCN ? 'CreditNoteLine' : 'InvoiceLine';
+	$qtyTag = $isCN ? 'CreditedQuantity' : 'InvoicedQuantity';
+	foreach ($m['lines'] as $l) {
+		$xml .= '  <cac:'.$lineTag.'>'."\n";
+		$xml .= '    <cbc:ID>'.$e($l['id']).'</cbc:ID>'."\n";                                          // BT-126
+		$xml .= '    <cbc:'.$qtyTag.' unitCode="'.$e($l['unit_code']).'">'.auvoerechnung_format_qty($l['quantity']).'</cbc:'.$qtyTag.'>'."\n"; // BT-129/130
+		$xml .= '    <cbc:LineExtensionAmount'.$money($l['net_amount']).'</cbc:LineExtensionAmount>'."\n"; // BT-131
+		$xml .= '    <cac:Item>'."\n";
+		$xml .= '      <cbc:Name>'.$e($l['name']).'</cbc:Name>'."\n";                                  // BT-153
+		$xml .= auvoerechnung_ubl_tax_category('ClassifiedTaxCategory', $l['vat_category'], $l['vat_rate'], '', '', '      ');
+		$xml .= '    </cac:Item>'."\n";
+		$xml .= '    <cac:Price>'."\n";
+		$xml .= '      <cbc:PriceAmount currencyID="'.$cur.'">'.auvoerechnung_format_unit_price($l['net_price']).'</cbc:PriceAmount>'."\n"; // BT-146
+		$xml .= '    </cac:Price>'."\n";
+		$xml .= '  </cac:'.$lineTag.'>'."\n";
+	}
+
+	$xml .= '</'.$root.'>';
+	return $xml;
+}
+
+/**
+ * Catégorie de TVA UBL (TaxCategory / ClassifiedTaxCategory) : code, taux
+ * (absent pour O), code et motif d'exonération, schéma VAT.
+ */
+function auvoerechnung_ubl_tax_category($tag, $category, $rate, $exemptionCode, $exemptionReason, $indent)
+{
+	$e = 'auvoerechnung_xml_encode';
+	$xml  = $indent.'<cac:'.$tag.'>'."\n";
+	$xml .= $indent.'  <cbc:ID>'.$e($category).'</cbc:ID>'."\n";
+	if ($rate !== null) {
+		$xml .= $indent.'  <cbc:Percent>'.auvoerechnung_format_amount($rate).'</cbc:Percent>'."\n";
+	}
+	if ($exemptionCode !== '') {
+		$xml .= $indent.'  <cbc:TaxExemptionReasonCode>'.$e($exemptionCode).'</cbc:TaxExemptionReasonCode>'."\n";
+	}
+	if ($exemptionReason !== '') {
+		$xml .= $indent.'  <cbc:TaxExemptionReason>'.$e($exemptionReason).'</cbc:TaxExemptionReason>'."\n";
+	}
+	$xml .= $indent.'  <cac:TaxScheme>'."\n";
+	$xml .= $indent.'    <cbc:ID>VAT</cbc:ID>'."\n";
+	$xml .= $indent.'  </cac:TaxScheme>'."\n";
+	$xml .= $indent.'</cac:'.$tag.'>'."\n";
+	return $xml;
+}
+
+/**
+ * Bloc cac:Party UBL d'une partie, dans l'ordre du XSD (EndpointID,
+ * PartyIdentification, PostalAddress, PartyTaxScheme, PartyLegalEntity,
+ * Contact).
+ *
+ * @param array  $p           Partie (cf. auvoerechnung_build_party_model)
+ * @param string $creditorId  BT-90 (vendeur, prélèvement SEPA)
+ * @return string XML
+ */
+function auvoerechnung_ubl_party($p, $creditorId = '')
+{
+	$e = 'auvoerechnung_xml_encode';
+	$xml = '    <cac:Party>'."\n";
+	if ($p['endpoint'] !== null) {
+		$xml .= '      <cbc:EndpointID schemeID="'.$e($p['endpoint']['scheme']).'">'.$e($p['endpoint']['id']).'</cbc:EndpointID>'."\n"; // BT-34/49
+	}
+	$ids = [];
+	if ($p['id'] !== '') {
+		$ids[] = ['', $p['id']];                                       // BT-29 sans schéma
+	}
+	if ($p['global_id'] !== null) {
+		$ids[] = [$p['global_id']['scheme'], $p['global_id']['id']];   // BT-29/46 avec schéma
+	}
+	if ($creditorId !== '') {
+		$ids[] = ['SEPA', $creditorId];                                // BT-90
+	}
+	foreach ($ids as [$scheme, $id]) {
+		$xml .= '      <cac:PartyIdentification>'."\n";
+		$xml .= '        <cbc:ID'.($scheme !== '' ? ' schemeID="'.$e($scheme).'"' : '').'>'.$e($id).'</cbc:ID>'."\n";
+		$xml .= '      </cac:PartyIdentification>'."\n";
+	}
+	$a = $p['address'];
+	$xml .= '      <cac:PostalAddress>'."\n";
+	if ($a['line1'] !== '') {
+		$xml .= '        <cbc:StreetName>'.$e($a['line1']).'</cbc:StreetName>'."\n";      // BT-35/50
+	}
+	if ($a['city'] !== '') {
+		$xml .= '        <cbc:CityName>'.$e($a['city']).'</cbc:CityName>'."\n";            // BT-37/52
+	}
+	if ($a['postcode'] !== '') {
+		$xml .= '        <cbc:PostalZone>'.$e($a['postcode']).'</cbc:PostalZone>'."\n";    // BT-38/53
+	}
+	$xml .= '        <cac:Country>'."\n";
+	$xml .= '          <cbc:IdentificationCode>'.$e($a['country']).'</cbc:IdentificationCode>'."\n"; // BT-40/55
+	$xml .= '        </cac:Country>'."\n";
+	$xml .= '      </cac:PostalAddress>'."\n";
+	// BT-31/48 (schéma VAT) ou BT-32 (identifiant fiscal, schéma FC)
+	foreach ([[$p['vat_id'], 'VAT'], [$p['vat_id'] === '' ? $p['tax_id'] : '', 'FC']] as [$taxId, $scheme]) {
+		if ($taxId !== '') {
+			$xml .= '      <cac:PartyTaxScheme>'."\n";
+			$xml .= '        <cbc:CompanyID>'.$e($taxId).'</cbc:CompanyID>'."\n";
+			$xml .= '        <cac:TaxScheme>'."\n";
+			$xml .= '          <cbc:ID>'.$scheme.'</cbc:ID>'."\n";
+			$xml .= '        </cac:TaxScheme>'."\n";
+			$xml .= '      </cac:PartyTaxScheme>'."\n";
+		}
+	}
+	$xml .= '      <cac:PartyLegalEntity>'."\n";
+	$xml .= '        <cbc:RegistrationName>'.$e($p['name']).'</cbc:RegistrationName>'."\n";   // BT-27/44
+	if ($p['legal_id'] !== null) {
+		$scheme = $p['legal_id']['scheme'] !== '' ? ' schemeID="'.$e($p['legal_id']['scheme']).'"' : '';
+		$xml .= '        <cbc:CompanyID'.$scheme.'>'.$e($p['legal_id']['id']).'</cbc:CompanyID>'."\n"; // BT-30/47
+	}
+	$xml .= '      </cac:PartyLegalEntity>'."\n";
+	if ($p['contact'] !== null) {
+		$c = $p['contact'];
+		$xml .= '      <cac:Contact>'."\n";
+		if ($c['name'] !== '') {
+			$xml .= '        <cbc:Name>'.$e($c['name']).'</cbc:Name>'."\n";                   // BT-41
+		}
+		if ($c['phone'] !== '') {
+			$xml .= '        <cbc:Telephone>'.$e($c['phone']).'</cbc:Telephone>'."\n";        // BT-42
+		}
+		if ($c['email'] !== '') {
+			$xml .= '        <cbc:ElectronicMail>'.$e($c['email']).'</cbc:ElectronicMail>'."\n"; // BT-43
+		}
+		$xml .= '      </cac:Contact>'."\n";
+	}
+	$xml .= '    </cac:Party>'."\n";
+	return $xml;
+}

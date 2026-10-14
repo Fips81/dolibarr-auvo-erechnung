@@ -38,7 +38,8 @@ function auvoerechnung_rule_msg($rule, $key, ...$args)
 }
 
 /**
- * Valide un XML contre le XSD Factur-X EN16931 embarqué.
+ * Valide un XML contre le XSD embarqué de sa syntaxe : Factur-X EN16931 (CII)
+ * ou UBL 2.1 Invoice / CreditNote (OASIS).
  * Fonction partagée par le hook, les tests unitaires et les tests d'intégration
  * — une seule implémentation de la validation structurelle.
  *
@@ -68,7 +69,14 @@ function auvoerechnung_validate_xsd($xml, $modulePath)
 		return auvoerechnung_rule_msg('', 'AuvoERechnungXsdMalformed', $firstError('-'));
 	}
 
-	$xsdPath = $modulePath.'/vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.09.2_EN16931.xsd';
+	// Syntaxe d'après l'élément racine : UBL 2.1 (Invoice / CreditNote, XSD
+	// OASIS embarqués) ou CII (XSD Factur-X EN16931).
+	$rootNs = $dom->documentElement ? (string) $dom->documentElement->namespaceURI : '';
+	if (preg_match('/^urn:oasis:names:specification:ubl:schema:xsd:(Invoice|CreditNote)-2$/', $rootNs, $mUbl)) {
+		$xsdPath = $modulePath.'/vendor/oasis/ubl-2.1/xsd/maindoc/UBL-'.$mUbl[1].'-2.1.xsd';
+	} else {
+		$xsdPath = $modulePath.'/vendor/atgp/factur-x/xsd/factur-x/en16931/Factur-X_1.09.2_EN16931.xsd';
+	}
 	if (!file_exists($xsdPath)) {
 		// Absence du XSD embarqué : on ne bloque pas, le well-formed est vérifié
 		libxml_clear_errors();

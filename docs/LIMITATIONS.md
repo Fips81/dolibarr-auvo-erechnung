@@ -110,13 +110,13 @@ die Skonto-Zeilen in Gutschriften. Die Tage zählen ab Rechnungsdatum.
 ### XRechnung
 **Teilweise.** Für Kunden mit Leitweg-ID (oder E-Rechnungsformat „XRechnung“)
 erzeugt das Modul zusätzlich zur ZUGFeRD-PDF eine **XRechnung 3.0 als eigene
-XML-Datei** (`{Rechnung}-XRECHNUNG.xml`, Syntax CII). Noch nicht enthalten:
+XML-Datei** (`{Rechnung}-XRECHNUNG.xml`, Syntax CII oder UBL 2.1). Noch nicht enthalten:
 - ZUGFeRD-PDF im **Profil XRECHNUNG** (XRechnung-XML in der PDF eingebettet):
   die eingebettete Bibliothek kennt dieses Profil nicht; die PDF bleibt
   ZUGFeRD EN16931. Für die OZG-RE des Bundes die XML-Datei verwenden.
-- Die Variante **UBL** und die **XRechnung-Extension**.
-- Anlagen (BG-24): mehrere eingebettete Dateien lösen die CEN-Warnung
-  CII-SR-476 aus (nur Warnung). Externe Verweise auf Anlagen (BT-124, URL)
+- Die **XRechnung-Extension** (z. B. Unterpositionen, Drittzahlungen).
+- Anlagen (BG-24): mehrere eingebettete Dateien lösen in CII die CEN-Warnung
+  CII-SR-476 aus (nur Warnung; in UBL nicht). Externe Verweise auf Anlagen (BT-124, URL)
   werden nicht erzeugt.
 - Versand: an die OZG-RE des Bundes per E-Mail-Kanal aus der Rechnung heraus
   (Einreichungsadresse in den Moduleinstellungen). Nicht abgebildet: Peppol,

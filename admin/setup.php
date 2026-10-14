@@ -81,6 +81,7 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		['AUVOERECHNUNG_CONTACT_NAME', trim(GETPOST('AUVOERECHNUNG_CONTACT_NAME', 'alphanohtml')), 'chaine'],
 		['AUVOERECHNUNG_CONTACT_PHONE', trim(GETPOST('AUVOERECHNUNG_CONTACT_PHONE', 'alphanohtml')), 'chaine'],
 		['AUVOERECHNUNG_CONTACT_EMAIL', trim(GETPOST('AUVOERECHNUNG_CONTACT_EMAIL', 'email')), 'chaine'],
+		['AUVOERECHNUNG_XRECHNUNG_SYNTAX', GETPOST('AUVOERECHNUNG_XRECHNUNG_SYNTAX', 'aZ09') === 'ubl' ? 'ubl' : 'cii', 'chaine'],
 		['AUVOERECHNUNG_XR_EMBED_PDF', GETPOSTINT('AUVOERECHNUNG_XR_EMBED_PDF') ? 1 : 0, 'int'],
 		['AUVOERECHNUNG_XR_EMBED_FILES', GETPOSTINT('AUVOERECHNUNG_XR_EMBED_FILES') ? 1 : 0, 'int'],
 		['AUVOERECHNUNG_MAIL_ATTACH_XR', GETPOSTINT('AUVOERECHNUNG_MAIL_ATTACH_XR') ? 1 : 0, 'int'],
@@ -184,16 +185,22 @@ if ($action == 'testinvoice') {
 	// Comme une vraie facture : contact XRechnung de repli = créateur (ici l'utilisateur connecté)
 	$testInvoice->fk_user_author = $user->id;
 	$testResults = [];
-	foreach (['zugferd' => [], 'xrechnung' => ['profile' => 'xrechnung']] as $label => $opt) {
+	foreach (['zugferd', 'xrechnung', 'xrechnung_ubl'] as $label) {
 		$bw = [];
-		$xmlTest = auvoerechnung_build_xml($testInvoice, $mysoc, $bw, $opt);
+		if ($label === 'zugferd') {
+			$xmlTest = $ciiTest = auvoerechnung_build_xml($testInvoice, $mysoc, $bw);
+		} else {
+			$xr = auvoerechnung_build_xrechnung($testInvoice, $mysoc, $bw, [], $label === 'xrechnung_ubl' ? 'ubl' : 'cii');
+			$xmlTest = $xr['xml'];
+			$ciiTest = $xr['cii'];
+		}
 		$errors = [];
 		$xsdErr = auvoerechnung_validate_xsd($xmlTest, dirname(__DIR__));
 		if ($xsdErr !== null) {
 			$errors[] = $xsdErr;
 		}
-		$errors = array_merge($errors, auvoerechnung_validate_business_rules($xmlTest));
-		if ($label === 'xrechnung') {
+		$errors = array_merge($errors, auvoerechnung_validate_business_rules($ciiTest));
+		if ($label !== 'zugferd') {
 			$errors = array_merge(auvoerechnung_check_xrechnung($testInvoice, $mysoc), $errors);
 		}
 		$testResults[$label] = ['xml' => $xmlTest, 'errors' => $errors, 'warnings' => $bw];
@@ -296,6 +303,13 @@ foreach ([
 }
 print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungXrVersion").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungXrVersionHint").'</span></td><td>';
 print '<input type="text" name="AUVOERECHNUNG_XRECHNUNG_VERSION" class="flat width75" value="'.dol_escape_htmltag(getDolGlobalString('AUVOERECHNUNG_XRECHNUNG_VERSION', '3.0')).'"></td></tr>';
+// Syntaxe de la XRechnung par défaut (CII ou UBL), modifiable par client
+$xrSyntax = getDolGlobalString('AUVOERECHNUNG_XRECHNUNG_SYNTAX', 'cii') === 'ubl' ? 'ubl' : 'cii';
+print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungXrSyntax").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungXrSyntaxHint").'</span></td><td>';
+print '<select name="AUVOERECHNUNG_XRECHNUNG_SYNTAX" class="flat">';
+print '<option value="cii"'.($xrSyntax === 'cii' ? ' selected' : '').'>CII (UN/CEFACT)</option>';
+print '<option value="ubl"'.($xrSyntax === 'ubl' ? ' selected' : '').'>UBL 2.1 (OASIS)</option>';
+print '</select></td></tr>';
 // Adresse e-mail individuelle du compte OZG-RE (canal e-mail de la plateforme
 // du Bund) : active l'entrée « XRechnung an OZG-RE senden » de la fiche facture.
 print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungOzgReEmail").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungOzgReEmailHint").'</span></td><td>';
@@ -445,7 +459,7 @@ if ($testResults !== null) {
 	print '<table class="noborder centpercent" id="testinvoice" style="margin-top:10px;">';
 	print '<tr class="liste_titre"><td>'.$langs->trans("AuvoERechnungTestFormat").'</td><td>'.$langs->trans("AuvoERechnungTestResult").'</td><td></td></tr>';
 	foreach ($testResults as $label => $res) {
-		$name = $label === 'xrechnung' ? 'XRechnung' : 'ZUGFeRD (EN16931)';
+		$name = ['zugferd' => 'ZUGFeRD (EN16931)', 'xrechnung' => 'XRechnung (CII)', 'xrechnung_ubl' => 'XRechnung (UBL)'][$label];
 		print '<tr class="oddeven"><td class="nowraponall">'.$name.'</td><td>';
 		if (empty($res['errors'])) {
 			print '<span style="color:green;"><strong>'.$langs->trans("AuvoERechnungTestOk").'</strong></span>';
@@ -460,7 +474,7 @@ if ($testResults !== null) {
 			print '<div class="opacitymedium small">⚠ '.dol_escape_htmltag(dol_string_nohtmltag((string) $wmsg)).'</div>';
 		}
 		print '<details><summary class="small">'.$langs->trans("AuvoERechnungTestShowXml").'</summary><pre style="max-height:400px;overflow:auto;font-size:11px;">'.dol_escape_htmltag($res['xml']).'</pre></details>';
-		print '</td><td class="right nowraponall"><a href="data:application/xml;base64,'.base64_encode($res['xml']).'" download="TEST-'.($label === 'xrechnung' ? 'XRECHNUNG' : 'ZUGFeRD').'.xml">'.img_picto('', 'download', 'class="pictofixedwidth"').$langs->trans("Download").'</a></td></tr>';
+		print '</td><td class="right nowraponall"><a href="data:application/xml;base64,'.base64_encode($res['xml']).'" download="TEST-'.['zugferd' => 'ZUGFeRD', 'xrechnung' => 'XRECHNUNG-CII', 'xrechnung_ubl' => 'XRECHNUNG-UBL'][$label].'.xml">'.img_picto('', 'download', 'class="pictofixedwidth"').$langs->trans("Download").'</a></td></tr>';
 	}
 	print '</table>';
 	print '<div class="opacitymedium small" style="margin-top:4px;">'.$langs->trans("AuvoERechnungTestValidatorHint").'</div>';
