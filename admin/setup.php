@@ -81,6 +81,9 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		['AUVOERECHNUNG_CONTACT_NAME', trim(GETPOST('AUVOERECHNUNG_CONTACT_NAME', 'alphanohtml')), 'chaine'],
 		['AUVOERECHNUNG_CONTACT_PHONE', trim(GETPOST('AUVOERECHNUNG_CONTACT_PHONE', 'alphanohtml')), 'chaine'],
 		['AUVOERECHNUNG_CONTACT_EMAIL', trim(GETPOST('AUVOERECHNUNG_CONTACT_EMAIL', 'email')), 'chaine'],
+		['AUVOERECHNUNG_XR_EMBED_PDF', GETPOSTINT('AUVOERECHNUNG_XR_EMBED_PDF') ? 1 : 0, 'int'],
+		['AUVOERECHNUNG_XR_EMBED_FILES', GETPOSTINT('AUVOERECHNUNG_XR_EMBED_FILES') ? 1 : 0, 'int'],
+		['AUVOERECHNUNG_MAIL_ATTACH_XR', GETPOSTINT('AUVOERECHNUNG_MAIL_ATTACH_XR') ? 1 : 0, 'int'],
 		['AUVOERECHNUNG_OZGRE_EMAIL', isValidEmail(trim(GETPOST('AUVOERECHNUNG_OZGRE_EMAIL', 'email'))) ? trim(GETPOST('AUVOERECHNUNG_OZGRE_EMAIL', 'email')) : '', 'chaine'],
 		['AUVOERECHNUNG_NOTE_PMD',     trim(GETPOST('AUVOERECHNUNG_NOTE_PMD', 'restricthtml')),    'chaine'],
 		['AUVOERECHNUNG_NOTE_PMT',     trim(GETPOST('AUVOERECHNUNG_NOTE_PMT', 'restricthtml')),    'chaine'],
@@ -162,6 +165,38 @@ if ($action == 'setforcefont') {
 		setEventMessages($langs->trans("AuvoERechnungForceFontSet"), null, 'mesgs');
 	} else {
 		setEventMessages($langs->trans("Error"), null, 'errors');
+	}
+}
+
+// Testrechnung : XML ZUGFeRD et XRechnung à partir des données réelles de
+// la société et d'un client fictif, contrôlés (XSD + règles), sans rien
+// enregistrer. Permet de vérifier la configuration avant la première facture.
+$testResults = null;
+if ($action == 'testinvoice') {
+	if (GETPOST('token', 'alpha') !== currentToken()) {
+		accessforbidden('Bad value for CSRF token');
+	}
+	require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
+	require_once dol_buildpath('/auvoerechnung/core/lib/auvoerechnung_rules.php');
+	$testInvoice = new Facture($db);
+	$testBuyer = new Societe($db);
+	auvoerechnung_sample_invoice($testInvoice, $testBuyer, $mysoc);
+	// Comme une vraie facture : contact XRechnung de repli = créateur (ici l'utilisateur connecté)
+	$testInvoice->fk_user_author = $user->id;
+	$testResults = [];
+	foreach (['zugferd' => [], 'xrechnung' => ['profile' => 'xrechnung']] as $label => $opt) {
+		$bw = [];
+		$xmlTest = auvoerechnung_build_xml($testInvoice, $mysoc, $bw, $opt);
+		$errors = [];
+		$xsdErr = auvoerechnung_validate_xsd($xmlTest, dirname(__DIR__));
+		if ($xsdErr !== null) {
+			$errors[] = $xsdErr;
+		}
+		$errors = array_merge($errors, auvoerechnung_validate_business_rules($xmlTest));
+		if ($label === 'xrechnung') {
+			$errors = array_merge(auvoerechnung_check_xrechnung($testInvoice, $mysoc), $errors);
+		}
+		$testResults[$label] = ['xml' => $xmlTest, 'errors' => $errors, 'warnings' => $bw];
 	}
 }
 
@@ -265,6 +300,19 @@ print '<input type="text" name="AUVOERECHNUNG_XRECHNUNG_VERSION" class="flat wid
 // du Bund) : active l'entrée « XRechnung an OZG-RE senden » de la fiche facture.
 print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungOzgReEmail").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungOzgReEmailHint").'</span></td><td>';
 print '<input type="text" name="AUVOERECHNUNG_OZGRE_EMAIL" class="flat minwidth300" value="'.dol_escape_htmltag(getDolGlobalString('AUVOERECHNUNG_OZGRE_EMAIL', '')).'"></td></tr>';
+// Oui/Non : pièces jointes BG-24 et pièce jointe automatique au formulaire e-mail
+foreach ([
+	'AUVOERECHNUNG_XR_EMBED_PDF'   => ['AuvoERechnungXrEmbedPdf', 0],
+	'AUVOERECHNUNG_XR_EMBED_FILES' => ['AuvoERechnungXrEmbedFiles', 0],
+	'AUVOERECHNUNG_MAIL_ATTACH_XR' => ['AuvoERechnungMailAttachXr', 1],
+] as $constName => [$transKey, $default]) {
+	$cur = getDolGlobalInt($constName, $default);
+	print '<tr class="oddeven"><td>'.$langs->trans($transKey).'<br><span class="opacitymedium small">'.$langs->trans($transKey.'Hint').'</span></td><td>';
+	print '<select name="'.$constName.'" class="flat">';
+	print '<option value="1"'.($cur ? ' selected' : '').'>'.$langs->trans("Yes").'</option>';
+	print '<option value="0"'.(!$cur ? ' selected' : '').'>'.$langs->trans("No").'</option>';
+	print '</select></td></tr>';
+}
 
 // ---- Bloc 2c : Skonto (escompte) par condition de règlement ----
 // Émis en BT-20 au format KoSIT #SKONTO#TAGE=n#PROZENT=n.nn# (BR-DE-18), dans
@@ -390,6 +438,35 @@ print '</div>';
 
 // === Diagnostic des infos obligatoires ===
 print '<br>';
+print load_fiche_titre($langs->trans("AuvoERechnungTestTitle"), '', '');
+print '<div class="opacitymedium" style="margin-bottom:8px;">'.$langs->trans("AuvoERechnungTestInfo").'</div>';
+print '<a class="butAction" style="margin-left:0;" href="'.$_SERVER['PHP_SELF'].'?action=testinvoice&token='.newToken().'#testinvoice">'.$langs->trans("AuvoERechnungTestButton").'</a>';
+if ($testResults !== null) {
+	print '<table class="noborder centpercent" id="testinvoice" style="margin-top:10px;">';
+	print '<tr class="liste_titre"><td>'.$langs->trans("AuvoERechnungTestFormat").'</td><td>'.$langs->trans("AuvoERechnungTestResult").'</td><td></td></tr>';
+	foreach ($testResults as $label => $res) {
+		$name = $label === 'xrechnung' ? 'XRechnung' : 'ZUGFeRD (EN16931)';
+		print '<tr class="oddeven"><td class="nowraponall">'.$name.'</td><td>';
+		if (empty($res['errors'])) {
+			print '<span style="color:green;"><strong>'.$langs->trans("AuvoERechnungTestOk").'</strong></span>';
+		} else {
+			print '<span style="color:#b00;"><strong>'.$langs->trans("AuvoERechnungTestKo", count($res['errors'])).'</strong></span><ul style="margin:4px 0;">';
+			foreach ($res['errors'] as $e) {
+				print '<li>'.dol_escape_htmltag(dol_string_nohtmltag((string) $e)).'</li>';
+			}
+			print '</ul>';
+		}
+		foreach ($res['warnings'] as $wmsg) {
+			print '<div class="opacitymedium small">⚠ '.dol_escape_htmltag(dol_string_nohtmltag((string) $wmsg)).'</div>';
+		}
+		print '<details><summary class="small">'.$langs->trans("AuvoERechnungTestShowXml").'</summary><pre style="max-height:400px;overflow:auto;font-size:11px;">'.dol_escape_htmltag($res['xml']).'</pre></details>';
+		print '</td><td class="right nowraponall"><a href="data:application/xml;base64,'.base64_encode($res['xml']).'" download="TEST-'.($label === 'xrechnung' ? 'XRECHNUNG' : 'ZUGFeRD').'.xml">'.img_picto('', 'download', 'class="pictofixedwidth"').$langs->trans("Download").'</a></td></tr>';
+	}
+	print '</table>';
+	print '<div class="opacitymedium small" style="margin-top:4px;">'.$langs->trans("AuvoERechnungTestValidatorHint").'</div>';
+}
+print '<br>';
+
 print load_fiche_titre($langs->trans("AuvoERechnungDiagTitle"), '', '');
 
 $diagErrors = [];

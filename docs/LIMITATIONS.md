@@ -115,6 +115,9 @@ XML-Datei** (`{Rechnung}-XRECHNUNG.xml`, Syntax CII). Noch nicht enthalten:
   die eingebettete Bibliothek kennt dieses Profil nicht; die PDF bleibt
   ZUGFeRD EN16931. Für die OZG-RE des Bundes die XML-Datei verwenden.
 - Die Variante **UBL** und die **XRechnung-Extension**.
+- Anlagen (BG-24): mehrere eingebettete Dateien lösen die CEN-Warnung
+  CII-SR-476 aus (nur Warnung). Externe Verweise auf Anlagen (BT-124, URL)
+  werden nicht erzeugt.
 - Versand: an die OZG-RE des Bundes per E-Mail-Kanal aus der Rechnung heraus
   (Einreichungsadresse in den Moduleinstellungen). Nicht abgebildet: Peppol,
   Landesportale mit eigenen Kanälen, der Webservice des Bundes (laut Bund

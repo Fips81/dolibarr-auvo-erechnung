@@ -204,6 +204,11 @@ Für öffentliche Auftraggeber in Deutschland (und Firmenkunden, die es verlange
 - **Wenn vom Auftraggeber mitgeteilt** (§ 5 E-RechV): die **Bestellnummer** in „Ihr Zeichen“ (am Auftrag oder an der Rechnung) und die **Lieferantennummer** im Feld **„Unsere Lieferantennummer beim Kunden“** am Geschäftspartner (BT-29).
 - **Bedienung:** Im Menü **ZUGFeRD ▾** auf der Rechnung gibt es **„XRechnung erzeugen“** (auch für Kunden ohne Leitweg-ID, für einzelne Rechnungen) und, sobald die Datei existiert, **„XRechnung herunterladen“**. Die Datei liegt außerdem bei den Dokumenten der Rechnung. Die **Diagnose** auf der Einstellungsseite zeigt, ob die Firmendaten für XRechnung reichen und wie viele Kunden automatisch eine XRechnung erhalten.
 - **Bund (OZG-RE):** Mit der persönlichen Einreichungsadresse des OZG-RE-Kontos in den Moduleinstellungen (Block „XRechnung“; zu finden in der OZG-RE unter „Extern erstellte XRechnung via E-Mail senden“) gibt es auf der Rechnung **„XRechnung an OZG-RE senden“**. Das Modul erzeugt und prüft die XRechnung neu, fragt nach (Empfänger, Leitweg-ID, Hinweis bei erneutem Versand) und schickt genau diese eine Datei über den Mailversand von Dolibarr, wie es die OZG-RE verlangt (eine XRechnung pro E-Mail, höchstens 10 MB, keine weiteren Anhänge). Der Versand erscheint wie ein normaler Rechnungsversand in den Ereignissen der Rechnung. Ob die OZG-RE die Rechnung angenommen hat, zeigt sie unter „Status eingereichter Rechnungen“. Ohne Einreichungsadresse: Datei in der Weboberfläche der OZG-RE hochladen. Keine zusätzliche PDF-Kopie schicken. Voraussetzung ist ein (kostenloses) Konto bei der OZG-RE und eine Leitweg-ID beim Kunden.
+- **Leitweg-ID pro Rechnung:** Das Feld **„Leitweg-ID (abweichend)“** an der Rechnung überschreibt für diese eine Rechnung die Leitweg-ID des Kunden, z. B. wenn eine Behörde mehrere Dienststellen hat.
+- **Anlagen:** Auf Wunsch (Moduleinstellungen, Block „XRechnung“) bettet das Modul die PDF der Rechnung und/oder die bei der Rechnung hochgeladenen Dateien (z. B. Stundennachweise) in die XRechnung ein (BG-24; erlaubt sind PDF, PNG, JPEG, CSV, XLSX, ODS). Bei mehr als einer Anlage meldet der Validator die CEN-Warnung CII-SR-476; das ist nur eine Warnung, die Rechnung wird angenommen.
+- **Mailversand:** Öffnet man bei einem XRechnung-Kunden „Per E-Mail senden“, liegt die XRechnung schon als Anhang bereit (abschaltbar).
+- **Anzahlungsrechnungen** erhalten in der XRechnung den Code 326 (BR-DE-17 lässt 386 nicht zu); im ZUGFeRD bleibt 386.
+- **Testrechnung:** Auf der Einstellungsseite erzeugt „Testrechnung erzeugen und prüfen“ eine ZUGFeRD- und eine XRechnung-Datei mit den eigenen Firmendaten und einem Testkunden, prüft beide und bietet sie zum Download an. Es wird nichts gespeichert.
 - **Skonto:** In den Moduleinstellungen (Block „Skonto“) lassen sich je Zahlungsbedingung bis zu zwei Skontostufen eintragen, z. B. 7 Tage 2 %. Das Modul schreibt sie in BT-20 im vorgeschriebenen Format `#SKONTO#TAGE=7#PROZENT=2.00#` (BR-DE-18), hinter den Text der Zahlungsbedingung, in der XRechnung und im ZUGFeRD-XML. Steht „Skonto“ in der Bezeichnung einer Zahlungsbedingung, zeigt die Einstellungsseite einen Vorschlag an.
 - **Aktualität:** Die KoSIT veröffentlicht zum 01.02. und 01.07. Die Version der Kennung (Standard `3.0`) ist in den Moduleinstellungen einstellbar.
 
@@ -215,10 +220,10 @@ Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrech
 |---|---|
 | BT-1 Invoice ID | `$invoice->ref` |
 | BT-2 Issue date | `$invoice->date` |
-| BT-3 Type code | 380 / 381 (Gutschrift) / 384 (Korrektur) / 386 (Anzahlung) |
+| BT-3 Type code | 380 / 381 (Gutschrift) / 384 (Korrektur) / 386 (Anzahlung; XRechnung: 326) |
 | BT-8 VAT due date code | Dolibarr-Umsatzsteuerregelung (`TAX_MODE`): 5 Soll-, 72 Ist-Versteuerung, weggelassen falls unbestimmt |
 | BT-9 Due date | `$invoice->date_lim_reglement` |
-| BT-10 Buyer reference | Leitweg-ID des Kunden, falls eingetragen; sonst „Ihr Zeichen“ der Rechnung (`ref_client`); Chorus-Profil: Service-Code |
+| BT-10 Buyer reference | Leitweg-ID der Rechnung („Leitweg-ID (abweichend)“), sonst des Kunden, falls eingetragen; sonst „Ihr Zeichen“ der Rechnung (`ref_client`); Chorus-Profil: Service-Code |
 | BT-13 Order reference | „Ihr Zeichen“ (Kunden-BestellNr.) des verknüpften Kundenauftrags; hat der Kunde eine Leitweg-ID, ersatzweise „Ihr Zeichen“ der Rechnung; Chorus-Profil: Verpflichtungsnummer |
 | BT-20 Payment terms | Nur bei konfiguriertem Skonto: Text der Zahlungsbedingung und Skonto-Zeilen `#SKONTO#TAGE=n#PROZENT=n.nn#` (nicht bei Gutschriften) |
 | BT-23 Business process | Verkäufer in Frankreich: Rechnungsstellungsrahmen `B1`/`S1`/`M1` (`B4`/`S4`/`M4` bei Schlussrechnung), Chorus-Profil `A1`–`A25` pro Rechnung; XRechnung: `urn:fdc:peppol.eu:2017:poacc:billing:01:1.0`; sonst weggelassen |
@@ -236,6 +241,7 @@ Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrech
 | BT-73/74 (BG-14) Period | Min/Max der Leistungsdaten der Positionen |
 | BT-80 ShipTo country | Käuferland (ausgegeben für Kategorie K, BR-IC-12) |
 | BT-89/90/91 Direct debit | Mandatsreferenz (Standard-Bankverbindung des Geschäftspartners), Gläubiger-ID (`PRELEVEMENT_ICS`), IBAN des Zahlers — Zahlungsart 59 |
+| BG-24 Supporting documents | nur XRechnung, auf Wunsch: PDF der Rechnung und hochgeladene Dokumente der Rechnung (base64, TypeCode 916) |
 | BG-21 Document allowances | Dolibarr-Positionen mit negativem Betrag (feste Rabatte) |
 | BT-113 TotalPrepaidAmount | `$invoice->getSumDepositsUsed()` bei verrechneter Anzahlung |
 | BT-120 Exemption reason | Text je nach Land des Verkäufers (Deutschland: § 19 UStG, § 4 Nr. 1a/1b UStG, Reverse Charge …; Frankreich: CGI) |
@@ -360,6 +366,9 @@ Alle sind über den Administrationsbildschirm des Moduls konfigurierbar (**Start
 | `AUVOERECHNUNG_CONTACT_NAME` | string | *(leer)* | XRechnung: Ansprechpartner (BT-41); leer = Ersteller der Rechnung |
 | `AUVOERECHNUNG_CONTACT_PHONE` | string | *(leer)* | XRechnung: Telefon (BT-42); leer = Ersteller der Rechnung, sonst Firma |
 | `AUVOERECHNUNG_CONTACT_EMAIL` | string | *(leer)* | XRechnung: E-Mail (BT-43); leer = Ersteller der Rechnung, sonst Firma |
+| `AUVOERECHNUNG_XR_EMBED_PDF` | int | 0 | XRechnung: PDF der Rechnung als Anlage einbetten (BG-24) |
+| `AUVOERECHNUNG_XR_EMBED_FILES` | int | 0 | XRechnung: hochgeladene Dokumente der Rechnung als Anlagen einbetten (BG-24) |
+| `AUVOERECHNUNG_MAIL_ATTACH_XR` | int | 1 | XRechnung im Formular „Per E-Mail senden“ automatisch anhängen |
 | `AUVOERECHNUNG_OZGRE_EMAIL` | string | *(leer)* | XRechnung: persönliche Einreichungsadresse des OZG-RE-Kontos; aktiviert „XRechnung an OZG-RE senden“ |
 | `AUVOERECHNUNG_SKONTO` | JSON | *(leer)* | Skonto je Zahlungsbedingung (Code aus dem Wörterbuch), z. B. `{"7D":[{"days":7,"percent":2}]}`; wird über die Einstellungsseite gepflegt |
 
@@ -514,7 +523,14 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 
 > Hinweis: Das Modul hieß früher LemonFacturX, AuvoZugferd und DoliZUGFeRD. In älteren Einträgen sind Klassen-, Konstanten-, Datei- und Repo-Namen an die heutigen Namen (`auvoerechnung`, `AUVOERECHNUNG_*`) angepasst.
 
-### 5.2.0 — Skonto und Versand an die OZG-RE (noch nicht veröffentlicht)
+### 5.2.0 — Skonto, Versand an die OZG-RE, Anlagen (noch nicht veröffentlicht)
+
+- **Modul einmal deaktivieren und wieder aktivieren**, damit das neue Feld an der Rechnung und der Mail-Hook angelegt werden.
+- **XRechnung beim Mailversand:** Im Formular „Per E-Mail senden“ liegt bei XRechnung-Kunden die XRechnung bereits als Anhang bereit (fehlt sie, wird sie erzeugt). Abschaltbar.
+- **Anlagen in der XRechnung (BG-24):** optional die PDF der Rechnung und die bei der Rechnung hochgeladenen Dokumente.
+- **Leitweg-ID pro Rechnung:** neues Feld „Leitweg-ID (abweichend)“ an der Rechnung, überschreibt die Leitweg-ID des Kunden.
+- **Testrechnung** auf der Einstellungsseite: ZUGFeRD und XRechnung mit den eigenen Firmendaten erzeugen, prüfen und herunterladen.
+- **Korrektur:** Anzahlungsrechnungen erhalten in der XRechnung den Code 326 statt 386 (BR-DE-17).
 
 - **Versand an die OZG-RE:** Neue Einstellung „OZG-RE: Einreichungsadresse“ und Menüpunkt „XRechnung an OZG-RE senden“ auf der Rechnung. Die XRechnung wird vor dem Versand neu erzeugt und geprüft, nach Rückfrage über den Mailversand von Dolibarr verschickt (genau eine Datei, höchstens 10 MB) und in den Ereignissen der Rechnung festgehalten. Ohne Leitweg-ID beim Kunden wird nicht gesendet; ein erneuter Versand wird in der Rückfrage angezeigt.
 

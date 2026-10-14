@@ -1389,6 +1389,112 @@ lfx_assert($noNl !== $xml2 && lfx_contains(auvoerechnung_validate_business_rules
 echo "U41 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U42 acompte 326, Leitweg-ID facture, pièces jointes BG-24, facture de test';
+lfx_reset([
+	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
+	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
+	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
+], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+$seller = lfx_make_party([
+	'name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen',
+	'address' => 'Hauptstr. 1', 'email' => 'rechnung@muster.example', 'phone' => '06772 99',
+	'tva_intra' => 'DE811111111', 'idprof1' => '22/180/80394', 'tva_assuj' => 1,
+]);
+$amt = lfx_make_party(['name' => 'Bundesamt für Beispiele', 'country_code' => 'DE', 'zip' => '53113', 'town' => 'Bonn',
+	'address' => 'Amtsweg 1', 'email' => '', 'tva_intra' => '', 'idprof1' => '',
+	'array_options' => ['options_lfxleitwegid' => '991-33333TEST-33']]);
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-0500';
+$inv->ref_client = 'BEST-1';
+$inv->thirdparty = $amt;
+$inv->lines = [lfx_make_line(1000.00, 19.0, 190.00, 1.0, 'Abschlag Planung', 1)];
+$inv->total_ht = 1000.00;
+$inv->total_tva = 190.00;
+$inv->total_ttc = 1190.00;
+
+// Facture d'acompte : 326 en XRechnung (BR-DE-17), 386 en ZUGFeRD
+$dep = clone $inv;
+$dep->type = 3;
+$w = [];
+$xmlDep = auvoerechnung_build_xml($dep, $seller, $w, ['profile' => 'xrechnung']);
+lfx_std_validate($xmlDep, $xsdPath);
+lfx_assert_eq('326', lfx_xp_str(lfx_xpath($xmlDep), '/rsm:CrossIndustryInvoice/rsm:ExchangedDocument/ram:TypeCode'), 'acompte XRechnung : 326');
+lfx_assert_eq('386', lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($dep, $seller, $w)), '/rsm:CrossIndustryInvoice/rsm:ExchangedDocument/ram:TypeCode'), 'acompte ZUGFeRD : 386 inchangé');
+lfx_dump('xr-07-abschlag-326', $xmlDep);
+
+// Leitweg-ID propre à la facture
+$inv2 = clone $inv;
+$inv2->array_options = ['options_lfxleitwegid' => '991-12345-67'];
+lfx_assert_eq('991-12345-67', auvoerechnung_invoice_leitwegid($inv2), 'Leitweg-ID de la facture prioritaire');
+lfx_assert_eq('991-33333TEST-33', auvoerechnung_invoice_leitwegid($inv), 'repli sur la Leitweg-ID du tiers');
+$xp2 = lfx_xpath(auvoerechnung_build_xml($inv2, $seller, $w, ['profile' => 'xrechnung']));
+lfx_assert_eq('991-12345-67', lfx_xp_str($xp2, '//ram:BuyerReference'), 'BT-10 = Leitweg-ID de la facture');
+lfx_assert_eq('991-12345-67', lfx_xp_str($xp2, '//ram:BuyerTradeParty/ram:URIUniversalCommunication/ram:URIID[@schemeID="0204"]'), 'BT-49 = Leitweg-ID de la facture');
+$plain = lfx_make_party(['country_code' => 'DE']);
+$inv3 = clone $inv;
+$inv3->thirdparty = $plain;
+$inv3->array_options = ['options_lfxleitwegid' => '991-12345-67'];
+lfx_assert(auvoerechnung_wants_xrechnung($plain, $inv3), 'XRechnung dès qu\'une Leitweg-ID est saisie sur la facture');
+lfx_assert(!auvoerechnung_wants_xrechnung($plain, $inv), 'pas de XRechnung sans Leitweg-ID');
+
+// Pièces jointes BG-24
+$tmpDir = sys_get_temp_dir().'/lfx-att-'.getmypid();
+@mkdir($tmpDir.'/RE2026-0500', 0777, true);
+$GLOBALS['conf'] = $GLOBALS['conf'] ?? new stdClass();
+$GLOBALS['conf']->facture = (object) ['multidir_output' => [1 => $tmpDir], 'dir_output' => $tmpDir];
+$pdfBytes = "%PDF-1.4\n% test\n%%EOF\n";
+file_put_contents($tmpDir.'/RE2026-0500/RE2026-0500.pdf', $pdfBytes);
+file_put_contents($tmpDir.'/RE2026-0500/RE2026-0500-XRECHNUNG.xml', '<x/>');
+file_put_contents($tmpDir.'/RE2026-0500/Stundennachweis.csv', "Datum;Stunden\n01.06.2026;8\n");
+file_put_contents($tmpDir.'/RE2026-0500/notiz.txt', 'intern');
+$inv->entity = 1;
+$aw = [];
+lfx_assert_eq([], auvoerechnung_collect_attachments($inv, $aw), 'aucune pièce jointe par défaut');
+lfx_reset([
+	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
+	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
+	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
+	'AUVOERECHNUNG_XR_EMBED_PDF' => 1,
+	'AUVOERECHNUNG_XR_EMBED_FILES' => 1,
+], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+$aw = [];
+$atts = auvoerechnung_collect_attachments($inv, $aw);
+lfx_assert_eq(['RE2026-0500.pdf', 'Stundennachweis.csv'], array_column($atts, 'name'), 'PDF de la facture + justificatif, sans XRechnung ni format refusé');
+lfx_assert(lfx_contains($aw, 'notiz.txt') || lfx_contains($aw, 'AuvoERechnungWarnAttachType'), 'avertissement pour le format refusé');
+$w = [];
+$xmlAtt = auvoerechnung_build_xml($inv, $seller, $w, ['profile' => 'xrechnung', 'attachments' => $atts]);
+lfx_std_validate($xmlAtt, $xsdPath);
+$xpA = lfx_xpath($xmlAtt);
+lfx_assert_eq(2, $xpA->query('//ram:ApplicableHeaderTradeAgreement/ram:AdditionalReferencedDocument')->length, 'deux BG-24');
+lfx_assert_eq($pdfBytes, base64_decode(lfx_xp_str($xpA, '//ram:AttachmentBinaryObject[@filename="RE2026-0500.pdf"]')), 'contenu du PDF intact');
+lfx_assert_eq('application/pdf', $xpA->query('//ram:AttachmentBinaryObject')->item(0)->getAttribute('mimeCode'), 'mimeCode PDF');
+lfx_assert_eq('916', lfx_xp_str($xpA, '//ram:AdditionalReferencedDocument/ram:TypeCode'), 'TypeCode 916');
+lfx_dump('xr-08-anlagen', $xmlAtt);
+array_map('unlink', glob($tmpDir.'/RE2026-0500/*'));
+@rmdir($tmpDir.'/RE2026-0500');
+@rmdir($tmpDir);
+
+// Facture de test de la page de configuration
+$sampleInv = new LfxFakeInvoice();
+$sampleBuyer = new stdClass();
+auvoerechnung_sample_invoice($sampleInv, $sampleBuyer, $seller);
+foreach (['zugferd' => [], 'xrechnung' => ['profile' => 'xrechnung']] as $label => $opt) {
+	$w = [];
+	$xmlS = auvoerechnung_build_xml($sampleInv, $seller, $w, $opt);
+	lfx_std_validate($xmlS, $xsdPath);
+	lfx_dump('xr-09-testrechnung-'.$label, $xmlS);
+}
+lfx_assert(empty(auvoerechnung_check_xrechnung($sampleInv, $seller)), 'facture de test complète pour XRechnung');
+$ku = clone $seller;
+$ku->tva_assuj = 0;
+$ku->tva_intra = '';
+$sampleKu = new LfxFakeInvoice();
+auvoerechnung_sample_invoice($sampleKu, new stdClass(), $ku);
+lfx_assert_eq(0.0, (float) $sampleKu->total_tva, 'Kleinunternehmer : facture de test sans TVA');
+lfx_std_validate(auvoerechnung_build_xml($sampleKu, $ku, $w, ['profile' => 'xrechnung']), $xsdPath);
+echo "U42 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

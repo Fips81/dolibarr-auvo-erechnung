@@ -69,6 +69,9 @@ class modAuvoERechnung extends DolibarrModules
 				// 'odtgeneration' soit pris en compte (remove() ne supprime aucune
 				// donnée — cf. remove() ci-dessous —, la réactivation est sûre).
 				'odtgeneration',
+				// Formulaire « Envoyer par e-mail » : XRechnung jointe d'office
+				// (hook getFormMail, réactivation du module nécessaire).
+				'formmail',
 			),
 		);
 
@@ -102,6 +105,9 @@ class modAuvoERechnung extends DolibarrModules
 			array('AUVOERECHNUNG_CONTACT_NAME', 'chaine', '', 'XRechnung: Ansprechpartner (BT-41); leer = Ersteller der Rechnung', 1, 'current', 0),
 			array('AUVOERECHNUNG_CONTACT_PHONE', 'chaine', '', 'XRechnung: Telefon des Ansprechpartners (BT-42); leer = Ersteller, sonst Firma', 1, 'current', 0),
 			array('AUVOERECHNUNG_CONTACT_EMAIL', 'chaine', '', 'XRechnung: E-Mail des Ansprechpartners (BT-43); leer = Ersteller, sonst Firma', 1, 'current', 0),
+			array('AUVOERECHNUNG_XR_EMBED_PDF', 'int', '0', 'XRechnung: PDF der Rechnung als Anlage einbetten (BG-24)', 1, 'current', 0),
+			array('AUVOERECHNUNG_XR_EMBED_FILES', 'int', '0', 'XRechnung: hochgeladene Dokumente der Rechnung als Anlagen einbetten (BG-24)', 1, 'current', 0),
+			array('AUVOERECHNUNG_MAIL_ATTACH_XR', 'int', '1', 'XRechnung beim Mailversand der Rechnung automatisch anhängen', 1, 'current', 0),
 			array('AUVOERECHNUNG_OZGRE_EMAIL', 'chaine', '', 'XRechnung: persönliche Einreichungsadresse des OZG-RE-Kontos (E-Mail-Kanal); leer = kein Versand', 1, 'current', 0),
 			array('AUVOERECHNUNG_SKONTO', 'chaine', '', 'Skonto je Zahlungsbedingung (JSON, BT-20 #SKONTO#); Einstellung auf der Modulseite', 1, 'current', 0),
 			array('AUVOERECHNUNG_CHORUS_ENABLED', 'int', '0', 'Chorus-Pro-Funktionen aktivieren (Reiter, Menü, 2. PDF; nur Frankreich) — opt-in', 1, 'current', 0),
@@ -148,6 +154,7 @@ class modAuvoERechnung extends DolibarrModules
 		$this->createLeitwegIdExtraField();
 		$this->createEFormatExtraField();
 		$this->createSupplierNumberExtraField();
+		$this->createInvoiceLeitwegIdExtraField();
 		return $result;
 	}
 
@@ -373,6 +380,28 @@ class modAuvoERechnung extends DolibarrModules
 			'lfxsupplierno', 'AuvoERechnungEfSupplierNo', 'varchar', 202, '100', 'societe',
 			0, 0, '', '', 1, '', '1', '', '', '',
 			'auvoerechnung@auvoerechnung', '$conf->auvoerechnung->enabled'
+		);
+	}
+
+	/**
+	 * Crée (si absent) l'extrafield facture « Leitweg-ID (abweichend) » : prime
+	 * sur la Leitweg-ID du tiers pour cette facture (administration avec
+	 * plusieurs services sous un même tiers). Visible sur la fiche facture,
+	 * jamais imprimé sur le PDF. Idempotent.
+	 */
+	private function createInvoiceLeitwegIdExtraField()
+	{
+		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+
+		$extrafields = new ExtraFields($this->db);
+		$extrafields->fetch_name_optionals_label('facture');
+		if (!empty($extrafields->attributes['facture']['label']['lfxleitwegid'])) {
+			return; // déjà présent
+		}
+		$extrafields->addExtraField(
+			'lfxleitwegid', 'AuvoERechnungEfInvoiceLeitwegId', 'varchar', 1000, '46', 'facture',
+			0, 0, '', '', 1, '', '1', '', '', '',
+			'auvoerechnung@auvoerechnung', '$conf->auvoerechnung->enabled', 0, 0
 		);
 	}
 }

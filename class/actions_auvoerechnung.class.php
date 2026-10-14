@@ -509,7 +509,7 @@ class ActionsAuvoERechnung
 	{
 		global $conf;
 
-		if (!$force && !auvoerechnung_wants_xrechnung($invoice->thirdparty)) {
+		if (!$force && !auvoerechnung_wants_xrechnung($invoice->thirdparty, $invoice)) {
 			return null;
 		}
 		$target = auvoerechnung_xrechnung_path($invoice->ref, (int) ($invoice->entity ?? $conf->entity));
@@ -519,9 +519,11 @@ class ActionsAuvoERechnung
 		dol_mkdir(dirname($target));
 
 		$problems = auvoerechnung_check_xrechnung($invoice, $mysoc);
+		$attachWarnings = [];
 		if (empty($problems)) {
 			$xw = [];
-			$xml = auvoerechnung_build_xml($invoice, $mysoc, $xw, ['profile' => 'xrechnung']);
+			$attachments = auvoerechnung_collect_attachments($invoice, $attachWarnings);
+			$xml = auvoerechnung_build_xml($invoice, $mysoc, $xw, ['profile' => 'xrechnung', 'attachments' => $attachments]);
 			$xsdError = $this->validateXml($xml, $modulePath);
 			if ($xsdError !== null) {
 				$problems[] = $xsdError;
@@ -549,7 +551,11 @@ class ActionsAuvoERechnung
 		}
 		@chmod($target, octdec(getDolGlobalString('MAIN_UMASK', '0664')));
 		dol_syslog('AuVo E-Rechnung: XRechnung generated for '.$invoice->ref.' ('.basename($target).')', LOG_INFO);
-		return ['ok' => true, 'msgs' => [auvoerechnung_trans('AuvoERechnungXrGenerated', basename($target))]];
+		$msg = auvoerechnung_trans('AuvoERechnungXrGenerated', basename($target));
+		if (!empty($attachments)) {
+			$msg .= ' '.auvoerechnung_trans('AuvoERechnungXrAttachments', count($attachments));
+		}
+		return ['ok' => true, 'msgs' => array_merge([$msg], $attachWarnings)];
 	}
 
 	/**
@@ -800,6 +806,53 @@ class ActionsAuvoERechnung
 	}
 
 	/**
+	 * Hook getFormMail — contexte formmail.
+	 * À l'ouverture du formulaire « Envoyer par e-mail » d'une facture dont le
+	 * client attend une XRechnung, joint le fichier XRechnung (généré au
+	 * besoin). Seulement au premier affichage (mode=init) : une pièce retirée à
+	 * la main n'est pas rajoutée. Désactivable (AUVOERECHNUNG_MAIL_ATTACH_XR).
+	 */
+	public function getFormMail($parameters, &$object, &$action, $hookmanager)
+	{
+		global $conf, $mysoc;
+
+		if (!getDolGlobalInt('AUVOERECHNUNG_MAIL_ATTACH_XR', 1) || GETPOST('mode', 'alpha') !== 'init') {
+			return 0;
+		}
+		if (!is_object($object) || !method_exists($object, 'add_attached_files')
+			|| !preg_match('/^inv(\d+)$/', (string) ($parameters['trackid'] ?? $object->trackid ?? ''), $m)) {
+			return 0;
+		}
+		$modulePath = dirname(__DIR__);
+		require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
+		require_once $modulePath.'/core/lib/auvoerechnung.lib.php';
+		require_once $modulePath.'/core/lib/auvoerechnung_rules.php';
+
+		$invoice = new Facture($this->db);
+		if ($invoice->fetch((int) $m[1]) <= 0 || (int) $invoice->status < 1) {
+			return 0;
+		}
+		$invoice->fetch_thirdparty();
+		if (is_object($invoice->thirdparty) && method_exists($invoice->thirdparty, 'fetch_optionals')) {
+			$invoice->thirdparty->fetch_optionals();
+		}
+		if (!auvoerechnung_wants_xrechnung($invoice->thirdparty, $invoice)) {
+			return 0;
+		}
+		$file = auvoerechnung_xrechnung_path($invoice->ref, (int) ($invoice->entity ?? $conf->entity));
+		if ($file !== '' && !is_file($file)) {
+			$res = $this->generateXRechnungXml($invoice, $mysoc, $modulePath);
+			if ($res !== null && !$res['ok']) {
+				setEventMessages(array_shift($res['msgs']), $res['msgs'], 'warnings');
+			}
+		}
+		if ($file !== '' && is_file($file)) {
+			$object->add_attached_files($file, basename($file), 'application/xml');
+		}
+		return 0;
+	}
+
+	/**
 	 * Hook formConfirm — contexte invoicecard.
 	 * Demande confirmation avant l'envoi de la XRechnung à l'OZG-RE, en
 	 * rappelant le destinataire et la Leitweg-ID de la facture.
@@ -823,7 +876,10 @@ class ActionsAuvoERechnung
 		if (is_object($object->thirdparty) && empty($object->thirdparty->array_options) && method_exists($object->thirdparty, 'fetch_optionals')) {
 			$object->thirdparty->fetch_optionals();
 		}
-		$leitwegId = trim((string) ($object->thirdparty->array_options['options_lfxleitwegid'] ?? ''));
+		if (empty($object->array_options) && method_exists($object, 'fetch_optionals')) {
+			$object->fetch_optionals();
+		}
+		$leitwegId = auvoerechnung_invoice_leitwegid($object);
 		$question = $langs->trans('AuvoERechnungOzgReConfirm', $object->ref, getDolGlobalString('AUVOERECHNUNG_OZGRE_EMAIL'), $leitwegId !== '' ? $leitwegId : '—');
 		if ($leitwegId === '') {
 			$question .= '<br><span class="warning">'.$langs->trans('AuvoERechnungOzgReNoLeitwegId').'</span>';
@@ -880,7 +936,7 @@ class ActionsAuvoERechnung
 		}
 		// La plateforme route la facture sur la Leitweg-ID (BT-10) : sans elle,
 		// l'OZG-RE ne peut pas l'attribuer.
-		if (trim((string) ($invoice->thirdparty->array_options['options_lfxleitwegid'] ?? '')) === '') {
+		if (auvoerechnung_invoice_leitwegid($invoice) === '') {
 			setEventMessages($langs->trans('AuvoERechnungOzgReNoLeitwegId'), null, 'errors');
 			return false;
 		}

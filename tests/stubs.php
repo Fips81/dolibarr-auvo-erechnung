@@ -38,6 +38,12 @@ if (!function_exists('dolibarr_set_const')) {
 		return 1;
 	}
 }
+if (!function_exists('dol_now')) {
+	function dol_now()
+	{
+		return time();
+	}
+}
 if (!function_exists('dol_sanitizeFileName')) {
 	function dol_sanitizeFileName($str)
 	{
@@ -108,6 +114,9 @@ class LfxFakeInvoice
 	public $ref_client = '';
 	public $cond_reglement_code = '';
 	public $cond_reglement_doc = '';
+	public $array_options = [];
+	public $entity = 1;
+	public $socid = 0;
 	public $type = 0;
 	public $date;
 	public $date_lim_reglement = null;

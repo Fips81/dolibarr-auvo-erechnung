@@ -237,7 +237,11 @@ function auvoerechnung_build_xml($invoice, $mysoc, &$buildWarnings = [], $option
 	// === ExchangedDocument ===
 	$xml .= '<rsm:ExchangedDocument>'."\n";
 	$xml .= '  <ram:ID>'.auvoerechnung_xml_encode($invoice->ref).'</ram:ID>'."\n";
-	$xml .= '  <ram:TypeCode>'.auvoerechnung_xml_encode($typeCode).'</ram:TypeCode>'."\n";
+	// XRechnung (BR-DE-17) n'admet pas 386 : la facture d'acompte y est une
+	// « Partial invoice » (326), comme le préconise la KoSIT pour les
+	// Abschlagsrechnungen. ZUGFeRD/Factur-X garde 386.
+	$emittedTypeCode = ($isXRechnung && $typeCode === '386') ? '326' : $typeCode;
+	$xml .= '  <ram:TypeCode>'.auvoerechnung_xml_encode($emittedTypeCode).'</ram:TypeCode>'."\n";
 	$xml .= '  <ram:IssueDateTime>'."\n";
 	$xml .= '    <udt:DateTimeString format="102">'.auvoerechnung_xml_encode($issueDate).'</udt:DateTimeString>'."\n";
 	$xml .= '  </ram:IssueDateTime>'."\n";
@@ -264,7 +268,7 @@ function auvoerechnung_build_xml($invoice, $mysoc, &$buildWarnings = [], $option
 	// prime donc sur le code service Chorus et sur ref_client. Hors Allemagne,
 	// comportement inchangé : code service Chorus (profil choruspro) sinon ref_client.
 	$buyerCountry = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : 'FR');
-	$leitwegId = ($buyerCountry === 'DE') ? auvoerechnung_party_leitwegid($buyer) : '';
+	$leitwegId = ($buyerCountry === 'DE') ? auvoerechnung_invoice_leitwegid($invoice) : '';
 	if ($leitwegId !== '') {
 		$buyerRef = $leitwegId;
 	} elseif ($profile === 'choruspro' && !empty($options['service_code'])) {
@@ -310,6 +314,18 @@ function auvoerechnung_build_xml($invoice, $mysoc, &$buildWarnings = [], $option
 		$xml .= '    <ram:ContractReferencedDocument>'."\n";
 		$xml .= '      <ram:IssuerAssignedID>'.auvoerechnung_xml_encode($options['marche']).'</ram:IssuerAssignedID>'."\n";
 		$xml .= '    </ram:ContractReferencedDocument>'."\n";
+	}
+	// BG-24 : pièces jointes (PDF de la facture, justificatifs) encodées en
+	// base64 dans le XML, préparées par auvoerechnung_collect_attachments().
+	foreach ((array) ($options['attachments'] ?? []) as $att) {
+		$xml .= '    <ram:AdditionalReferencedDocument>'."\n";
+		$xml .= '      <ram:IssuerAssignedID>'.auvoerechnung_xml_encode($att['id']).'</ram:IssuerAssignedID>'."\n";
+		$xml .= '      <ram:TypeCode>916</ram:TypeCode>'."\n";
+		if (($att['description'] ?? '') !== '') {
+			$xml .= '      <ram:Name>'.auvoerechnung_xml_encode($att['description']).'</ram:Name>'."\n";
+		}
+		$xml .= '      <ram:AttachmentBinaryObject mimeCode="'.auvoerechnung_xml_encode($att['mime']).'" filename="'.auvoerechnung_xml_encode($att['name']).'">'.base64_encode($att['content']).'</ram:AttachmentBinaryObject>'."\n";
+		$xml .= '    </ram:AdditionalReferencedDocument>'."\n";
 	}
 	$xml .= '  </ram:ApplicableHeaderTradeAgreement>'."\n";
 
@@ -2360,6 +2376,20 @@ function auvoerechnung_party_leitwegid($party)
 }
 
 /**
+ * Leitweg-ID applicable à une facture : celle saisie sur la facture
+ * (extrafield facture lfxleitwegid, ex. autre service d'une même
+ * administration), sinon celle du tiers.
+ *
+ * @param object $invoice  Facture (array_options et thirdparty chargés)
+ * @return string
+ */
+function auvoerechnung_invoice_leitwegid($invoice)
+{
+	$own = auvoerechnung_party_leitwegid($invoice);
+	return $own !== '' ? $own : auvoerechnung_party_leitwegid($invoice->thirdparty ?? null);
+}
+
+/**
  * Identifiant de spécification XRechnung (BT-24), ex.
  * urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0
  * (BR-DE-21). Version « majeure.mineure » réglable (AUVOERECHNUNG_XRECHNUNG_VERSION)
@@ -2413,6 +2443,166 @@ function auvoerechnung_xrechnung_path($ref, $entity)
 }
 
 /**
+ * Types MIME admis pour les pièces jointes BG-24 (BR-CL-24), par extension.
+ */
+const AUVOERECHNUNG_ATTACHMENT_MIMES = [
+	'pdf'  => 'application/pdf',
+	'png'  => 'image/png',
+	'jpg'  => 'image/jpeg',
+	'jpeg' => 'image/jpeg',
+	'csv'  => 'text/csv',
+	'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+	'ods'  => 'application/vnd.oasis.opendocument.spreadsheet',
+];
+
+/**
+ * Pièces jointes à intégrer dans la XRechnung (BG-24), selon la configuration :
+ *  - AUVOERECHNUNG_XR_EMBED_PDF : le PDF de la facture ;
+ *  - AUVOERECHNUNG_XR_EMBED_FILES : les autres fichiers déposés dans les
+ *    documents de la facture (justificatifs, relevés d'heures…), dans les
+ *    formats admis par BR-CL-24. Les documents générés par Dolibarr ou le
+ *    module (nom commençant par la référence de la facture : PDF/ODT du
+ *    modèle, XRechnung, PDF Chorus) sont exclus, sauf s'ils sont indexés
+ *    comme « déposés » dans l'ECM.
+ * Noms de fichiers uniques (BR-DE-22). Au-delà de 7 Mo cumulés (≈ 9,3 Mo une
+ * fois en base64), avertissement : l'OZG-RE refuse les e-mails de plus de 10 Mo.
+ *
+ * @param object   $invoice   Facture (ref, id, entity, db, last_main_doc)
+ * @param string[] $warnings  (sortie) avertissements
+ * @param string   $pdfPath   PDF de la facture (vide = recherche automatique)
+ * @return array<int,array{id:string,name:string,mime:string,content:string,description:string}>
+ */
+function auvoerechnung_collect_attachments($invoice, &$warnings = [], $pdfPath = '')
+{
+	global $conf;
+
+	$embedPdf = getDolGlobalInt('AUVOERECHNUNG_XR_EMBED_PDF');
+	$embedFiles = getDolGlobalInt('AUVOERECHNUNG_XR_EMBED_FILES');
+	if (!$embedPdf && !$embedFiles) {
+		return [];
+	}
+	$entity = (int) ($invoice->entity ?? $conf->entity ?? 1);
+	$safeRef = dol_sanitizeFileName($invoice->ref);
+	$files = [];
+	if ($embedPdf) {
+		$pdf = $pdfPath !== '' ? $pdfPath : auvoerechnung_invoice_pdf_path($invoice->ref, $entity, (string) ($invoice->last_main_doc ?? ''));
+		if (!empty($pdf) && is_file($pdf)) {
+			$files[] = [$pdf, auvoerechnung_trans_raw('AuvoERechnungAttachInvoicePdf')];
+		}
+	}
+	if ($embedFiles) {
+		$xrPath = auvoerechnung_xrechnung_path($invoice->ref, $entity);
+		$dir = $xrPath !== '' ? dirname($xrPath) : '';
+		$uploaded = [];
+		if (!empty($invoice->db) && !empty($invoice->id) && method_exists($invoice->db, 'query')) {
+			$sql = "SELECT filename FROM ".MAIN_DB_PREFIX."ecm_files WHERE src_object_type = 'facture'";
+			$sql .= " AND src_object_id = ".((int) $invoice->id)." AND gen_or_uploaded = 'uploaded'";
+			$resql = $invoice->db->query($sql);
+			while ($resql && ($obj = $invoice->db->fetch_object($resql))) {
+				$uploaded[$obj->filename] = true;
+			}
+		}
+		$cands = ($dir !== '' && is_dir($dir)) ? (glob($dir.'/*') ?: []) : [];
+		sort($cands);
+		foreach ($cands as $f) {
+			$base = basename($f);
+			if (!is_file($f) || strpos($base, $safeRef) === 0 && empty($uploaded[$base])) {
+				continue;
+			}
+			$ext = strtolower(pathinfo($base, PATHINFO_EXTENSION));
+			if (!isset(AUVOERECHNUNG_ATTACHMENT_MIMES[$ext])) {
+				$warnings[] = auvoerechnung_trans('AuvoERechnungWarnAttachType', $base);
+				continue;
+			}
+			$files[] = [$f, ''];
+		}
+	}
+
+	$out = [];
+	$names = [];
+	$total = 0;
+	foreach ($files as $i => [$path, $description]) {
+		$name = basename($path);
+		$ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+		$mime = AUVOERECHNUNG_ATTACHMENT_MIMES[$ext] ?? '';
+		if ($mime === '' || isset($names[$name])) {
+			continue;
+		}
+		$content = @file_get_contents($path);
+		if ($content === false || $content === '') {
+			continue;
+		}
+		$names[$name] = true;
+		$total += strlen($content);
+		$out[] = ['id' => $invoice->ref.'-A'.($i + 1), 'name' => $name, 'mime' => $mime, 'content' => $content, 'description' => $description];
+	}
+	if ($total > 7 * 1024 * 1024) {
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnAttachSize', round($total / 1048576, 1));
+	}
+	return $out;
+}
+
+/**
+ * Prépare une facture d'exemple pour le test de la page de configuration :
+ * vendeur = la société réelle ($mysoc), acheteur fictif d'une administration
+ * allemande avec la Leitweg-ID de test de la KoSIT (991-33333TEST-33), deux
+ * lignes (prestation et livraison) à 19 % — 0 % pour un vendeur non
+ * assujetti (Kleinunternehmer). Rien n'est enregistré.
+ *
+ * @param object $invoice  Facture vide (Facture ou objet compatible)
+ * @param object $buyer    Tiers vide (Societe ou objet compatible)
+ * @param object $mysoc    Société émettrice
+ * @return void
+ */
+function auvoerechnung_sample_invoice($invoice, $buyer, $mysoc)
+{
+	$buyer->id = 0;
+	$buyer->name = 'Musterbehörde (Test)';
+	$buyer->address = 'Amtsweg 1';
+	$buyer->zip = '53113';
+	$buyer->town = 'Bonn';
+	$buyer->country_code = 'DE';
+	$buyer->email = 'rechnungseingang@example.invalid';
+	$buyer->tva_intra = '';
+	$buyer->tva_assuj = 1;
+	$buyer->array_options = ['options_lfxleitwegid' => '991-33333TEST-33'];
+
+	$vat = !empty($mysoc->tva_assuj) ? 19.0 : 0.0;
+	$lines = [];
+	foreach ([['Beratung (Test)', 8.0, 95.0, 1], ['Druckerzeugnis (Test)', 1.0, 120.0, 0]] as [$desc, $qty, $price, $type]) {
+		$line = new stdClass();
+		$line->desc = $desc;
+		$line->qty = $qty;
+		$line->subprice = $price;
+		$line->total_ht = round($qty * $price, 2);
+		$line->total_tva = round($line->total_ht * $vat / 100, 2);
+		$line->total_ttc = $line->total_ht + $line->total_tva;
+		$line->tva_tx = $vat;
+		$line->product_type = $type;
+		$line->fk_unit = 0;
+		$line->date_start = null;
+		$line->date_end = null;
+		$line->special_code = 0;
+		$line->info_bits = 0;
+		$lines[] = $line;
+	}
+	$invoice->id = 0;
+	$invoice->ref = 'TEST-0001';
+	$invoice->ref_client = 'TEST-BESTELLUNG-4711';
+	$invoice->type = 0;
+	$invoice->date = dol_now();
+	$invoice->date_lim_reglement = dol_now() + 14 * 86400;
+	$invoice->lines = $lines;
+	$invoice->total_ht = array_sum(array_column($lines, 'total_ht'));
+	$invoice->total_tva = array_sum(array_column($lines, 'total_tva'));
+	$invoice->total_ttc = $invoice->total_ht + $invoice->total_tva;
+	$invoice->thirdparty = $buyer;
+	$invoice->socid = 0;
+	$invoice->cond_reglement_code = '';
+	$invoice->array_options = [];
+}
+
+/**
  * Faut-il produire une XRechnung pour ce tiers ?
  *
  * Extrafield tiers « E-Rechnungsformat » (lfxeformat) :
@@ -2420,10 +2610,13 @@ function auvoerechnung_xrechnung_path($ref, $entity)
  *   vide / 'auto' → oui dès qu'une Leitweg-ID est renseignée (acheteur public
  *   allemand, qui attend XRechnung ou ZUGFeRD au profil XRECHNUNG).
  *
- * @param object $buyer  Tiers acheteur (array_options chargés)
+ * Une Leitweg-ID saisie sur la facture ($invoice) vaut comme celle du tiers.
+ *
+ * @param object      $buyer    Tiers acheteur (array_options chargés)
+ * @param object|null $invoice  Facture, pour sa Leitweg-ID propre
  * @return bool
  */
-function auvoerechnung_wants_xrechnung($buyer)
+function auvoerechnung_wants_xrechnung($buyer, $invoice = null)
 {
 	$ao = (is_object($buyer) && !empty($buyer->array_options)) ? $buyer->array_options : [];
 	$format = strtolower(trim((string) ($ao['options_lfxeformat'] ?? '')));
@@ -2432,6 +2625,9 @@ function auvoerechnung_wants_xrechnung($buyer)
 	}
 	if ($format === 'zugferd') {
 		return false;
+	}
+	if (is_object($invoice) && auvoerechnung_party_leitwegid($invoice) !== '') {
+		return true;
 	}
 	return auvoerechnung_party_leitwegid($buyer) !== '';
 }
@@ -2500,7 +2696,7 @@ function auvoerechnung_check_xrechnung($invoice, $mysoc)
 	$buyer = $invoice->thirdparty ?? null;
 
 	// BT-10 (BR-DE-15) : Leitweg-ID, à défaut référence client.
-	if (auvoerechnung_party_leitwegid($buyer) === '' && empty($invoice->ref_client)) {
+	if (auvoerechnung_invoice_leitwegid($invoice) === '' && empty($invoice->ref_client)) {
 		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingBuyerRef');
 	}
 	// BG-6 (BR-DE-2/5/6/7)
@@ -2519,7 +2715,7 @@ function auvoerechnung_check_xrechnung($invoice, $mysoc)
 		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingSellerEmail');
 	}
 	// BT-49 (PEPPOL-EN16931-R010) : Leitweg-ID (0204) ou email de l'acheteur.
-	if (auvoerechnung_party_leitwegid($buyer) === '' && auvoerechnung_get_buyer_email($buyer, $invoice->db ?? null) === '') {
+	if (auvoerechnung_invoice_leitwegid($invoice) === '' && auvoerechnung_get_buyer_email($buyer, $invoice->db ?? null) === '') {
 		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingBuyerAddress');
 	}
 	// BT-37/38, BT-52/53 (BR-DE-3/4/8/9)

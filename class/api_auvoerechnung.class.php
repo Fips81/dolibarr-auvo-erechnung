@@ -102,14 +102,14 @@ class AuvoerechnungApi extends DolibarrApi
 		$violations = [];
 		$buildWarnings = [];
 		if (empty($problems)) {
-			$xml = auvoerechnung_build_xml($invoice, $mysoc, $buildWarnings, ['profile' => 'xrechnung']);
+			$xml = auvoerechnung_build_xml($invoice, $mysoc, $buildWarnings, ['profile' => 'xrechnung', 'attachments' => auvoerechnung_collect_attachments($invoice, $buildWarnings)]);
 			$violations = auvoerechnung_validate_business_rules($xml);
 		}
 		$file = auvoerechnung_xrechnung_path($invoice->ref, (int) ($invoice->entity ?? $conf->entity));
 
 		return [
 			'ref'              => $invoice->ref,
-			'customer_expects' => auvoerechnung_wants_xrechnung($invoice->thirdparty),
+			'customer_expects' => auvoerechnung_wants_xrechnung($invoice->thirdparty, $invoice),
 			'file_exists'      => ($file !== '' && file_exists($file)),
 			'problems'         => $problems,
 			'xml'              => $xml,
