@@ -510,6 +510,12 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 
 > Hinweis: Das Modul hieß früher LemonFacturX, AuvoZugferd und DoliZUGFeRD. In älteren Einträgen sind Klassen-, Konstanten-, Datei- und Repo-Namen an die heutigen Namen (`auvoerechnung`, `AUVOERECHNUNG_*`) angepasst.
 
+### 5.1.1 — PDF/A-Korrektur und Dokumentation (Oktober 2026)
+
+- **PDF/A-3:** Das Druck-Flag `/F 4` für Link-Annotationen in der eingebetteten Bibliothek `setasign/fpdf` war beim Update auf fpdf 1.9.0 verloren gegangen und ist wieder gesetzt (PDF/A verlangt druckbare Annotationen). Betrifft nur PDFs, bei deren Einbettung Links entstehen; ZUGFeRD- und XRechnung-XML sind unverändert.
+- **README überarbeitet:** XRechnung als Bestandteil beschrieben, Abschnitt Kleinunternehmer korrigiert (Steuernummer in Prof-ID 1, BR-CO-26 über BT-29/BT-30), Injektionsmodus `auto` richtig beschrieben, Installations- und Update-Anleitung korrigiert (Sicherung außerhalb von `custom/`), Datentabelle, Einstellungen und Bibliotheksversionen auf aktuellem Stand, Abschnitt „Unterstützte Standards“.
+- Kein erneutes Aktivieren des Moduls nötig.
+
 ### 5.1.0 — XRechnung (Oktober 2026)
 
 **Nach dem Update das Modul einmal deaktivieren und wieder aktivieren**, damit die neuen Geschäftspartner-Felder „E-Rechnungsformat“ und „Unsere Lieferantennummer beim Kunden“ angelegt werden. Einstellungen und Daten bleiben erhalten.
