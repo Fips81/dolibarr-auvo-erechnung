@@ -209,6 +209,7 @@ Für öffentliche Auftraggeber in Deutschland (und Firmenkunden, die es verlange
 - **Leitweg-ID pro Rechnung:** Das Feld **„Leitweg-ID (abweichend)“** an der Rechnung überschreibt für diese eine Rechnung die Leitweg-ID des Kunden, z. B. wenn eine Behörde mehrere Dienststellen hat.
 - **Anlagen:** Auf Wunsch (Moduleinstellungen, Block „XRechnung“) bettet das Modul die PDF der Rechnung und/oder die bei der Rechnung hochgeladenen Dateien (z. B. Stundennachweise) in die XRechnung ein (BG-24; erlaubt sind PDF, PNG, JPEG, CSV, XLSX, ODS). Bei mehr als einer Anlage meldet der Validator die CEN-Warnung CII-SR-476; das ist nur eine Warnung, die Rechnung wird angenommen.
 - **Mailversand:** Öffnet man bei einem XRechnung-Kunden „Per E-Mail senden“, liegt die XRechnung schon als Anhang bereit (abschaltbar).
+- **Felder an der Rechnung:** „Leistungszeitraum von/bis“ (BG-14 für die ganze Rechnung, statt der Leistungsdaten der Positionen) und „Keine E-Rechnung“ (die PDF bleibt eine normale PDF, keine XRechnung, kein automatischer Mail-Anhang). Ein Kontakt mit der Rolle „Lieferung“ an der Rechnung wird als Lieferort (BG-13) übernommen.
 - **Anzahlungsrechnungen** erhalten in der XRechnung den Code 326 (BR-DE-17 lässt 386 nicht zu); im ZUGFeRD bleibt 386.
 - **Testrechnung:** Auf der Einstellungsseite erzeugt „Testrechnung erzeugen und prüfen“ eine ZUGFeRD- und eine XRechnung-Datei mit den eigenen Firmendaten und einem Testkunden, prüft beide und bietet sie zum Download an. Es wird nichts gespeichert.
 - **Skonto:** In den Moduleinstellungen (Block „Skonto“) lassen sich je Zahlungsbedingung bis zu zwei Skontostufen eintragen, z. B. 7 Tage 2 %. Das Modul schreibt sie in BT-20 im vorgeschriebenen Format `#SKONTO#TAGE=7#PROZENT=2.00#` (BR-DE-18), hinter den Text der Zahlungsbedingung, in der XRechnung und im ZUGFeRD-XML. Steht „Skonto“ in der Bezeichnung einer Zahlungsbedingung, zeigt die Einstellungsseite einen Vorschlag an.
@@ -240,8 +241,9 @@ Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrech
 | BT-32 Tax registration | ohne USt-IdNr.: Deutschland Steuernummer (`idprof1`, Feld „Steuernummer“), Frankreich SIREN, jeweils `schemeID="FC"` |
 | BT-34/BT-49 Endpoint | französische Parteien: SIREN `schemeID="0225"`; XRechnung-Käufer mit Leitweg-ID: Leitweg-ID `schemeID="0204"`; sonst E-Mail `EM` |
 | BT-72 Delivery date | `$invoice->delivery_date`, sonst das Rechnungsdatum (immer ausgegeben) |
-| BT-73/74 (BG-14) Period | Min/Max der Leistungsdaten der Positionen |
+| BT-73/74 (BG-14) Period | Felder „Leistungszeitraum von/bis“ an der Rechnung, sonst Min/Max der Leistungsdaten der Positionen |
 | BT-80 ShipTo country | Käuferland (ausgegeben für Kategorie K, BR-IC-12) |
+| BG-13 Delivery information | Kontakt der Rechnung mit der Rolle „Lieferung“ (Customer shipping): Name (BT-70) und Adresse (BG-15) |
 | BT-89/90/91 Direct debit | Mandatsreferenz (Standard-Bankverbindung des Geschäftspartners), Gläubiger-ID (`PRELEVEMENT_ICS`), IBAN des Zahlers — Zahlungsart 59 |
 | BG-24 Supporting documents | nur XRechnung, auf Wunsch: PDF der Rechnung und hochgeladene Dokumente der Rechnung (base64, TypeCode 916) |
 | BG-21 Document allowances | Dolibarr-Positionen mit negativem Betrag (feste Rabatte) |
@@ -534,6 +536,7 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 - **XRechnung beim Mailversand:** Im Formular „Per E-Mail senden“ liegt bei XRechnung-Kunden die XRechnung bereits als Anhang bereit (fehlt sie, wird sie erzeugt). Abschaltbar.
 - **Anlagen in der XRechnung (BG-24):** optional die PDF der Rechnung und die bei der Rechnung hochgeladenen Dokumente.
 - **Leitweg-ID pro Rechnung:** neues Feld „Leitweg-ID (abweichend)“ an der Rechnung, überschreibt die Leitweg-ID des Kunden.
+- **Leistungszeitraum für die ganze Rechnung** (Felder „Leistungszeitraum von/bis“), **Lieferort** aus dem Lieferkontakt der Rechnung (BG-13) und **„Keine E-Rechnung“** pro Rechnung.
 - **Testrechnung** auf der Einstellungsseite: ZUGFeRD und XRechnung mit den eigenen Firmendaten erzeugen, prüfen und herunterladen.
 - **Korrektur:** Anzahlungsrechnungen erhalten in der XRechnung den Code 326 statt 386 (BR-DE-17).
 

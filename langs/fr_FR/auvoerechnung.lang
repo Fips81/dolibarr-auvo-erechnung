@@ -358,3 +358,7 @@ AuvoERechnungTestOk = OK : schéma et règles métier respectés
 AuvoERechnungTestKo = %s problème(s) :
 AuvoERechnungTestShowXml = Afficher le XML
 AuvoERechnungTestValidatorHint = Pour un contrôle opposable, téléchargez le fichier et validez-le avec le validateur KoSIT ou un validateur en ligne.
+AuvoERechnungEfPeriodStart = Période de facturation du
+AuvoERechnungEfPeriodEnd = Période de facturation au
+AuvoERechnungEfNoEInvoice = Pas de facture électronique
+AuvoERechnungWarnPeriodOrder = Période de facturation : la fin précède le début (BR-29). Vérifiez les champs « Période de facturation du/au » de la facture.

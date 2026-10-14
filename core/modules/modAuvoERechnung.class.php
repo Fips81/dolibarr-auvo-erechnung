@@ -155,7 +155,7 @@ class modAuvoERechnung extends DolibarrModules
 		$this->createLeitwegIdExtraField();
 		$this->createEFormatExtraField();
 		$this->createSupplierNumberExtraField();
-		$this->createInvoiceLeitwegIdExtraField();
+		$this->createInvoiceExtraFields();
 		return $result;
 	}
 
@@ -392,24 +392,35 @@ class modAuvoERechnung extends DolibarrModules
 	}
 
 	/**
-	 * Crée (si absent) l'extrafield facture « Leitweg-ID (abweichend) » : prime
-	 * sur la Leitweg-ID du tiers pour cette facture (administration avec
-	 * plusieurs services sous un même tiers). Visible sur la fiche facture,
-	 * jamais imprimé sur le PDF. Idempotent.
+	 * Crée (si absents) les extrafields de la fiche facture, visibles, jamais
+	 * imprimés sur le PDF. Idempotent :
+	 *  - « Leitweg-ID (abweichend) » : prime sur la Leitweg-ID du tiers
+	 *    (administration avec plusieurs services sous un même tiers) ;
+	 *  - « Leistungszeitraum von / bis » : période BG-14 de toute la facture ;
+	 *  - « Keine E-Rechnung » : PDF ordinaire, pas de XRechnung automatique.
 	 */
-	private function createInvoiceLeitwegIdExtraField()
+	private function createInvoiceExtraFields()
 	{
 		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 
 		$extrafields = new ExtraFields($this->db);
 		$extrafields->fetch_name_optionals_label('facture');
-		if (!empty($extrafields->attributes['facture']['label']['lfxleitwegid'])) {
-			return; // déjà présent
-		}
-		$extrafields->addExtraField(
-			'lfxleitwegid', 'AuvoERechnungEfInvoiceLeitwegId', 'varchar', 1000, '46', 'facture',
-			0, 0, '', '', 1, '', '1', '', '', '',
-			'auvoerechnung@auvoerechnung', '$conf->auvoerechnung->enabled', 0, 0
+		// attrname, label, type, position, taille
+		$defs = array(
+			array('lfxleitwegid',   'AuvoERechnungEfInvoiceLeitwegId', 'varchar', 1000, '46'),
+			array('lfxperiodstart', 'AuvoERechnungEfPeriodStart',      'date',    1001, ''),
+			array('lfxperiodend',   'AuvoERechnungEfPeriodEnd',        'date',    1002, ''),
+			array('lfxnoeinvoice',  'AuvoERechnungEfNoEInvoice',       'boolean', 1003, ''),
 		);
+		foreach ($defs as $d) {
+			if (!empty($extrafields->attributes['facture']['label'][$d[0]])) {
+				continue; // déjà présent
+			}
+			$extrafields->addExtraField(
+				$d[0], $d[1], $d[2], $d[3], $d[4], 'facture',
+				0, 0, '', '', 1, '', '1', '', '', '',
+				'auvoerechnung@auvoerechnung', '$conf->auvoerechnung->enabled', 0, 0
+			);
+		}
 	}
 }

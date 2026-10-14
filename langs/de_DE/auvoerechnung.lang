@@ -358,3 +358,7 @@ AuvoERechnungTestOk = In Ordnung: Schema und Geschäftsregeln erfüllt
 AuvoERechnungTestKo = %s Problem(e):
 AuvoERechnungTestShowXml = XML anzeigen
 AuvoERechnungTestValidatorHint = Für eine verbindliche Prüfung die Datei herunterladen und mit dem KoSIT-Validator oder einem Online-Validator prüfen.
+AuvoERechnungEfPeriodStart = Leistungszeitraum von
+AuvoERechnungEfPeriodEnd = Leistungszeitraum bis
+AuvoERechnungEfNoEInvoice = Keine E-Rechnung
+AuvoERechnungWarnPeriodOrder = Leistungszeitraum: das Ende liegt vor dem Beginn (BR-29). Bitte die Felder „Leistungszeitraum von/bis“ an der Rechnung prüfen.

@@ -59,6 +59,13 @@ class ActionsAuvoERechnung
 			return 0;
 		}
 
+		// Case « Keine E-Rechnung » cochée sur la facture : PDF ordinaire.
+		require_once dirname(__DIR__).'/core/lib/auvoerechnung.lib.php';
+		if (auvoerechnung_einvoice_disabled($invoice)) {
+			dol_syslog('AuVo E-Rechnung: e-invoice disabled on '.$invoice->ref.', document left unchanged', LOG_INFO);
+			return 0;
+		}
+
 		$file = $parameters['file'] ?? '';
 		if (empty($file) || !file_exists($file)) {
 			return 0;
@@ -242,6 +249,13 @@ class ActionsAuvoERechnung
 		// le statut passe à VALIDATED AVANT le generateDocument(), l'injection a
 		// donc bien lieu à ce moment.
 		if ((int) ($invoice->status ?? $invoice->statut ?? 0) === Facture::STATUS_DRAFT) {
+			return 0;
+		}
+
+		// Case « Keine E-Rechnung » cochée sur la facture : PDF ordinaire.
+		require_once dirname(__DIR__).'/core/lib/auvoerechnung.lib.php';
+		if (auvoerechnung_einvoice_disabled($invoice)) {
+			dol_syslog('AuVo E-Rechnung: e-invoice disabled on '.$invoice->ref.', document left unchanged', LOG_INFO);
 			return 0;
 		}
 
@@ -837,7 +851,7 @@ class ActionsAuvoERechnung
 		if (is_object($invoice->thirdparty) && method_exists($invoice->thirdparty, 'fetch_optionals')) {
 			$invoice->thirdparty->fetch_optionals();
 		}
-		if (!auvoerechnung_wants_xrechnung($invoice->thirdparty, $invoice)) {
+		if (!auvoerechnung_wants_xrechnung($invoice->thirdparty, $invoice) || auvoerechnung_einvoice_disabled($invoice)) {
 			return 0;
 		}
 		$file = auvoerechnung_xrechnung_path($invoice->ref, (int) ($invoice->entity ?? $conf->entity));

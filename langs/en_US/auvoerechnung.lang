@@ -358,3 +358,7 @@ AuvoERechnungTestOk = OK: schema and business rules met
 AuvoERechnungTestKo = %s problem(s):
 AuvoERechnungTestShowXml = Show XML
 AuvoERechnungTestValidatorHint = For a binding check, download the file and validate it with the KoSIT validator or an online validator.
+AuvoERechnungEfPeriodStart = Service period from
+AuvoERechnungEfPeriodEnd = Service period to
+AuvoERechnungEfNoEInvoice = No e-invoice
+AuvoERechnungWarnPeriodOrder = Service period: the end is before the start (BR-29). Please check the "Service period from/to" fields of the invoice.

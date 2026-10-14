@@ -174,7 +174,9 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 	}
 	$deliveryDateTs = !empty($invoice->delivery_date) ? $invoice->delivery_date : ($invoice->date_livraison ?? null);
 
-	// BG-14 : période de facturation (min des date_start / max des date_end des lignes)
+	// BG-14 : période de facturation (min des date_start / max des date_end des
+	// lignes), remplacée par la période saisie sur la facture (extrafields
+	// lfxperiodstart / lfxperiodend) quand elle est renseignée.
 	$periodStart = null;
 	$periodEnd = null;
 	foreach ($billableLines as $line) {
@@ -183,6 +185,16 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 		}
 		if (!empty($line->date_end) && ($periodEnd === null || $line->date_end > $periodEnd)) {
 			$periodEnd = $line->date_end;
+		}
+	}
+	$ownStart = auvoerechnung_invoice_date_option($invoice, 'lfxperiodstart');
+	$ownEnd = auvoerechnung_invoice_date_option($invoice, 'lfxperiodend');
+	if ($ownStart !== null || $ownEnd !== null) {
+		$periodStart = $ownStart;
+		$periodEnd = $ownEnd;
+		// BR-29 : la fin ne peut précéder le début
+		if ($ownStart !== null && $ownEnd !== null && $ownEnd < $ownStart) {
+			$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnPeriodOrder');
 		}
 	}
 
@@ -256,6 +268,8 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 		'seller'   => $seller,
 		'buyer'    => $buyerModel,
 		'delivery' => [
+			// BG-13 : lieu de livraison (contact « livraison » de la facture)
+			'ship_to'         => auvoerechnung_get_ship_to($invoice),
 			'ship_to_country' => $hasK ? (!empty($buyer->country_code) ? $buyer->country_code : 'FR') : '', // BT-80
 			'date'            => !empty($deliveryDateTs) ? date('Ymd', $deliveryDateTs) : $issueDate,      // BT-72
 		],
@@ -624,7 +638,27 @@ function auvoerechnung_model_to_cii($m)
 
 	// === ApplicableHeaderTradeDelivery (BT-80, BT-72) ===
 	$xml .= '  <ram:ApplicableHeaderTradeDelivery>'."\n";
-	if ($m['delivery']['ship_to_country'] !== '') {
+	if (!empty($m['delivery']['ship_to'])) {
+		// BG-13 : BT-70 nom, BG-15 adresse (BT-80 : pays du lieu de livraison)
+		$st = $m['delivery']['ship_to'];
+		$xml .= '    <ram:ShipToTradeParty>'."\n";
+		if ($st['name'] !== '') {
+			$xml .= '      <ram:Name>'.$e($st['name']).'</ram:Name>'."\n";
+		}
+		$xml .= '      <ram:PostalTradeAddress>'."\n";
+		if ($st['address']['postcode'] !== '') {
+			$xml .= '        <ram:PostcodeCode>'.$e($st['address']['postcode']).'</ram:PostcodeCode>'."\n";
+		}
+		if ($st['address']['line1'] !== '') {
+			$xml .= '        <ram:LineOne>'.$e($st['address']['line1']).'</ram:LineOne>'."\n";
+		}
+		if ($st['address']['city'] !== '') {
+			$xml .= '        <ram:CityName>'.$e($st['address']['city']).'</ram:CityName>'."\n";
+		}
+		$xml .= '        <ram:CountryID>'.$e($st['address']['country']).'</ram:CountryID>'."\n";
+		$xml .= '      </ram:PostalTradeAddress>'."\n";
+		$xml .= '    </ram:ShipToTradeParty>'."\n";
+	} elseif ($m['delivery']['ship_to_country'] !== '') {
 		$xml .= '    <ram:ShipToTradeParty>'."\n";
 		$xml .= '      <ram:PostalTradeAddress>'."\n";
 		$xml .= '        <ram:CountryID>'.$e($m['delivery']['ship_to_country']).'</ram:CountryID>'."\n";
@@ -954,14 +988,32 @@ function auvoerechnung_model_to_ubl($m)
 	// BT-72, BT-80
 	$xml .= '  <cac:Delivery>'."\n";
 	$xml .= '    <cbc:ActualDeliveryDate>'.$date($m['delivery']['date']).'</cbc:ActualDeliveryDate>'."\n";
-	if ($m['delivery']['ship_to_country'] !== '') {
+	$st = $m['delivery']['ship_to'] ?? null;
+	$stAddr = !empty($st) ? $st['address'] : ($m['delivery']['ship_to_country'] !== '' ? ['postcode' => '', 'line1' => '', 'city' => '', 'country' => $m['delivery']['ship_to_country']] : null);
+	if ($stAddr !== null) {
 		$xml .= '    <cac:DeliveryLocation>'."\n";
 		$xml .= '      <cac:Address>'."\n";
+		if ($stAddr['line1'] !== '') {
+			$xml .= '        <cbc:StreetName>'.$e($stAddr['line1']).'</cbc:StreetName>'."\n";
+		}
+		if ($stAddr['city'] !== '') {
+			$xml .= '        <cbc:CityName>'.$e($stAddr['city']).'</cbc:CityName>'."\n";
+		}
+		if ($stAddr['postcode'] !== '') {
+			$xml .= '        <cbc:PostalZone>'.$e($stAddr['postcode']).'</cbc:PostalZone>'."\n";
+		}
 		$xml .= '        <cac:Country>'."\n";
-		$xml .= '          <cbc:IdentificationCode>'.$e($m['delivery']['ship_to_country']).'</cbc:IdentificationCode>'."\n";
+		$xml .= '          <cbc:IdentificationCode>'.$e($stAddr['country']).'</cbc:IdentificationCode>'."\n";
 		$xml .= '        </cac:Country>'."\n";
 		$xml .= '      </cac:Address>'."\n";
 		$xml .= '    </cac:DeliveryLocation>'."\n";
+	}
+	if (!empty($st) && $st['name'] !== '') {
+		$xml .= '    <cac:DeliveryParty>'."\n";
+		$xml .= '      <cac:PartyName>'."\n";
+		$xml .= '        <cbc:Name>'.$e($st['name']).'</cbc:Name>'."\n";               // BT-70
+		$xml .= '      </cac:PartyName>'."\n";
+		$xml .= '    </cac:DeliveryParty>'."\n";
 	}
 	$xml .= '  </cac:Delivery>'."\n";
 

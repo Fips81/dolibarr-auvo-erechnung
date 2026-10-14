@@ -1676,6 +1676,66 @@ lfx_assert_eq("Datum;Stunden\n", base64_decode(lfx_xp_str($xp, '//cac:Additional
 echo "U44 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U45 période sur la facture, lieu de livraison BG-13, facture sans e-facture';
+lfx_reset([
+	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
+	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
+	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
+], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+$seller = lfx_make_party([
+	'name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen',
+	'address' => 'Hauptstr. 1', 'email' => 'rechnung@muster.example', 'phone' => '06772 99',
+	'tva_intra' => 'DE811111111', 'tva_assuj' => 1,
+]);
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-0800';
+$inv->thirdparty = lfx_make_party(['name' => 'Bundesamt für Beispiele', 'country_code' => 'DE', 'zip' => '53113', 'town' => 'Bonn',
+	'address' => 'Amtsweg 1', 'email' => '', 'tva_intra' => '', 'array_options' => ['options_lfxleitwegid' => '991-33333TEST-33']]);
+$inv->lines = [lfx_make_line(1000.00, 19.0, 190.00, 1.0, 'Wartung', 1, ['date_start' => mktime(0, 0, 0, 5, 3, 2026), 'date_end' => mktime(0, 0, 0, 5, 9, 2026)])];
+$inv->total_ht = 1000.00;
+$inv->total_tva = 190.00;
+$inv->total_ttc = 1190.00;
+
+// Période de la facture : remplace celle des lignes
+$inv->array_options = ['options_lfxperiodstart' => mktime(0, 0, 0, 4, 1, 2026), 'options_lfxperiodend' => mktime(0, 0, 0, 6, 30, 2026)];
+$w = [];
+$m = auvoerechnung_build_model($inv, $seller, $w, ['profile' => 'xrechnung']);
+lfx_assert_eq('20260401', $m['document']['period_start'], 'BT-73 de la facture');
+lfx_assert_eq('20260630', $m['document']['period_end'], 'BT-74 de la facture');
+$inv->array_options = [];
+$m = auvoerechnung_build_model($inv, $seller, $w, ['profile' => 'xrechnung']);
+lfx_assert_eq('20260503', $m['document']['period_start'], 'sans saisie : période des lignes');
+$inv->array_options = ['options_lfxperiodstart' => mktime(0, 0, 0, 6, 30, 2026), 'options_lfxperiodend' => mktime(0, 0, 0, 4, 1, 2026)];
+$w = [];
+auvoerechnung_build_model($inv, $seller, $w, ['profile' => 'xrechnung']);
+lfx_assert(lfx_contains($w, 'AuvoERechnungWarnPeriodOrder'), 'BR-29 : fin avant début signalée');
+$inv->array_options = [];
+
+// Lieu de livraison (contact de livraison), en CII et en UBL
+$w = [];
+$m = auvoerechnung_build_model($inv, $seller, $w, ['profile' => 'xrechnung']);
+lfx_assert_eq(null, $m['delivery']['ship_to'], 'pas de BG-13 sans contact de livraison');
+$m['delivery']['ship_to'] = ['name' => 'Außenstelle Köln', 'address' => ['postcode' => '50667', 'line1' => 'Domplatz 2', 'city' => 'Köln', 'country' => 'DE']];
+$cii = auvoerechnung_model_to_cii($m);
+lfx_std_validate($cii, $xsdPath);
+$xp = lfx_xpath($cii);
+lfx_assert_eq('Außenstelle Köln', lfx_xp_str($xp, '//ram:ShipToTradeParty/ram:Name'), 'BT-70 CII');
+lfx_assert_eq('Köln', lfx_xp_str($xp, '//ram:ShipToTradeParty/ram:PostalTradeAddress/ram:CityName'), 'BT-77 CII');
+lfx_dump('xr-10-lieferort-cii', $cii);
+$ubl = auvoerechnung_model_to_ubl($m);
+lfx_assert(auvoerechnung_validate_xsd($ubl, dirname(__DIR__)) === null, 'XSD UBL avec BG-13');
+$xpu = lfx_ubl_xpath($ubl);
+lfx_assert_eq('Außenstelle Köln', lfx_xp_str($xpu, '//cac:Delivery/cac:DeliveryParty/cac:PartyName/cbc:Name'), 'BT-70 UBL');
+lfx_assert_eq('50667', lfx_xp_str($xpu, '//cac:Delivery/cac:DeliveryLocation/cac:Address/cbc:PostalZone'), 'BT-78 UBL');
+lfx_dump('ubl-lieferort', $ubl);
+
+// Case « Keine E-Rechnung »
+lfx_assert(!auvoerechnung_einvoice_disabled($inv), 'e-facture active par défaut');
+$inv->array_options = ['options_lfxnoeinvoice' => '1'];
+lfx_assert(auvoerechnung_einvoice_disabled($inv), 'e-facture désactivée sur la facture');
+echo "U45 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

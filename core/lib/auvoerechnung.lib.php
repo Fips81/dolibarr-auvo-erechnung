@@ -1977,6 +1977,81 @@ function auvoerechnung_build_xrechnung($invoice, $mysoc, &$buildWarnings = [], $
 }
 
 /**
+ * Date saisie dans un extrafield de type date de la facture (timestamp), ou
+ * null si vide.
+ *
+ * @param object $invoice
+ * @param string $name     Nom de l'extrafield sans préfixe options_
+ * @return int|null
+ */
+function auvoerechnung_invoice_date_option($invoice, $name)
+{
+	$v = $invoice->array_options['options_'.$name] ?? null;
+	if ($v === null || $v === '') {
+		return null;
+	}
+	if (!is_numeric($v)) {
+		$v = strtotime((string) $v);
+	}
+	return $v ? (int) $v : null;
+}
+
+/**
+ * Lieu de livraison (BG-13) : premier contact externe « livraison »
+ * (SHIPPING) rattaché à la facture. Nom (BT-70) : nom complet du contact,
+ * à défaut sa société ; adresse (BG-15) : celle du contact, pays par défaut
+ * celui de l'acheteur. Null sans contact de livraison.
+ *
+ * @param object $invoice
+ * @return array{name:string,address:array}|null
+ */
+function auvoerechnung_get_ship_to($invoice)
+{
+	if (!is_object($invoice) || !method_exists($invoice, 'liste_contact') || empty($invoice->id)) {
+		return null;
+	}
+	$contacts = $invoice->liste_contact(-1, 'external', 0, 'SHIPPING');
+	if (!is_array($contacts) || empty($contacts[0]['id'])) {
+		return null;
+	}
+	require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
+	$c = new Contact($invoice->db);
+	if ($c->fetch((int) $contacts[0]['id']) <= 0) {
+		return null;
+	}
+	$name = trim((string) $c->getFullName(null));
+	if ($name === '') {
+		$name = trim((string) ($c->socname ?? ''));
+	}
+	$buyerCountry = !empty($invoice->thirdparty->country_code) ? $invoice->thirdparty->country_code : 'FR';
+	return [
+		'name'    => $name,
+		'address' => [
+			'postcode' => trim((string) ($c->zip ?? '')),
+			'line1'    => trim((string) ($c->address ?? '')),
+			'city'     => trim((string) ($c->town ?? '')),
+			'country'  => !empty($c->country_code) ? $c->country_code : $buyerCountry,
+		],
+	];
+}
+
+/**
+ * La facture est-elle exclue de la facturation électronique (case « Keine
+ * E-Rechnung », extrafield lfxnoeinvoice) ? Le PDF reste un PDF ordinaire et
+ * aucune XRechnung n'est produite automatiquement.
+ *
+ * @param object $invoice
+ * @return bool
+ */
+function auvoerechnung_einvoice_disabled($invoice)
+{
+	if (is_object($invoice) && empty($invoice->array_options) && method_exists($invoice, 'fetch_optionals') && !empty($invoice->id)) {
+		$invoice->fetch_optionals();
+	}
+	return !empty($invoice->array_options['options_lfxnoeinvoice']);
+}
+
+/**
  * Contact du vendeur pour XRechnung (BG-6 : BT-41 nom, BT-42 téléphone,
  * BT-43 email ; BR-DE-2/5/6/7). Chaque champ est pris, dans l'ordre :
  *   1. réglage du module (AUVOERECHNUNG_CONTACT_NAME / _PHONE / _EMAIL) ;
