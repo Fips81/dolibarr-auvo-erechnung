@@ -12,8 +12,8 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        # Actions épinglées par SHA (supply-chain) : v4.3.1
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        # Actions épinglées par SHA (supply-chain) : checkout v7.0.1 (Node 24)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Lint PHP
         run: |
@@ -48,8 +48,8 @@ jobs:
           unzip -l "/tmp/module_auvoerechnung-${VERSION}.zip" | head -20
 
       - name: Attach ZIP to release
-        # softprops/action-gh-release v2.6.2 épinglée par SHA
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        # softprops/action-gh-release v3.0.3 épinglée par SHA (Node 24)
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
         with:
           files: /tmp/module_auvoerechnung-*.zip
           fail_on_unmatched_files: true
