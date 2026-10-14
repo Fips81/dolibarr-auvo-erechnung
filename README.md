@@ -2,9 +2,9 @@
 
 [![Neueste Version](https://img.shields.io/github/v/release/Fips81/dolibarr-auvo-erechnung?label=version&sort=semver)](https://github.com/Fips81/dolibarr-auvo-erechnung/releases/latest)
 
-**E-Rechnungen für Dolibarr**: Das Modul erzeugt aus jeder Kundenrechnung automatisch eine **ZUGFeRD-Rechnung im Profil EN16931 (COMFORT)**, also eine PDF/A-3 mit eingebettetem CrossIndustryInvoice-XML. Dieses Format heißt in Frankreich **Factur-X** und ist dort identisch. XRechnung ist für eine spätere Version geplant.
+**E-Rechnungen für Dolibarr**: Das Modul erzeugt aus jeder Kundenrechnung automatisch eine **ZUGFeRD-Rechnung im Profil EN16931 (COMFORT)**, also eine PDF/A-3 mit eingebettetem CrossIndustryInvoice-XML. Dieses Format heißt in Frankreich **Factur-X** und ist dort identisch. Für öffentliche Auftraggeber und Kunden, die es verlangen, erzeugt das Modul zusätzlich eine **XRechnung 3.0** als eigene XML-Datei (siehe [XRechnung](#xrechnung)).
 
-Für Verkäufer in Deutschland gibt es deutsche Befreiungsgründe (§ 19 UStG, Reverse Charge, innergemeinschaftliche Lieferung, Ausfuhr), Steuernummer und Leitweg-ID. Für Verkäufer in Frankreich deckt das Modul zusätzlich die **BR-FR**-Regeln der französischen Reform ab (Norm XP Z12-012, Ausgabe Juni 2026).
+Für Verkäufer in Deutschland gibt es deutsche Befreiungsgründe (§ 19 UStG, Reverse Charge, innergemeinschaftliche Lieferung, Ausfuhr), Steuernummer, Leitweg-ID, Lieferantennummer und XRechnung. Für Verkäufer in Frankreich deckt das Modul zusätzlich die **BR-FR**-Regeln der französischen Reform ab (Norm XP Z12-012, Ausgabe Juni 2026).
 
 Ein Fork von [LemonFacturX](https://hellolemon.fr) (Lemon, Webagentur aus Clermont-Ferrand), weiterentwickelt und für den Einsatz in Deutschland angepasst von [auvo-design](https://auvo-design.de) — siehe [Lizenz](#lizenz). Frühere Namen: AuvoZugferd (bis 3.9.x), DoliZUGFeRD (4.0.x).
 
@@ -47,14 +47,15 @@ Das Modul arbeitet mit den **aktuellen Fassungen** der deutschen und französisc
    chown -R www-data:www-data /var/www/html/custom/auvoerechnung
    ```
 
-3. Modul aktivieren: **Start > Konfiguration > Module**
-4. Konfigurieren über **Start > Konfiguration > Module > AuVo E-Rechnung**:
-   - Bankkonto (IBAN/BIC)
-   - Standard-Zahlungsart (Überweisung, SEPA-Überweisung, SEPA-Lastschrift, Lastschrift)
-   - Verkäufer-/Käufer-Kennungen: SIRET in BT-29/BT-46 (schemeID 0009), SIREN in BT-30/BT-47 (schemeID 0002)
-   - Umsatzsteuer-Fälligkeit (BT-8: Soll-/Ist-Versteuerung), Rechnungsstellungsrahmen (BT-23)
-   - Fehlerbehandlungsmodus (best-effort / strikt), Kontrolle der Geschäftsregeln
-   - Optional: Pfad zur PHP-CLI, Pfad zu veraPDF und gesetzliche Pflichtangaben
+3. Modul aktivieren: **Start > Einstellungen > Module/Anwendungen**
+4. Konfigurieren über **Start > Einstellungen > Module/Anwendungen > AuVo E-Rechnung**:
+   - Bankkonto (IBAN/BIC) für den Zahlungsblock
+   - Standard-Zahlungsart (30 Überweisung, 58 SEPA-Überweisung, 59 SEPA-Lastschrift, 49 Lastschrift)
+   - Für XRechnung: Ansprechpartner, Telefon, E-Mail (leer = Ersteller der Rechnung)
+   - Fehlerbehandlungsmodus (best-effort / strikt), Prüfung der Geschäftsregeln
+   - Optional: Pflichthinweise (Verzug, Mahnpauschale, Skonto), Pfad zur PHP-CLI, Pfad zu veraPDF; Chorus Pro nur für Verkäufer in Frankreich
+
+   Kennungen wie Steuernummer, USt-IdNr. und Handelsregisternummer kommen aus den Firmendaten (**Start > Einstellungen > Firma oder Institution**), die Soll-/Ist-Versteuerung (BT-8) aus den Steuereinstellungen von Dolibarr. Dafür gibt es keine eigenen Moduleinstellungen.
 5. Eine **eingebettete Schriftart** im Selektor **„Schriftart der erzeugten PDF"** der Modulkonfiguration wählen (`pdfahelvetica` standardmäßig, mit ✓ markiert)
 6. Die **Diagnose** unten auf der Konfigurationsseite des Moduls prüfen (grüne Häkchen = OK)
 
@@ -62,29 +63,31 @@ Das Modul arbeitet mit den **aktuellen Fassungen** der deutschen und französisc
 > (der rohe Quellcode). Dieses Archiv entpackt sich zu `dolibarr-auvo-erechnung-main/`
 > statt zu `auvoerechnung/`, was die Dolibarr-Installation kaputt macht (Fehler *"You requested
 > a website or a page that does not exists"* beim Öffnen der Modul-Konfigurationsseite).
-> Laden Sie das ZIP-Asset der Release herunter, oder klonen Sie direkt mit `git clone`
-> in einen Ordner namens `auvoerechnung` (siehe Abschnitt [Update](#update)) – das Repo
+> Laden Sie das ZIP-Asset der Release herunter, oder klonen Sie direkt in einen Ordner
+> namens `auvoerechnung`
+> (`git clone https://github.com/Fips81/dolibarr-auvo-erechnung.git auvoerechnung`) – das Repo
 > heißt `dolibarr-auvo-erechnung`, der Modulordner muss aber `auvoerechnung` heißen.
 
 ## Update
 
 ```bash
-# Alte Version sichern (zur Sicherheit)
-cp -r /var/www/html/custom/auvoerechnung /var/www/html/custom/auvoerechnung.bak
+# Alte Version AUSSERHALB von custom/ sichern – eine Kopie innerhalb von custom/
+# würde Dolibarr als zweites Modul mit derselben Modulnummer erkennen
+cp -r /var/www/html/custom/auvoerechnung /root/auvoerechnung.bak
 
-# Neue Version holen
-git clone https://github.com/Fips81/dolibarr-auvo-erechnung.git /tmp/auvoerechnung-new
+# Neue Version aus dem Release-ZIP einspielen
+unzip module_auvoerechnung-X.Y.Z.zip -d /tmp/auvoerechnung-new
 rm -rf /var/www/html/custom/auvoerechnung
-mv /tmp/auvoerechnung-new /var/www/html/custom/auvoerechnung
+mv /tmp/auvoerechnung-new/auvoerechnung /var/www/html/custom/auvoerechnung
 chown -R www-data:www-data /var/www/html/custom/auvoerechnung
 ```
 
 > **Nach jedem Update: Modul einmal deaktivieren und wieder aktivieren**
-> (**Start > Einstellungen > Module > AuVo E-Rechnung**). Zusatzfelder wie die
-> **Leitweg-ID** am Geschäftspartner (seit 3.9.5) und die Chorus-Pro-Felder an der
-> Rechnung werden nur bei der Aktivierung angelegt — nicht schon durch das
-> Kopieren der neuen Dateien. Wer von einer älteren Version ohne Leitweg-ID
-> aktualisiert, sieht das Feld sonst nicht. Beim Deaktivieren gehen keine Daten
+> (**Start > Einstellungen > Module/Anwendungen > AuVo E-Rechnung**). Zusatzfelder wie
+> **Leitweg-ID** (seit 3.9.5), **E-Rechnungsformat** und **Lieferantennummer** (seit 5.1.0)
+> am Geschäftspartner und die Chorus-Pro-Felder an der Rechnung werden nur bei der
+> Aktivierung angelegt — nicht schon durch das Kopieren der neuen Dateien. Wer von
+> einer älteren Version aktualisiert, sieht neue Felder sonst nicht. Beim Deaktivieren gehen keine Daten
 > verloren: Einstellungen und bereits eingetragene Werte (z. B. Leitweg-IDs)
 > bleiben erhalten.
 
@@ -92,7 +95,7 @@ chown -R www-data:www-data /var/www/html/custom/auvoerechnung
 
 Das Modul hieß bis 3.9.x **AuvoZugferd** (Ordner `auvozugferd`) und in 4.0.x **DoliZUGFeRD** (Ordner `dolizugferd`). Seit 5.0 heißt es **AuVo E-Rechnung**, der Modulordner ist `auvoerechnung`. Für Dolibarr ist das ein neues Modul. Beim ersten Aktivieren übernimmt es die bisherigen Einstellungen automatisch, von beiden früheren Namen.
 
-1. **Das alte Modul deaktivieren** (Start > Einstellungen > Module). Nicht zuerst löschen: Alle Versionen tragen dieselbe Modulnummer und dürfen nicht gleichzeitig aktiv sein.
+1. **Das alte Modul deaktivieren** (Start > Einstellungen > Module/Anwendungen). Nicht zuerst löschen: Alle Versionen tragen dieselbe Modulnummer und dürfen nicht gleichzeitig aktiv sein.
 2. Den alten Ordner **aus `custom/` heraus** verschieben. Ein umbenannter Ordner innerhalb von `custom/` würde weiter erkannt.
    ```bash
    mv /var/www/html/custom/dolizugferd /root/dolizugferd.alt     # bzw. custom/auvozugferd
@@ -116,11 +119,11 @@ Dolibarr benachrichtigt nicht automatisch über Updates eines Custom-Moduls; die
 auvoerechnung/
 ├── core/modules/modAuvoERechnung.class.php   # Modul-Deskriptor (Nr. 194202)
 ├── core/lib/
-│   ├── auvoerechnung.lib.php                 # XML-Generator EN16931
-│   └── auvoerechnung_rules.php               # Validator für Geschäftsregeln (BR-*)
+│   ├── auvoerechnung.lib.php                 # XML-Generator EN16931 (ZUGFeRD/Factur-X + XRechnung)
+│   └── auvoerechnung_rules.php               # Validator für Geschäftsregeln (BR-*, BR-FR-*, BR-DE-*)
 ├── class/
-│   ├── actions_auvoerechnung.class.php       # Hooks afterPDFCreation + invoicecard
-│   └── api_auvoerechnung.class.php           # REST-API (xml / status)
+│   ├── actions_auvoerechnung.class.php       # Hooks afterPDFCreation, afterODTCreation, invoicecard
+│   └── api_auvoerechnung.class.php           # REST-API (xml / status / xrechnung)
 ├── scripts/
 │   ├── inject_facturx.php                   # PDF-Injektion (Subprozess, nur CLI)
 │   └── export_facturx_batch.php             # Stapelexport der eingebetteten XML
@@ -128,6 +131,7 @@ auvoerechnung/
 ├── langs/fr_FR + en_US + de_DE/auvoerechnung.lang    # Übersetzungen
 ├── tests/
 │   ├── unit-tests.php                       # Standalone-Tests (ohne Dolibarr, CI)
+│   ├── kosit-validate.sh                    # Offizieller KoSIT-Validator über alle Test-XML (CI)
 │   └── run-tests.php                        # Integrationstests (Fixtures aus demo/)
 ├── docs/LIMITATIONS.md                      # Nicht behandelte Fälle und Gründe
 └── vendor/                                  # Lib atgp/factur-x v3.5.0 + Abhängigkeiten
@@ -143,6 +147,7 @@ Das Modul klinkt sich in den Hook `afterPDFCreation` (Kontext `pdfgeneration`) e
 4. **Interne Validierung**: well-formed + XSD EN16931 + **Geschäftsregeln BR-\*** (Teilmenge des Schematron in PHP)
 5. **Injektion** des XML in die PDF über die Lib `atgp/factur-x` (standardmäßig isolierter Subprozess, In-Process falls `exec()` nicht verfügbar; atomares Schreiben, `AFRelationship=Alternative`)
 6. **Optionale Post-Validierung mit veraPDF** (PDF/A-3b)
+7. **XRechnung** (wenn der Kunde sie erwartet): zusätzlich die Datei `{Rechnung}-XRECHNUNG.xml`, siehe [XRechnung](#xrechnung)
 
 #### Injektionsmodus (`AUVOERECHNUNG_INJECTION_MODE`)
 
@@ -152,17 +157,19 @@ Das Modul klinkt sich in den Hook `afterPDFCreation` (Kontext `pdfgeneration`) e
 | `inprocess` | Injektion **ausschließlich** In-Process — nie `exec()`. Nur für Server ohne `exec()` reservieren: ein Versionskonflikt zwischen FPDF/FPDI und einem anderen Modul kann die Injektion verhindern (das Modul erkennt diesen Fall und behält die klassische PDF) |
 | `subprocess` | **Ausschließlich** PHP-CLI-Subprozess (historisches Verhalten; erfordert `exec()`) |
 
-**Warum standardmäßig der Subprozess**: In-Process lädt die Injektionsbibliothek (`setasign/fpdi` + `setasign/fpdf`) in die Web-Anfrage, wo eine andere Komponente (das `tcpdi` von Dolibarr, ein anderes Modul) bereits eine **inkompatible** Version von FPDF geladen haben kann → nicht abfangbarer fataler Kompilierungsfehler. Der Subprozess läuft in einem jungfräulichen PHP-Prozess, ohne möglichen Konflikt. Einstellbar unter **Konfiguration → Block „Technik"**.
+**Warum standardmäßig der Subprozess**: In-Process lädt die Injektionsbibliothek (`setasign/fpdi` + `setasign/fpdf`) in die Web-Anfrage, wo eine andere Komponente (das `tcpdi` von Dolibarr, ein anderes Modul) bereits eine **inkompatible** Version von FPDF geladen haben kann → nicht abfangbarer fataler Kompilierungsfehler. Der Subprozess läuft in einem jungfräulichen PHP-Prozess, ohne möglichen Konflikt. Einstellbar unter **Moduleinstellungen → Block „Technik (erweitert)"**.
 
-Auf der **Rechnungsfiche** (validierte Rechnung), zwei Buttons:
+Auf der **Rechnungskarte** (freigegebene Rechnung) gibt es das Menü **„ZUGFeRD ▾“**:
 - **ZUGFeRD prüfen**: extrahiert das eingebettete XML aus der PDF und validiert es erneut (XSD + Geschäftsregeln) — vor dem Versand zu verwenden
 - **ZUGFeRD neu erzeugen**: erzeugt die PDF (und damit die Injektion) neu — nützlich nach einem Modul-Update oder einer Datenkorrektur
+- **XRechnung erzeugen** und, sobald die Datei existiert, **XRechnung herunterladen**
+- **Chorus-PDF erzeugen** (nur wenn die Chorus-Pro-Funktionen aktiviert sind)
 
 ### Unterstützung von ODT-Vorlagen (seit 3.8.0)
 
 Standardmäßig erfolgt die Factur-X-Injektion nur bei **nativen TCPDF**-Rechnungsvorlagen (sponge / crabe / octopus), über den Hook `afterPDFCreation`. **ODT**-Vorlagen erzeugen eine `.odt`-Datei (dann eine `.pdf` nach Konvertierung) und lösen nur ODT-Hooks aus: ohne spezielle Konfiguration fand keine Injektion statt.
 
-Seit 3.8.0 klinkt sich das Modul auch in den Hook `afterODTCreation` (Kontext `odtgeneration`) ein und injiziert das XML in die aus der LibreOffice-Konvertierung entstandene PDF. **Zwei Voraussetzungen** auf Dolibarr-Seite (**Konfiguration → Sonstiges → Weitere**):
+Seit 3.8.0 klinkt sich das Modul auch in den Hook `afterODTCreation` (Kontext `odtgeneration`) ein und injiziert das XML in die aus der LibreOffice-Konvertierung entstandene PDF. **Zwei Voraussetzungen** auf Dolibarr-Seite (**Start > Einstellungen > Erweiterte Einstellungen**):
 
 | Konstante | Wert | Rolle |
 |-----------|--------|------|
@@ -171,7 +178,7 @@ Seit 3.8.0 klinkt sich das Modul auch in den Hook `afterODTCreation` (Kontext `o
 
 **Best-Effort**-Verhalten: fehlt eine dieser Voraussetzungen (Konvertierung deaktiviert, PDF/A nicht erzwungen, PDF nicht auffindbar, LibreOffice fehlt), **injiziert das Modul nicht**, behält die klassische PDF/ODT und zeigt eine **klare Warnung** mit der zu setzenden Konstante — nie eine Fatal Error oder eine beschädigte PDF. Der Strikt-Modus (`AUVOERECHNUNG_STRICT_MODE`) macht aus dieser Warnung einen blockierenden Fehler, wie beim TCPDF-Ablauf.
 
-> **Status** — die Injektionskette wurde **intern auf LibreOffice 7.4 validiert** (die von LibreOffice erzeugte PDF/A-1 wird von der Injektionsbibliothek (FPDI) gelesen, das ZUGFeRD/Factur-X wird darin eingebettet, der Handler `afterODTCreation` leitet die richtige PDF ab und injiziert) **und unter realen Bedingungen**: ein Nutzer hat die Erzeugung einer Rechnung über ein ODT-Template auf seinem Dolibarr bestätigt, mit dem Factur-X-XML in der PDF vorhanden (Haupt-Factur-X + 2. PDF Chorus). Bei unterschiedlichen Vorlagen (`.odt`/`.ods`) bleibt es ratsam, die PDF mit einem Factur-X-Validator zu prüfen (Button **ZUGFeRD prüfen** der Rechnungsfiche, oder ein Online-Validator wie FNFE-MPE), um das PDF/A-3-Niveau zu bestätigen. Probleme bitte über [SECURITY.md](SECURITY.md) / r.vogel@auvo-design.de melden.
+> **Status** — die Injektionskette wurde **intern auf LibreOffice 7.4 validiert** (die von LibreOffice erzeugte PDF/A-1 wird von der Injektionsbibliothek (FPDI) gelesen, das ZUGFeRD/Factur-X wird darin eingebettet, der Handler `afterODTCreation` leitet die richtige PDF ab und injiziert) **und unter realen Bedingungen**: ein Nutzer hat die Erzeugung einer Rechnung über ein ODT-Template auf seinem Dolibarr bestätigt, mit dem Factur-X-XML in der PDF vorhanden (Haupt-Factur-X + 2. PDF Chorus). Bei unterschiedlichen Vorlagen (`.odt`/`.ods`) bleibt es ratsam, die PDF mit einem Factur-X-Validator zu prüfen (Button **ZUGFeRD prüfen** der Rechnungskarte, oder ein Online-Validator wie FNFE-MPE), um das PDF/A-3-Niveau zu bestätigen. Probleme bitte als [GitHub-Issue](https://github.com/Fips81/dolibarr-auvo-erechnung/issues) melden (Sicherheitslücken vertraulich, siehe [SECURITY.md](SECURITY.md)).
 >
 > **Aktivierung**: dieser neue Hook-Kontext wird erst nach **Deaktivierung/Reaktivierung** des Moduls berücksichtigt (die Deaktivierung löscht keine Daten).
 
@@ -182,15 +189,15 @@ Seit 3.8.0 klinkt sich das Modul auch in den Hook `afterODTCreation` (Kontext `o
 - **Atomares** Schreiben der PDF (temporäre Datei + `rename()`), unabhängig vom Modus
 - Interne XML-Validierung vor PDF-Injektion (well-formed + XSD EN16931 + Geschäftsregeln)
 - Modus `AUVOERECHNUNG_STRICT_MODE`: Wahl zwischen fail-open (best-effort) und fail-closed (strikt)
-- CSRF-Schutz beim Admin-POST und bei den Aktionen der Rechnungsfiche (`currentToken()`)
-- REST-API: Rechte `facture->lire` + `_checkAccessToResource()`; Buttons der Fiche: Rechte `lire`/`creer`
+- CSRF-Schutz beim Admin-POST und bei den Aktionen der Rechnungskarte (`currentToken()`)
+- REST-API: Rechte `facture->lire` + `_checkAccessToResource()`; Menü der Rechnungskarte: Rechte `lire`/`creer`
 - Nur ein ausgehender HTTP-Aufruf: GitHub-Versionscheck alle 24h (Cache in der DB, auch Fehlschläge)
 
 Bedrohungsmodell, detaillierte Schutzmaßnahmen und Meldeprozess: siehe [SECURITY.md](SECURITY.md). Kontakt für Disclosure: **r.vogel@auvo-design.de**.
 
 ## XRechnung
 
-Für öffentliche Auftraggeber in Deutschland (und Firmenkunden, die es verlangen) erzeugt das Modul zusätzlich eine **XRechnung 3.0** nach der Spezifikation der KoSIT, als eigene Datei `{Rechnung}-XRECHNUNG.xml` neben der PDF.
+Für öffentliche Auftraggeber in Deutschland (und Firmenkunden, die es verlangen) erzeugt das Modul zusätzlich eine **XRechnung 3.0** nach der Spezifikation der KoSIT, als eigene Datei `{Rechnung}-XRECHNUNG.xml` im Dokumentenordner der Rechnung, neben der PDF.
 
 - **Wann:** automatisch, sobald beim Geschäftspartner eine **Leitweg-ID** eingetragen ist. Über das Feld **„E-Rechnungsformat“** am Geschäftspartner lässt sich das erzwingen („XRechnung“) oder abschalten („ZUGFeRD“).
 - **Pflichtangaben:** Ansprechpartner mit Telefon und E-Mail (Moduleinstellungen, Block „XRechnung“; leer = Ersteller der Rechnung), E-Mail der Firma, PLZ/Ort von Firma und Kunde, IBAN bei Überweisung, Leitweg-ID oder „Ihr Zeichen“ der Rechnung. Fehlt etwas, erscheint beim Erzeugen der PDF eine Liste der fehlenden Angaben, und es wird keine XRechnung geschrieben.
@@ -201,35 +208,40 @@ Für öffentliche Auftraggeber in Deutschland (und Firmenkunden, die es verlange
 
 Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrechnung).
 
-## Abgebildete Daten (Dolibarr → Factur-X)
+## Abgebildete Daten (Dolibarr → ZUGFeRD/Factur-X und XRechnung)
 
-| Factur-X-Feld | Dolibarr-Quelle |
+| Feld | Dolibarr-Quelle |
 |---|---|
 | BT-1 Invoice ID | `$invoice->ref` |
 | BT-2 Issue date | `$invoice->date` |
 | BT-3 Type code | 380 / 381 (Gutschrift) / 384 (Korrektur) / 386 (Anzahlung) |
 | BT-8 VAT due date code | Dolibarr-Umsatzsteuerregelung (`TAX_MODE`): 5 Soll-, 72 Ist-Versteuerung, weggelassen falls unbestimmt |
 | BT-9 Due date | `$invoice->date_lim_reglement` |
-| BT-10 Buyer reference | `$invoice->ref_client` (Service-Code / Verpflichtungsnummer Chorus Pro), bei deutschem Behörden-Käufer: Leitweg-ID |
-| BT-13 Order reference | Referenz der ersten verknüpften Kundenbestellung |
-| BT-23 Business process | Rechnungsstellungsrahmen, gewählt **pro Rechnung** (Chorus-Pro-Profil: `A1` standardmäßig), weggelassen außerhalb von Chorus Pro |
+| BT-10 Buyer reference | Leitweg-ID des Kunden, falls eingetragen; sonst „Ihr Zeichen“ der Rechnung (`ref_client`); Chorus-Profil: Service-Code |
+| BT-13 Order reference | „Ihr Zeichen“ (Kunden-BestellNr.) des verknüpften Kundenauftrags; hat der Kunde eine Leitweg-ID, ersatzweise „Ihr Zeichen“ der Rechnung; Chorus-Profil: Verpflichtungsnummer |
+| BT-23 Business process | Verkäufer in Frankreich: Rechnungsstellungsrahmen `B1`/`S1`/`M1` (`B4`/`S4`/`M4` bei Schlussrechnung), Chorus-Profil `A1`–`A25` pro Rechnung; XRechnung: `urn:fdc:peppol.eu:2017:poacc:billing:01:1.0`; sonst weggelassen |
+| BT-24 Specification | `urn:cen.eu:en16931:2017`; XRechnung: `urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0` |
 | BT-25/BG-3 Preceding invoice | `fk_facture_source` (Gutschrift/Korrektur) + verrechnete Anzahlungen |
 | Verkäufer / Käufer | `$mysoc` / `$invoice->thirdparty` |
-| BT-29/BT-46 ID Niederlassung | `idprof2` → SIRET (14 Ziffern) unter schemeID 0009 (ISO 6523) — für Chorus Pro |
-| BT-30/BT-47 gesetzliche ID | `idprof2` → SIREN (9 Ziffern) unter schemeID 0002 (ISO 6523) — von BR-FR-10 / Plateformes Agréées gefordert |
-| BT-31/BT-32 Tax registration | `tva_intra`, oder SIREN `schemeID="FC"` (Kleinunternehmerregelung), bei deutschem Kleinunternehmer: Steuernummer |
-| BT-34/BT-49 Endpoint | SIREN `schemeID="0225"` (PPF-Verzeichnis), Rückfall auf E-Mail `EM` |
-| BT-72 Delivery date | `$invoice->delivery_date` falls angegeben (bei innergemeinschaftlicher Kategorie K erzwungen) |
+| BG-6 Seller contact | nur XRechnung: Ansprechpartner aus den Moduleinstellungen, sonst Ersteller der Rechnung; Telefon/E-Mail ersatzweise von der Firma |
+| BT-29 Seller identifier | „Unsere Lieferantennummer beim Kunden“ (Feld am Geschäftspartner); sonst bei Verkäufer in Deutschland ohne USt-IdNr. und ohne Handelsregisternummer die Steuernummer (BR-CO-26); Frankreich: SIRET (`idprof2`) als `GlobalID` schemeID 0009 |
+| BT-46 Buyer identifier | Frankreich: SIRET (`idprof2`) als `GlobalID` schemeID 0009 |
+| BT-30/BT-47 Legal registration | Frankreich: SIREN (`idprof1`, sonst aus der SIRET abgeleitet), schemeID 0002; Verkäufer in Deutschland: Handelsregisternummer (`idprof3`) |
+| BT-31 VAT identifier | `tva_intra`, nur wenn es mit einem Ländercode beginnt (BR-CO-09) |
+| BT-32 Tax registration | ohne USt-IdNr.: Deutschland Steuernummer (`idprof1`, Feld „Steuernummer“), Frankreich SIREN, jeweils `schemeID="FC"` |
+| BT-34/BT-49 Endpoint | französische Parteien: SIREN `schemeID="0225"`; XRechnung-Käufer mit Leitweg-ID: Leitweg-ID `schemeID="0204"`; sonst E-Mail `EM` |
+| BT-72 Delivery date | `$invoice->delivery_date`, sonst das Rechnungsdatum (immer ausgegeben) |
 | BT-73/74 (BG-14) Period | Min/Max der Leistungsdaten der Positionen |
 | BT-80 ShipTo country | Käuferland (ausgegeben für Kategorie K, BR-IC-12) |
-| BT-89/90/91 Direct debit | RUM (Standard-Bankverbindung des Tiers), ICS (`PRELEVEMENT_ICS`), Debitor-IBAN — Zahlungsart 59 |
+| BT-89/90/91 Direct debit | Mandatsreferenz (Standard-Bankverbindung des Geschäftspartners), Gläubiger-ID (`PRELEVEMENT_ICS`), IBAN des Zahlers — Zahlungsart 59 |
 | BG-21 Document allowances | Dolibarr-Positionen mit negativem Betrag (feste Rabatte) |
 | BT-113 TotalPrepaidAmount | `$invoice->getSumDepositsUsed()` bei verrechneter Anzahlung |
+| BT-120 Exemption reason | Text je nach Land des Verkäufers (Deutschland: § 19 UStG, § 4 Nr. 1a/1b UStG, Reverse Charge …; Frankreich: CGI) |
 | BT-121 VATEX | VATEX-FR-FRANCHISE / VATEX-EU-IC / VATEX-EU-AE / VATEX-EU-G |
 | BT-129 unitCode | Von `$line->fk_unit` auf UN/ECE Rec 20 abgebildet |
 | BT-146 Unit price | `total_ht/qty`, bis zu 4 Dezimalstellen |
 | BT-151 CategoryCode | Kontextabhängig berechnet (S / K / AE / G / E) |
-| IBAN / BIC | Ausgewähltes Dolibarr-Bankkonto |
+| IBAN / BIC | Auf der Rechnung gewähltes Bankkonto, sonst das in den Moduleinstellungen gewählte |
 
 ### Unterstützte Rechnungstypen
 
@@ -241,6 +253,8 @@ Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrech
 | `TYPE_DEPOSIT` | **386** | Prepayment / advance invoice (Anzahlung) |
 | `TYPE_SITUATION` | 380 + Warnung | Teilweise Unterstützung, siehe [docs/LIMITATIONS.md](docs/LIMITATIONS.md) |
 
+Bei XRechnung ist 386 (Anzahlung) zulässig, der KoSIT-Validator gibt dafür aber eine Warnung aus (BR-DE-17 empfiehlt die Codes 326, 380, 384, 389, 381, 875–877).
+
 **Konvention für Gutschriften**: Dolibarr speichert negative Summen; EN16931 verlangt positive Beträge auf einer 381. Seit 3.0.0 werden alle Beträge einer Gutschrift invertiert (`DuePayableAmount` = positive Summe, ohne Nullkappung — BR-CO-16) und die Ursprungsrechnung wird in BG-3 referenziert (in FR verpflichtende Angabe). Eine Gutschrift ohne verknüpfte Ursprungsrechnung erzeugt eine Warnung.
 
 Eine Schlussrechnung, die eine Anzahlung verrechnet, schreibt `TotalPrepaidAmount` (BT-113), passt `DuePayableAmount` an und referenziert die Anzahlungsrechnung in BG-3.
@@ -250,15 +264,16 @@ Eine Schlussrechnung, die eine Anzahlung verrechnet, schreibt `TotalPrepaidAmoun
 | CategoryCode | VATEX (BT-121) | Auslösender Fall |
 |---|---|---|
 | **S** | — | USt > 0 |
-| **K** | VATEX-EU-IC | EU-Käufer außerhalb FR mit USt-IdNr + USt 0 + **Waren**-Position (`product_type` 0) — mit ShipTo (BT-80) und Lieferdatum (BR-IC-11/12) |
-| **AE** | VATEX-EU-AE | EU-Käufer außerhalb FR mit USt-IdNr + USt 0 + **Dienstleistungs**-Position (`product_type` 1) — Art. 196 Richtlinie 2006/112/EG |
+| **K** | VATEX-EU-IC | EU-Käufer in einem anderen Land als der Verkäufer, mit USt-IdNr + USt 0 + **Waren**-Position (`product_type` 0) — mit ShipTo (BT-80) und Lieferdatum (BR-IC-11/12) |
+| **AE** | VATEX-EU-AE | EU-Käufer in einem anderen Land als der Verkäufer, mit USt-IdNr + USt 0 + **Dienstleistungs**-Position (`product_type` 1) — Art. 196 Richtlinie 2006/112/EG |
 | **G** | VATEX-EU-G | Käufer außerhalb EU + USt 0 |
-| **E** | VATEX-FR-FRANCHISE | Aussteller in Kleinunternehmerregelung (293 B CGI) — SIREN als Steuerkennung `FC` veröffentlicht |
+| **E** | — | Verkäufer in Deutschland, Kleinunternehmer (§ 19 UStG) — Steuernummer als BT-32 (`FC`), zusätzlich als BT-29, wenn weder Lieferantennummer noch Handelsregisternummer vorhanden sind |
+| **E** | VATEX-FR-FRANCHISE | Verkäufer in Frankreich, Kleinunternehmerregelung (293 B CGI) — SIREN als Steuerkennung `FC` veröffentlicht |
 | **E** | — | USt 0 standardmäßig (Befreiung ohne bestimmbare Rechtsgrundlage, generischer Grund) |
 
 Befreite Kategorien erzeugen systematisch einen lesbaren `ExemptionReason` und, wenn die Rechtsgrundlage bestimmbar ist, einen VATEX-Code `ExemptionReasonCode`.
 
-**Nicht abgedeckte Fälle** (inländisches Reverse-Charge AE FR→FR, Codes O/Z/L/M usw.): siehe [docs/LIMITATIONS.md](docs/LIMITATIONS.md), das jeden nicht behandelten Fall und dessen Grund dokumentiert.
+**Nicht abgedeckte Fälle** (inländisches Reverse Charge, z. B. § 13b UStG, Codes O/Z/L/M usw.): siehe [docs/LIMITATIONS.md](docs/LIMITATIONS.md), das jeden nicht behandelten Fall und dessen Grund dokumentiert.
 
 ### Rabatte und Rundungen
 
@@ -280,7 +295,7 @@ Die Positionsmengen verwenden den UN/ECE-Rec-20-Code, der der Dolibarr-Einheit e
 
 Ist die Einheit nicht abgebildet oder `fk_unit` nicht gesetzt, wird der Code `C62` (Stück) als Fallback verwendet. Mengen werden mit bis zu 4 Dezimalstellen ausgegeben.
 
-### Doppelter Kreislauf B2B (PDP) und B2G (Chorus Pro) — seit 3.4.0
+### Nur Frankreich: doppelter Kreislauf B2B (PDP) und B2G (Chorus Pro) — seit 3.4.0
 
 Die französische Reform beruht auf **zwei getrennten, dauerhaften Netzwerken**, die im selben Feld `SpecifiedLegalOrganization/ID` Gegensätzliches verlangen:
 - **PDP / B2B** (Netzwerk der Plateformes Agréées): **SIREN** (9 Ziffern), konform zu EN16931 / Regel BR-FR-10;
@@ -291,7 +306,7 @@ Dasselbe XML kann nicht beide erfüllen. AuVo E-Rechnung löst das, **ohne jemal
 - Die **PDF der Rechnung bleibt das Standard-Factur-X EN16931** (Profil PDP, SIREN) — das ist der Zweck des Moduls, immer konform.
 - Fällt die Rechnung unter den öffentlichen Sektor, erzeugt das Modul **zusätzlich** eine zweite Datei **`{ref}-CHORUS.pdf`** in der Dokumentenliste, im Profil Chorus Pro (SIRET-14 in `SpecifiedLegalOrganization` + Felder BT-10/12/13). Diese reichen Sie bei Chorus Pro ein, die andere bei Ihrer PDP.
 
-**Reiter „Chorus Pro"**: die Chorus-Einstellungen werden in einem eigenen Reiter auf der Rechnungsfiche vorgenommen (sie belegen nicht den Reiter „Zusätzliche Eigenschaften").
+**Reiter „Chorus Pro"**: die Chorus-Einstellungen werden in einem eigenen Reiter auf der Rechnungskarte vorgenommen (sie belegen nicht den Reiter „Zusätzliche Eigenschaften").
 
 **Auslösung der Chorus-PDF** (ein einziges Signal genügt):
 1. „Chorus-Pro-Rechnung" im Chorus-Pro-Reiter der Rechnung ankreuzen;
@@ -308,22 +323,22 @@ Dasselbe XML kann nicht beide erfüllen. AuVo E-Rechnung löst das, **ohne jemal
 
 Der **Rechnungsstellungsrahmen** (BT-23) ist für Chorus verpflichtend und wird pro Rechnung gewählt (A1 = Einreichung durch den Lieferanten, Standard; A9/A10 Unterauftragsvergabe, A12+ Mitauftragsvergabe, A3 Gerichtskosten usw.).
 
-**Aktionsmenü**: die Factur-X-Aktionen der Rechnungsfiche sind in einem Dropdown-Menü **„ZUGFeRD ▾"** gebündelt (Prüfen / Neu erzeugen / Chorus-PDF erzeugen).
+**Aktionsmenü**: die Aktionen der Rechnungskarte sind im Menü **„ZUGFeRD ▾"** gebündelt (Prüfen / Neu erzeugen / XRechnung erzeugen / Chorus-PDF erzeugen).
 
 > ⚠️ Die Chorus-PDF korrigiert das **Format**. Die Einreichung gelingt nur, wenn Aussteller und öffentliche Empfängerstruktur **tatsächlich an Chorus Pro angebunden** sind (gültiger Service-Code, gültige Verpflichtungsnummer). Das XML stellt die Anbindung nicht her.
 >
 > **Update von < 3.4.0**: Modul deaktivieren und wieder aktivieren, damit die Chorus-Extrafields auf den Rechnungen angelegt werden (keine Daten werden gelöscht).
 
-### Gesetzliche Pflichtangaben FR (BR-FR-05)
+### Nur Frankreich: gesetzliche Pflichtangaben (BR-FR-05)
 
-Das XML enthält automatisch die Pflichthinweise:
+Bei Verkäufern in Frankreich enthält das XML automatisch die Pflichthinweise (bei anderen Verkäufern nur, wenn sie in den Moduleinstellungen eingetragen sind):
 - **PMD**: Verzugszinsen (3-facher gesetzlicher Zinssatz, Art. L.441-10)
 - **PMT**: pauschale Beitreibungsentschädigung (40 €)
 - **AAB**: Skonto für vorzeitige Zahlung
 
 ## Modulkonstanten
 
-Alle sind über den Administrationsbildschirm des Moduls konfigurierbar (**Start > Konfiguration > Module > AuVo E-Rechnung**).
+Alle sind über den Administrationsbildschirm des Moduls konfigurierbar (**Start > Einstellungen > Module/Anwendungen > AuVo E-Rechnung**).
 
 | Konstante | Typ | Standard | Beschreibung |
 |---|---|---|---|
@@ -331,18 +346,22 @@ Alle sind über den Administrationsbildschirm des Moduls konfigurierbar (**Start
 | `AUVOERECHNUNG_PAYMENT_MEANS` | string | 30 | UNTDID-4461-Code: 30 Überweisung, 58 SEPA-Überweisung, 59 SEPA-Lastschrift, 49 Lastschrift |
 | `AUVOERECHNUNG_STRICT_MODE` | int | 0 | 0 = best-effort (Standard), 1 = strikt (siehe unten) |
 | `AUVOERECHNUNG_BR_CHECK` | int | 1 | Interne Prüfung der EN16931-Geschäftsregeln vor der Injektion |
-| `AUVOERECHNUNG_INJECTION_MODE` | string | auto | Injektionsmodus: `auto` (In-Process + Rückfall auf Subprozess), `inprocess` (ohne exec), `subprocess` (nur exec) |
-| `AUVOERECHNUNG_PHP_CLI_PATH` | string | *(leer)* | Pfad zum PHP-CLI-Binary, **nur** vom Modus `subprocess` genutzt (leer = Auto-Erkennung; siehe Hinweis unten) |
+| `AUVOERECHNUNG_INJECTION_MODE` | string | auto | Injektionsmodus: `auto` (Subprozess, wenn `exec()` verfügbar ist, sonst In-Process), `inprocess` (ohne exec), `subprocess` (nur exec) |
+| `AUVOERECHNUNG_PHP_CLI_PATH` | string | *(leer)* | Pfad zum PHP-CLI-Binary für den Subprozess (Modus `auto` mit `exec()` oder `subprocess`; leer = Auto-Erkennung; siehe Hinweis unten) |
 | `AUVOERECHNUNG_VERAPDF_PATH` | string | *(leer)* | Pfad zu veraPDF: Post-Validierung PDF/A-3b jeder erzeugten PDF (nicht blockierend) |
-| `AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER` | string | *(leer)* | Suffix, das der Verkäufer-SIREN im elektronischen Endpoint BT-34 angehängt wird (z. B. `_Status`) — von manchen PA gefordert; leer = reine SIREN |
-| `AUVOERECHNUNG_NOTE_PMD/PMT/AAB` | text | FR-Hinweise | Gesetzliche Pflichtangaben BR-FR-05 (der Standardtext gilt, wenn das Feld leer gelassen wird) |
-| `AUVOERECHNUNG_NOTES_IN_FOOTER` | int | 0 | BR-FR-05-Hinweise in die Rechnungsfußzeile kopieren (`INVOICE_FREE_TEXT`) |
+| `AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER` | string | *(leer)* | Nur Frankreich: Suffix, das der Verkäufer-SIREN im elektronischen Endpoint BT-34 angehängt wird (z. B. `_Status`) — von manchen PA gefordert; leer = reine SIREN |
+| `AUVOERECHNUNG_NOTE_PMD/PMT/AAB` | text | *(leer)* | Pflichthinweise Verzug / Mahnpauschale / Skonto. Leer = bei Verkäufern in Frankreich die französischen Standardtexte (BR-FR-05), bei anderen Verkäufern kein Hinweis |
+| `AUVOERECHNUNG_NOTES_IN_FOOTER` | int | 0 | Pflichthinweise in die Rechnungsfußzeile kopieren (`INVOICE_FREE_TEXT`) |
 | `AUVOERECHNUNG_NOTES_OVERWRITE` | int | 0 | Kopie in die Fußzeile: bestehenden Dolibarr-Hinweis überschreiben (1) statt unsere Hinweise anzuhängen (0) |
-| `AUVOERECHNUNG_CHORUS_ENABLED` | int | 0 | Chorus-Pro-Funktionen aktivieren (Reiter, Menü, 2. PDF) — opt-in |
+| `AUVOERECHNUNG_CHORUS_ENABLED` | int | 0 | Nur Frankreich: Chorus-Pro-Funktionen aktivieren (Reiter, Menü, 2. PDF) — opt-in |
+| `AUVOERECHNUNG_XRECHNUNG_VERSION` | string | 3.0 | XRechnung-Version für die Kennung BT-24 |
+| `AUVOERECHNUNG_CONTACT_NAME` | string | *(leer)* | XRechnung: Ansprechpartner (BT-41); leer = Ersteller der Rechnung |
+| `AUVOERECHNUNG_CONTACT_PHONE` | string | *(leer)* | XRechnung: Telefon (BT-42); leer = Ersteller der Rechnung, sonst Firma |
+| `AUVOERECHNUNG_CONTACT_EMAIL` | string | *(leer)* | XRechnung: E-Mail (BT-43); leer = Ersteller der Rechnung, sonst Firma |
 
-> **Hinweis PHP CLI**: nur **im Modus `subprocess`** relevant (die Standard-Injektion ist In-Process und nutzt kein externes Binary). In diesem Modus erkennt das Modul das richtige PHP-CLI-Binary automatisch. Auf Servern mit mehreren PHP-Versionen, oder wenn die Auto-Erkennung fehlschlägt, `AUVOERECHNUNG_PHP_CLI_PATH` mit dem vollständigen Pfad konfigurieren (z. B. `/usr/bin/php8.2`). **Nicht** `PHP_BINARY` verwenden: im php-fpm-Kontext zeigt diese Konstante auf das fpm-Binary, nicht auf die CLI.
+> **Hinweis PHP CLI**: relevant, sobald der **Subprozess** genutzt wird, also im Standardmodus `auto` mit verfügbarem `exec()` und im Modus `subprocess`. Das Modul erkennt das richtige PHP-CLI-Binary automatisch. Auf Servern mit mehreren PHP-Versionen, oder wenn die Auto-Erkennung fehlschlägt, `AUVOERECHNUNG_PHP_CLI_PATH` mit dem vollständigen Pfad konfigurieren (z. B. `/usr/bin/php8.2`). **Nicht** `PHP_BINARY` verwenden: im php-fpm-Kontext zeigt diese Konstante auf das fpm-Binary, nicht auf die CLI.
 
-> **Hinweis SEPA-Lastschrift (59)**: das Modul veröffentlicht die Gläubiger-ID (Dolibarr-Konstante `PRELEVEMENT_ICS`, BT-90), die Mandatsreferenz (Standard-Bankverbindung des Tiers, BT-89) und den Debitor-IBAN (BT-91). Fehlende Daten werden per Warnung gemeldet.
+> **Hinweis SEPA-Lastschrift (59)**: das Modul veröffentlicht die Gläubiger-ID (Dolibarr-Konstante `PRELEVEMENT_ICS`, BT-90), die Mandatsreferenz (Standard-Bankverbindung des Geschäftspartners, BT-89) und die IBAN des Zahlers (BT-91). Fehlende Daten werden per Warnung gemeldet.
 
 ### Strikt-Modus vs. best-effort
 
@@ -356,9 +375,9 @@ Vor der PDF-Injektion validiert das Modul das XML systematisch:
 
 1. **Well-formed**: `DOMDocument::loadXML()`
 2. **XSD EN16931**: `DOMDocument::schemaValidate()` gegen die eingebettete XSD
-3. **Geschäftsregeln** (`AUVOERECHNUNG_BR_CHECK`, standardmäßig aktiviert): Teilmenge der EN16931-Schematron-Regeln in PHP geprüft — Berechnungsregeln BR-CO-10..17, BR-27 (negative Preise), BR-61 (IBAN), BR-16, BR-IC-02/11/12 (innergemeinschaftlich), BR-AE-02, Befreiungsgründe BR-\*-10, BR-CO-25/26, BR-09/11 — **plus das Regelwerk Frankreich BR-FR** (siehe nächster Abschnitt)
+3. **Geschäftsregeln** (`AUVOERECHNUNG_BR_CHECK`, standardmäßig aktiviert): Teilmenge der EN16931-Schematron-Regeln in PHP geprüft — Berechnungsregeln BR-CO-10..17, BR-27 (negative Preise), BR-61 (IBAN), BR-16, BR-IC-02/11/12 (innergemeinschaftlich), BR-AE-02, Befreiungsgründe BR-\*-10, BR-CO-09/25/26, BR-09/11 — **plus das Regelwerk Frankreich BR-FR** (siehe nächster Abschnitt) und **bei XRechnung die Regeln BR-DE-\*** sowie PEPPOL-EN16931-R001/R010/R020
 
-Das vollständige offizielle Schematron (XSLT 2.0) ist in PHP nicht ausführbar: für eine erschöpfende Validierung einen externen Validator nutzen — siehe [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
+Das vollständige offizielle Schematron (XSLT 2.0) ist in PHP nicht ausführbar. Verbindlich ist der offizielle KoSIT-Validator, mit dem das Projekt jede Änderung prüft (siehe [Validierung und Tests](#validierung-und-tests)) — siehe auch [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ### Konformität XP Z12-012 (Frankreich-Regeln)
 
@@ -388,7 +407,7 @@ Zur Erinnerung: „blockierende Verstöße" unterbrechen die Erzeugung nur im St
 
 Factur-X und ZUGFeRD 2.x sind **dieselbe** deutsch-französische Spezifikation: das vom Modul erzeugte CII-XML (Profil EN16931, eingebettet unter dem Namen `factur-x.xml`, den ZUGFeRD seit 2.1 vorschreibt) ist direkt als ZUGFeRD-Rechnung nutzbar. Die eingebetteten Schemata sind die von Factur-X 1.09.2 (ZUGFeRD 2.5.2).
 
-Trägt die Firmenfiche (`$mysoc`) ein anderes Land als Frankreich (gleichgestellte Überseegebiete ausgenommen, BR-FR-MAP-14), injiziert der Generator keine Elemente des französischen Rechts mehr:
+Trägt die Firma (`$mysoc`, Firmendaten) ein anderes Land als Frankreich (gleichgestellte Überseegebiete ausgenommen, BR-FR-MAP-14), injiziert der Generator keine Elemente des französischen Rechts mehr:
 
 | Element | Verkäufer FR | Verkäufer außerhalb FR |
 |---|---|---|
@@ -398,9 +417,9 @@ Trägt die Firmenfiche (`$mysoc`) ein anderes Land als Frankreich (gleichgestell
 | Vorgelagerte **SIREN/SIRET**-Prüfung | aktiv | deaktiviert (französische Kennungen) |
 | Regelblock **BR-FR** des Validators | aktiv | deaktiviert |
 
-**Deutscher Fall — Kleinunternehmer (§ 19 UStG).** Ist „Umsatzsteuerpflichtig" auf der Firmenfiche auf *Nein* gesetzt, wechselt die USt-Kategorie zu `E` mit dem Grund `Kein Ausweis von Umsatzsteuer, da Kleinunternehmer gemäß § 19 UStG` und **ohne** VATEX-Code (kein Code der CEF-Liste passt; der Freitext erfüllt BR-E-10). Da keine USt-IdNr vorliegt, fehlt BT-31: das Modul veröffentlicht dann die **Steuernummer** in BT-32 (`SpecifiedTaxRegistration/ID schemeID="FC"`), um BR-CO-26 zu erfüllen.
+**Deutscher Fall — Kleinunternehmer (§ 19 UStG).** Ist „Umsatzsteuerpflichtig" in den Firmendaten auf *Nein* gesetzt, wechselt die USt-Kategorie zu `E` mit dem Grund `Kein Ausweis von Umsatzsteuer, da Kleinunternehmer gemäß § 19 UStG` und **ohne** VATEX-Code (kein Code der CEF-Liste passt; der Freitext erfüllt BR-E-10). Ohne USt-IdNr. fehlt BT-31: Das Modul veröffentlicht dann die **Steuernummer** als BT-32 (`SpecifiedTaxRegistration/ID schemeID="FC"`, erfüllt BR-DE-16). Weil BT-32 die Regel **BR-CO-26** nicht erfüllt, braucht der Verkäufer zusätzlich eine Kennung: die Lieferantennummer beim Kunden (BT-29), sonst die Handelsregisternummer (BT-30), sonst wird die Steuernummer auch als BT-29 ausgegeben.
 
-> ⚠️ **Wo die Steuernummer eintragen** — Dolibarr-Konventionen für Deutschland: `idprof1` = **USt-IdNr**, `idprof2` = **USt-Nr**, also die Steuernummer. Es ist also das Feld **„Prof Id 2"** der Firmenfiche zu befüllen. Das Feld `idprof1` wird nur als Rückfall gelesen, und nur, wenn sein Wert nicht wie eine USt-IdNr aussieht — eine USt-IdNr darf nie unter dem Schema `FC` statt `VA` veröffentlicht werden.
+> ⚠️ **Wo die Kennungen eintragen** — Dolibarr-Felder für Deutschland (**Start > Einstellungen > Firma oder Institution**): **Prof-ID 1 = Steuernummer**, Prof-ID 2 = Amtsgericht, **Prof-ID 3 = Handelsregister-Nummer**, **Umsatzsteuer-ID** = USt-IdNr. (immer mit Ländercode, z. B. `DE123456789`). Eine Steuernummer gehört **nicht** in das Feld Umsatzsteuer-ID: Ein Wert ohne Ländercode wird nicht als USt-IdNr. ausgegeben (BR-CO-09), und die Diagnose warnt davor.
 
 Deutsche Verzugshinweise (§ 288 BGB) werden **nicht** automatisch ausgegeben: in die drei Felder „Gesetzliche Pflichtangaben" der Modulkonfiguration einzutragen, wenn sie im XML und der PDF-Fußzeile erscheinen sollen.
 
@@ -427,10 +446,10 @@ Extrahiert das eingebettete Factur-X-XML aller validierten Rechnungen (des angeg
 Der Ordner `vendor/` enthält die benötigten Libs (kein Composer auf dem Server erforderlich):
 
 - `atgp/factur-x` v3.5.0 — Erzeugung von Factur-X-PDFs (Schemata Factur-X 1.09.2 / ZUGFeRD 2.5.2)
-- `setasign/fpdi` v2.6.6 — Lesen/Schreiben von PDFs
-- `setasign/fpdf` 1.8.6 — PDF-Engine (von atgp genutzt, **nicht** von Dolibarr)
+- `setasign/fpdi` v2.6.8 — Lesen/Schreiben von PDFs
+- `setasign/fpdf` 1.9.0 — PDF-Engine (von atgp genutzt, **nicht** von Dolibarr; Patch `/F 4`, siehe PDF/A-3-Konformität)
 - `smalot/pdfparser` v2.12.5 — PDF-Parsing
-- `symfony/polyfill-mbstring` — mbstring-Kompatibilität
+- `symfony/polyfill-mbstring` v1.43.0 — mbstring-Kompatibilität
 
 ## PDF/A-3-Konformität
 
@@ -471,7 +490,7 @@ Im Zweifelsfall gilt: XSD-Validierung gegen die eingebetteten Factur-X-1.09.2-Sc
 
 ### Standalone-Unit-Tests (CI)
 
-`tests/unit-tests.php` läuft **ohne Dolibarr** (eingebettete Stubs): Szenarien und Assertions decken Gutschriften, Rabatte BG-21, innergemeinschaftlich K/AE, Export, Kleinunternehmerregelung, Rundungs-Stresstest mit 50 Positionen, Anzahlungen, SEPA-Lastschrift, Multiwährung, Formate, die Frankreich-Regeln XP Z12-012 (BT-1, SIREN-/SIRET-Konsistenz, BG-3 von Gutschriften/Korrekturen — inkl. 384 mit verrechneter Anzahlung, BT-23-Grundgerüst, BAR-Hinweis, Endpoint-Bereinigung, USt-Sätze, Nichtanwendung des BR-FR-Blocks bei ausländischem Verkäufer), den deutschen Kleinunternehmer-Fall (BT-32 aus idprof2, § 19 UStG ohne VATEX-Code, kein FR-Regelwerk) und die Leitweg-ID-Priorität in BT-10 für deutsche Behörden-Käufer ab. Jedes erzeugte XML wird **XSD- und geschäftsregelgeprüft**.
+`tests/unit-tests.php` läuft **ohne Dolibarr** (eingebettete Stubs): Szenarien und Assertions decken Gutschriften, Rabatte BG-21, innergemeinschaftlich K/AE, Export, Kleinunternehmerregelung, Rundungs-Stresstest mit 50 Positionen, Anzahlungen, SEPA-Lastschrift, Multiwährung, Formate, die Frankreich-Regeln XP Z12-012 (BT-1, SIREN-/SIRET-Konsistenz, BG-3 von Gutschriften/Korrekturen — inkl. 384 mit verrechneter Anzahlung, BT-23-Grundgerüst, BAR-Hinweis, Endpoint-Bereinigung, USt-Sätze, Nichtanwendung des BR-FR-Blocks bei ausländischem Verkäufer), die deutschen Fälle (Kleinunternehmer mit Steuernummer aus Prof-ID 1 als BT-29/BT-32, § 19 UStG ohne VATEX-Code, deutsche Befreiungsgründe, BR-CO-09/26, Bestellnummer, Leitweg-ID in BT-10) und **XRechnung** (Profil, Pflichtangaben, BR-DE-Regeln, Lieferantennummer) ab. Jedes erzeugte XML wird **XSD- und geschäftsregelgeprüft**; alle als gültig eingestuften XML prüft zusätzlich der offizielle KoSIT-Validator (`tests/kosit-validate.sh`).
 
 ```bash
 php tests/unit-tests.php
@@ -488,6 +507,8 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 ```
 
 ## Changelog
+
+> Hinweis: Das Modul hieß früher LemonFacturX, AuvoZugferd und DoliZUGFeRD. In älteren Einträgen sind Klassen-, Konstanten-, Datei- und Repo-Namen an die heutigen Namen (`auvoerechnung`, `AUVOERECHNUNG_*`) angepasst.
 
 ### 5.1.0 — XRechnung (Oktober 2026)
 
@@ -520,7 +541,7 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 
 ### 4.0.0 — Umbenennung in DoliZUGFeRD (Oktober 2026)
 
-- **Neuer Name**: AuvoZugferd heißt jetzt **DoliZUGFeRD** (Modulordner `dolizugferd`, Konstanten `DOLIZUGFERD_*`, REST-API `/dolizugferd/…`, Release-Asset `module_dolizugferd-X.Y.Z.zip`). Automatische Übernahme der Einstellungen und Zusatzfelder bei der ersten Aktivierung — siehe [Umstieg von AuvoZugferd](#umstieg-von-auvozugferd-version-3x-auf-auvoerechnung-40).
+- **Neuer Name**: AuvoZugferd heißt jetzt **DoliZUGFeRD** (Modulordner `dolizugferd`, Konstanten `DOLIZUGFERD_*`, REST-API `/dolizugferd/…`, Release-Asset `module_dolizugferd-X.Y.Z.zip`). Automatische Übernahme der Einstellungen und Zusatzfelder bei der ersten Aktivierung — siehe [Umstieg](#umstieg-von-dolizugferd-40x-oder-auvozugferd-3x-auf-auvo-e-rechnung-50).
 - **Steuernummer aus dem richtigen Feld**: In Dolibarr ist bei deutschen Firmen Prof-ID 1 die Steuernummer und Prof-ID 2 das Amtsgericht. Das Modul las bisher Prof-ID 2 — ein dort eingetragenes Amtsgericht wäre als Steuernummer (BT-32) ausgegeben worden. Jetzt wird Prof-ID 1 gelesen (Prof-ID 2 nur noch, wenn sie wie eine Steuernummer aussieht).
 - **Keine Steuernummer mehr als USt-IdNr.**: Ein Wert ohne Ländercode im Feld USt-IdNr. (z. B. eine dort eingetragene Steuernummer) wird nicht mehr als USt-IdNr. (BT-31, `schemeID="VA"`) ausgegeben, sondern — wenn es eine Steuernummer ist — als BT-32. Neue Warnung bei der Rechnungserzeugung und in der Diagnose; neue Prüfregel BR-CO-09.
 - **Diagnose ohne Frankreich-Ballast**: SIRET/SIREN-Prüfung und der Block „Adressierung über zugelassene Plattform (PA)“ erscheinen nur noch bei Verkäufern in Frankreich. Bei deutschen Verkäufern prüft die Diagnose stattdessen Steuernummer bzw. USt-IdNr.

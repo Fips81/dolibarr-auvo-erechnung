@@ -1566,7 +1566,7 @@ protected function _putlinks($n)
 	{
 		$this->_newobj();
 		$rect = sprintf('%.2F %.2F %.2F %.2F', $pl[0], $pl[1], $pl[0]+$pl[2], $pl[1]-$pl[3]);
-		$s = '<</Type /Annot /Subtype /Link /Rect ['.$rect.'] /Border [0 0 0] ';
+		$s = '<</Type /Annot /Subtype /Link /F 4 /Rect ['.$rect.'] /Border [0 0 0] ';
 		if(is_string($pl[4]))
 			$s .= '/A <</S /URI /URI '.$this->_textstring($pl[4]).'>>>>';
 		else
