@@ -194,6 +194,12 @@ AuvoERechnungChorusEnabledHint = Shows the Chorus Pro tab on invoices and the Ch
 AuvoERechnungChorusSuggested = This invoice seems addressed to the public sector (State SIRET). Enable the Chorus Pro features in the module setup if you need to submit it to Chorus Pro.
 
 # Setup reorganised into blocks (v3.4.0)
+AuvoERechnungTabOverview = Overview
+AuvoERechnungTabGeneral = General
+AuvoERechnungTabXRechnung = XRechnung
+AuvoERechnungTabSkonto = Cash discount
+AuvoERechnungTabFrance = France
+AuvoERechnungTabAdvanced = Advanced
 AuvoERechnungSecBilling = Invoicing
 AuvoERechnungSecPublic = Public sector (Chorus Pro)
 AuvoERechnungSecValidation = Validation and compliance

@@ -194,6 +194,12 @@ AuvoERechnungChorusEnabledHint = Zeigt den Chorus-Pro-Reiter auf Rechnungen und 
 AuvoERechnungChorusSuggested = Diese Rechnung scheint an den öffentlichen Sektor gerichtet zu sein (staatliche SIRET). Aktivieren Sie die Chorus-Pro-Funktionen in den Moduleinstellungen, falls Sie sie bei Chorus Pro einreichen müssen.
 
 # Setup reorganised into blocks (v3.4.0)
+AuvoERechnungTabOverview = Übersicht
+AuvoERechnungTabGeneral = Allgemein
+AuvoERechnungTabXRechnung = XRechnung
+AuvoERechnungTabSkonto = Skonto
+AuvoERechnungTabFrance = Frankreich
+AuvoERechnungTabAdvanced = Erweitert
 AuvoERechnungSecBilling = Rechnungsstellung
 AuvoERechnungSecPublic = Öffentlicher Sektor (Chorus Pro)
 AuvoERechnungSecValidation = Validierung und Konformität

@@ -194,6 +194,12 @@ AuvoERechnungChorusEnabledHint = Affiche l'onglet Chorus Pro sur les factures et
 AuvoERechnungChorusSuggested = Cette facture semble destinée au secteur public (SIRET de l'État). Activez les fonctionnalités Chorus Pro dans la configuration du module si vous devez la déposer sur Chorus Pro.
 
 # Réorganisation du setup en blocs (v3.4.0)
+AuvoERechnungTabOverview = Vue d'ensemble
+AuvoERechnungTabGeneral = Général
+AuvoERechnungTabXRechnung = XRechnung
+AuvoERechnungTabSkonto = Escompte (Skonto)
+AuvoERechnungTabFrance = France
+AuvoERechnungTabAdvanced = Avancé
 AuvoERechnungSecBilling = Facturation
 AuvoERechnungSecPublic = Secteur public (Chorus Pro)
 AuvoERechnungSecValidation = Validation et conformité
