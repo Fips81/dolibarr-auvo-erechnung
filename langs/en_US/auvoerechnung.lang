@@ -1,5 +1,5 @@
 Module194202Name = AuVo E-Rechnung
-Module194202Desc = E-invoices for Dolibarr (ZUGFeRD / Factur-X EN16931)
+Module194202Desc = E-invoices for Dolibarr: ZUGFeRD / Factur-X (EN16931) and XRechnung (CII/UBL)
 
 AuvoERechnungSetup = AuVo E-Rechnung setup
 AuvoERechnungBankAccount = Bank account (IBAN/BIC)
@@ -11,6 +11,8 @@ PaymentMeans59 = SEPA direct debit
 PaymentMeans49 = Direct debit (national)
 AuvoERechnungBrCheck = EN16931 business rules check
 AuvoERechnungBrCheckHint = Checks a subset of the EN16931 Schematron rules before injection (BR-CO-10..17, BR-27, BR-61, BR-IC-11/12, VAT category consistency...). Violations block in strict mode, otherwise they are added to the warnings.
+AuvoERechnungUpdateCheck = Check for updates
+AuvoERechnungUpdateCheckHint = The setup page asks api.github.com for a new version at most once a day (5 s timeout). No data is sent apart from the request itself. The only connection the module opens on its own; switch it off on servers without internet access or for privacy reasons.
 AuvoERechnungVeraPdfPath = PDF/A-3 validation with veraPDF (optional, external tool)
 AuvoERechnungVeraPdfPathHint = Empty by default = disabled, and that's fine: the EN16931 XSD check and internal BR rules already run. veraPDF is NOT shipped with the module — it's a third-party tool you install yourself (https://verapdf.org), then point to here. If set, every PDF is re-validated as PDF/A-3b after injection: non blocking (a failure just adds a warning), slows generation by a few seconds.
 AuvoERechnungVeraPdfPlaceholder = e.g. /usr/local/bin/verapdf — empty = disabled
@@ -125,6 +127,10 @@ AuvoERechnungWarnBuyerEndpoint = buyer electronic address missing (no SIREN/SIRE
 AuvoERechnungWarnBuyerSIRENRouting = buyer SIREN/SIRET missing — required for routing on the Plateformes Agréées network (endpoint BT-49 schemeID 0225); an email alone is not routable
 AuvoERechnungWarnBuyerSIRETLen = the buyer SIRET must contain exactly 14 digits (BT-47), %s entered
 AuvoERechnungWarnNoBank = no bank account configured in the module
+AuvoERechnungNoIban = no IBAN
+AuvoERechnungLineNoName = Item
+AuvoERechnungWarnSellerNoCountry = Your company has no country (Home > Setup > Company/Organization) — the module assumes France
+AuvoERechnungWarnBuyerNoCountry = The customer has no country — the module assumes %s (your company's country); please complete the third party
 AuvoERechnungWarnNoForceFont = MAIN_PDF_FORCE_FONT not set — the generated PDF is not guaranteed PDF/A-3 (fonts not embedded); fixable in one click from the AuVo E-Rechnung module setup (diagnostic)
 AuvoERechnungWarnForceFontNotEmbedded = The PDF font "%s" is not embedded — the generated PDF is not PDF/A-3 compliant; switch to "pdfahelvetica" in the AuVo E-Rechnung module setup (diagnostic)
 AuvoERechnungWarnPaymentMeansOmitted = payment means %s (credit transfer) omitted from XML: no IBAN configured (BR-61 — configure a bank account in the module)

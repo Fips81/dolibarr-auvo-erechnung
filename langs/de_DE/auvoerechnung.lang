@@ -1,5 +1,5 @@
 Module194202Name = AuVo E-Rechnung
-Module194202Desc = E-Rechnungen für Dolibarr (ZUGFeRD / Factur-X EN16931)
+Module194202Desc = E-Rechnungen für Dolibarr: ZUGFeRD / Factur-X (EN16931) und XRechnung (CII/UBL)
 
 AuvoERechnungSetup = AuVo E-Rechnung-Einstellungen
 AuvoERechnungBankAccount = Bankkonto (IBAN/BIC)
@@ -11,6 +11,8 @@ PaymentMeans59 = SEPA-Lastschrift
 PaymentMeans49 = Lastschrift (national)
 AuvoERechnungBrCheck = Prüfung der EN16931-Geschäftsregeln
 AuvoERechnungBrCheckHint = Prüft vor der Injektion eine Teilmenge der EN16931-Schematron-Regeln (BR-CO-10..17, BR-27, BR-61, BR-IC-11/12, Konsistenz der MwSt-Kategorien ...). Verstöße blockieren im Strikt-Modus, andernfalls werden sie den Warnungen hinzugefügt.
+AuvoERechnungUpdateCheck = Nach Updates suchen
+AuvoERechnungUpdateCheckHint = Die Einstellungsseite fragt höchstens einmal pro Tag bei api.github.com nach einer neuen Version (5 s Zeitlimit). Es werden keine Daten übertragen außer der Anfrage selbst. Einzige Verbindung, die das Modul von sich aus aufbaut; bei Servern ohne Internetzugang oder aus Datenschutzgründen abschalten.
 AuvoERechnungVeraPdfPath = PDF/A-3-Validierung mit veraPDF (optional, externes Tool)
 AuvoERechnungVeraPdfPathHint = Standardmäßig leer = deaktiviert, und das ist in Ordnung: Die EN16931-XSD-Prüfung und die internen BR-Regeln laufen bereits. veraPDF wird NICHT mit dem Modul ausgeliefert — es ist ein Drittanbieter-Tool, das Sie selbst installieren (https://verapdf.org) und hier eintragen. Wenn gesetzt, wird jede PDF nach der Injektion erneut als PDF/A-3b validiert: nicht blockierend (ein Fehlschlag erzeugt nur eine Warnung), verlangsamt die Erzeugung um einige Sekunden.
 AuvoERechnungVeraPdfPlaceholder = z. B. /usr/local/bin/verapdf — leer = deaktiviert
@@ -125,6 +127,10 @@ AuvoERechnungWarnBuyerEndpoint = Elektronische Adresse des Käufers fehlt (keine
 AuvoERechnungWarnBuyerSIRENRouting = SIREN/SIRET des Käufers fehlt — erforderlich für das Routing im Netzwerk der zugelassenen Plattformen (Endpoint BT-49, schemeID 0225); eine E-Mail allein ist nicht routbar
 AuvoERechnungWarnBuyerSIRETLen = Die SIRET des Käufers muss genau 14 Ziffern enthalten (BT-47), %s eingegeben
 AuvoERechnungWarnNoBank = Kein Bankkonto im Modul konfiguriert
+AuvoERechnungNoIban = keine IBAN
+AuvoERechnungLineNoName = Position
+AuvoERechnungWarnSellerNoCountry = Bei der eigenen Firma ist kein Land eingetragen (Start > Einstellungen > Firma oder Institution) — das Modul nimmt Frankreich an
+AuvoERechnungWarnBuyerNoCountry = Beim Kunden ist kein Land eingetragen — das Modul nimmt %s an (Land der eigenen Firma); bitte im Geschäftspartner ergänzen
 AuvoERechnungWarnNoForceFont = MAIN_PDF_FORCE_FONT nicht gesetzt — die erzeugte PDF ist nicht garantiert PDF/A-3 (Schriftarten nicht eingebettet); mit einem Klick in den AuVo E-Rechnung-Einstellungen behebbar (Diagnose)
 AuvoERechnungWarnForceFontNotEmbedded = Die PDF-Schrift „%s“ wird nicht eingebettet — die erzeugte PDF ist nicht PDF/A-3-konform; in den AuVo E-Rechnung-Einstellungen auf „pdfahelvetica“ umstellen (Diagnose)
 AuvoERechnungWarnPaymentMeansOmitted = Zahlungsart %s (Überweisung) im XML weggelassen: keine IBAN konfiguriert (BR-61 — konfigurieren Sie ein Bankkonto im Modul)

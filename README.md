@@ -130,7 +130,7 @@ auvoerechnung/
 │   └── export_facturx_batch.php             # Stapelexport der eingebetteten XML
 ├── admin/setup.php                          # Konfigurationsseite + Diagnose
 ├── langs/fr_FR + en_US + de_DE/auvoerechnung.lang    # Übersetzungen
-├── tests/
+├── tests/                                   # nur im Repository, nicht im Release-ZIP
 │   ├── unit-tests.php                       # Standalone-Tests (ohne Dolibarr, CI)
 │   ├── kosit-validate.sh                    # Offizieller KoSIT-Validator über alle Test-XML (CI)
 │   └── run-tests.php                        # Integrationstests (Fixtures aus demo/)
@@ -251,7 +251,11 @@ Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrech
 | BT-120 Exemption reason | Text je nach Land des Verkäufers (Deutschland: § 19 UStG, § 4 Nr. 1a/1b UStG, Reverse Charge …; Frankreich: CGI) |
 | BT-121 VATEX | VATEX-FR-FRANCHISE / VATEX-EU-IC / VATEX-EU-AE / VATEX-EU-G |
 | BT-129 unitCode | Von `$line->fk_unit` auf UN/ECE Rec 20 abgebildet |
-| BT-146 Unit price | `total_ht/qty`, bis zu 4 Dezimalstellen |
+| BT-146 Unit price | Einzelpreis nach Positionsrabatt (`subprice`), wenn Menge × Preis die Zeilensumme ergibt, sonst `total_ht/qty`; bis zu 4 Dezimalstellen |
+| BT-153 Item name | Produktbezeichnung; bei freien Positionen der Positionstext (HTML in Text umgewandelt) |
+| BT-154 Item description | Positionstext, wenn er von der Produktbezeichnung abweicht (z. B. „Größe: XL“) |
+| BT-155 Seller item ID | Produkt-Ref |
+| BT-157 Standard item ID | Barcode des Produkts, wenn er eine gültige GTIN/EAN ist (8, 12, 13 oder 14 Stellen mit Prüfziffer), Schema `0160` |
 | BT-151 CategoryCode | Kontextabhängig berechnet (S / K / AE / G / E) |
 | IBAN / BIC | Auf der Rechnung gewähltes Bankkonto, sonst das in den Moduleinstellungen gewählte |
 
@@ -358,6 +362,7 @@ Alle sind über den Administrationsbildschirm des Moduls konfigurierbar (**Start
 | `AUVOERECHNUNG_PAYMENT_MEANS` | string | 30 | UNTDID-4461-Code: 30 Überweisung, 58 SEPA-Überweisung, 59 SEPA-Lastschrift, 49 Lastschrift |
 | `AUVOERECHNUNG_STRICT_MODE` | int | 0 | 0 = best-effort (Standard), 1 = strikt (siehe unten) |
 | `AUVOERECHNUNG_BR_CHECK` | int | 1 | Interne Prüfung der EN16931-Geschäftsregeln vor der Injektion |
+| `AUVOERECHNUNG_UPDATE_CHECK` | int | 1 | Einstellungsseite fragt höchstens einmal täglich `api.github.com` nach einer neuen Version (einzige Verbindung, die das Modul von sich aus aufbaut); `0` schaltet das ab |
 | `AUVOERECHNUNG_INJECTION_MODE` | string | auto | Injektionsmodus: `auto` (Subprozess, wenn `exec()` verfügbar ist, sonst In-Process), `inprocess` (ohne exec), `subprocess` (nur exec) |
 | `AUVOERECHNUNG_PHP_CLI_PATH` | string | *(leer)* | Pfad zum PHP-CLI-Binary für den Subprozess (Modus `auto` mit `exec()` oder `subprocess`; leer = Auto-Erkennung; siehe Hinweis unten) |
 | `AUVOERECHNUNG_VERAPDF_PATH` | string | *(leer)* | Pfad zu veraPDF: Post-Validierung PDF/A-3b jeder erzeugten PDF (nicht blockierend) |
@@ -488,6 +493,13 @@ Jeder nicht behandelte Fall (Multiwährung, lokale Steuern, Baufortschritt, Selb
 
 ## Validierung und Tests
 
+**Wo sind die Tests?** `tests/` und `demo/` liegen nur im [GitHub-Repository](https://github.com/Fips81/dolibarr-auvo-erechnung), nicht im Release-ZIP: Das Installationspaket enthält keine Entwicklerwerkzeuge. Nachvollziehen lässt sich die Prüfung auf zwei Wegen:
+
+- **Ohne Installation:** unter [Actions](https://github.com/Fips81/dolibarr-auvo-erechnung/actions/workflows/ci.yml) einen Lauf öffnen, Schritt „Official KoSIT validation“. Dort steht jede geprüfte Datei mit dem Urteil des KoSIT-Validators (`ACCEPTABLE`/`REJECTED`) und allen Meldungen.
+- **Selbst prüfen:** Repository klonen und `bash tests/kosit-validate.sh` ausführen (Java 11+); die Unit-Tests mit `php tests/unit-tests.php` laufen ohne Dolibarr.
+
+Die Testdokumente sind künstliche Rechnungen, die alle unterstützten Fälle abdecken. Eigene Rechnungen lassen sich zusätzlich mit dem [KoSIT-Validator](https://github.com/itplr-kosit/validator) oder einem Online-Validator prüfen: Die XRechnung lässt sich auf der Rechnung herunterladen, das ZUGFeRD-XML steckt in der PDF (auslesbar z. B. mit dem [Stapelexport](#stapelexport)), und die Testrechnung auf der Einstellungsseite bietet beide Dateien zum Download an.
+
 **Offizieller KoSIT-Validator:** `tests/kosit-validate.sh` prüft jedes XML, das die Unit-Tests als gültig einstufen, mit dem Validator der KoSIT, für ZUGFeRD/Factur-X gegen die EN16931-Regeln und für XRechnung gegen die XRechnung-Regeln. Abgelehnte Dateien oder Fehler lassen den Lauf scheitern, Warnungen werden angezeigt. Das läuft bei jedem Push in der GitHub-CI und vor jedem Release-Build. Lokal (Java 11+ nötig, das Bundle wird einmalig geladen und per SHA-256 geprüft):
 
 ```bash
@@ -548,6 +560,11 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
   - **BR-FR-16** (Liste französischer Steuersätze) warnt nicht mehr bei deutschen Verkäufern über 19 % / 7 %.
   - **Diagnose:** Eine nicht eingebettete PDF-Schrift (z. B. `helvetica`) wird als Fehler mit Ein-Klick-Korrektur gemeldet statt mit grünem Haken; Warnung auch beim Erzeugen.
   - LIMITATIONS: Teilzahlungen und warum Leistungen ins Drittland `G` statt `O` erhalten.
+- **Artikeldaten in der E-Rechnung:** Produktbezeichnung als Name (BT-153), abweichender Positionstext als Beschreibung (BT-154), Produkt-Ref als Artikelnummer (BT-155) und ein gültiger EAN/GTIN-Barcode als Standardkennung (BT-157), in CII und UBL. Positionen mit Produkt und leerem Text hießen bisher „Article“.
+- **Update-Prüfung abschaltbar:** neue Einstellung „Nach Updates suchen“ (Server ohne Internetzugang, Datenschutz).
+- **Fehlendes Land:** Ein Kunde ohne Land gilt als Kunde aus dem Land der eigenen Firma (bisher Frankreich); für Kunde und eigene Firma ohne Land gibt es eine Warnung.
+- Französische Texte in der Oberfläche übersetzt („pas d'IBAN“, Ersatzname „Article“ für Positionen ohne Text), Modulbeschreibung nennt XRechnung.
+- README: wo die Tests liegen und wie sich die KoSIT-Prüfung nachvollziehen lässt.
 - **Lizenz:** `LICENSE` enthält jetzt den vollständigen Text der GPLv3 (bisher nur den Lizenzhinweis); die Copyright-Angaben stehen im Abschnitt [Lizenz](#lizenz) und in den Dateiköpfen.
 
 - **Versand an die OZG-RE:** Neue Einstellung „OZG-RE: Einreichungsadresse“ und Menüpunkt „XRechnung an OZG-RE senden“ auf der Rechnung. Die XRechnung wird vor dem Versand neu erzeugt und geprüft, nach Rückfrage über den Mailversand von Dolibarr verschickt (genau eine Datei, höchstens 10 MB) und in den Ereignissen der Rechnung festgehalten. Ohne Leitweg-ID beim Kunden wird nicht gesendet; ein erneuter Versand wird in der Rückfrage angezeigt.

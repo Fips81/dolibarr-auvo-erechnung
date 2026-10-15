@@ -100,6 +100,19 @@ function auvoerechnung_seller_is_fr($mysoc)
 }
 
 /**
+ * Country assumed for a party without country: the seller's own country
+ * (a customer without country is most likely a domestic one), FR only when
+ * the company itself has no country. check_mandatory() warns in both cases.
+ *
+ * @return string ISO 3166-1 alpha-2
+ */
+function auvoerechnung_default_country()
+{
+	global $mysoc;
+	return (is_object($mysoc) && !empty($mysoc->country_code)) ? strtoupper($mysoc->country_code) : 'FR';
+}
+
+/**
  * Vérifie si la facture est dans le périmètre supporté par le générateur.
  * Renvoie un message d'erreur bloquant, ou null si la facture est traitable.
  *
@@ -206,13 +219,25 @@ function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdpart
 	// le fallback "tout négatif" pour que les deux émettent le même mapping.
 	$buildLine = function ($line) use ($sign, $invoice, $thirdparty, $mysoc) {
 		$desc = auvoerechnung_html_to_text($line->desc ?: ($line->description ?? $line->label ?? ''));
+		$item = auvoerechnung_line_item($line, $desc);
 		if ($desc === '') {
-			$desc = 'Article';
+			// BT-153 est obligatoire : ligne libre sans texte
+			$desc = auvoerechnung_trans_raw('AuvoERechnungLineNoName');
+			if ($desc === 'AuvoERechnungLineNoName') {
+				$desc = 'Position';
+			}
+			if ($item['name'] === '') {
+				$item['name'] = $desc;
+			}
 		}
 		$lineTotal = round($sign * (float) $line->total_ht, 2);
 		$qty = abs((float) $line->qty);
 		return [
 			'desc'      => $desc,
+			'name'      => $item['name'],
+			'itemDesc'  => $item['description'],
+			'sellerId'  => $item['seller_id'],
+			'gtin'      => $item['gtin'],
 			'qty'       => ($qty != 0.0) ? $qty : 1.0,
 			'unitPrice' => auvoerechnung_line_unit_price($line, $sign, $qty, $lineTotal),
 			'lineTotal' => $lineTotal,
@@ -524,7 +549,7 @@ function auvoerechnung_resolve_bar_code($buyer)
 	if (auvoerechnung_is_non_assujetti($buyer)) {
 		return 'B2C';
 	}
-	$country = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : 'FR');
+	$country = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : auvoerechnung_default_country());
 	// Codes remplacés par FR dans les flux (BR-FR-MAP-14) : traités comme FR
 	if ($country !== 'FR' && !in_array($country, AUVOERECHNUNG_FR_OVERSEAS_COUNTRIES, true)) {
 		return 'B2BINT';
@@ -769,7 +794,15 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
 	// BT-49 (adresse électronique acheteur) : satisfaite par le SIREN (endpoint 0225)
 	// OU l'email. Pour un acheteur FR, l'absence de SIREN empêche le routage PA/PDP,
 	// même si un email est présent (un email n'est pas routable sur le réseau).
-	$buyerIsFR  = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : 'FR') === 'FR';
+	$buyerIsFR  = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : auvoerechnung_default_country()) === 'FR';
+	// Pays manquant : l'adresse (BT-40/BT-55) est obligatoire et le pays
+	// détermine les catégories de TVA ; on suppose le pays de la société.
+	if (!is_object($mysoc) || empty($mysoc->country_code)) {
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnSellerNoCountry');
+	}
+	if (is_object($buyer) && empty($buyer->country_code)) {
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnBuyerNoCountry', auvoerechnung_default_country());
+	}
 	$buyerSiren = $buyerIsFR ? auvoerechnung_party_siren($buyer) : '';
 	$buyerEmail = auvoerechnung_get_buyer_email($buyer, $invoice->db);
 	// Hors vendeur FR, BT-49 est facultatif en EN16931 (BR-FR-12 ne s'applique
@@ -2048,7 +2081,7 @@ function auvoerechnung_get_ship_to($invoice)
 	if ($name === '') {
 		$name = trim((string) ($c->socname ?? ''));
 	}
-	$buyerCountry = !empty($invoice->thirdparty->country_code) ? $invoice->thirdparty->country_code : 'FR';
+	$buyerCountry = !empty($invoice->thirdparty->country_code) ? $invoice->thirdparty->country_code : auvoerechnung_default_country();
 	return [
 		'name'    => $name,
 		'address' => [
@@ -2342,6 +2375,52 @@ function auvoerechnung_html_to_text($html)
 }
 
 /**
+ * Item data of a line (BG-31): with a product, its label is the name
+ * (BT-153), the line text the description (BT-154), its ref the seller's
+ * item ID (BT-155) and a valid EAN/GTIN barcode the standard ID (BT-157).
+ * Free-text lines keep the line text as the name.
+ *
+ * @param object $line  Dolibarr invoice line (fetch_lines() loads the product fields)
+ * @param string $desc  Line text, already converted to plain text
+ * @return array{name:string, description:string, seller_id:string, gtin:string}
+ */
+function auvoerechnung_line_item($line, $desc)
+{
+	$label = (!empty($line->fk_product) && isset($line->product_label)) ? auvoerechnung_html_to_text((string) $line->product_label) : '';
+	$item = [
+		'name'        => $label !== '' ? $label : $desc,
+		'description' => ($label !== '' && $desc !== '' && $desc !== $label) ? $desc : '',
+		'seller_id'   => !empty($line->fk_product) ? trim((string) ($line->product_ref ?? '')) : '',
+		'gtin'        => '',
+	];
+	$barcode = preg_replace('/\s+/', '', (string) ($line->product_barcode ?? ''));
+	if (!empty($line->fk_product) && auvoerechnung_is_gtin($barcode)) {
+		$item['gtin'] = $barcode;
+	}
+	return $item;
+}
+
+/**
+ * Whether a barcode is a GTIN (EAN-8, UPC-A, EAN-13, GTIN-14) with a valid
+ * check digit, as required for scheme 0160 (GS1).
+ *
+ * @param string $code
+ * @return bool
+ */
+function auvoerechnung_is_gtin($code)
+{
+	if (!preg_match('/^(\d{8}|\d{12}|\d{13}|\d{14})$/', $code)) {
+		return false;
+	}
+	$digits = array_reverse(str_split($code));
+	$sum = 0;
+	foreach (array_slice($digits, 1) as $i => $d) {
+		$sum += (int) $d * ($i % 2 === 0 ? 3 : 1);
+	}
+	return (10 - $sum % 10) % 10 === (int) $digits[0];
+}
+
+/**
  * Net unit price of a line (BT-146). The price after the line discount when
  * quantity x price gives the line total to the cent (as on the PDF), else the
  * line total divided by the quantity (prices with more than 4 decimals, lines
@@ -2406,6 +2485,11 @@ function auvoerechnung_format_unit_price($price)
  */
 function auvoerechnung_check_latest_release($db, $currentVersion)
 {
+	// Can be switched off (firewalls without internet access, privacy): the
+	// only outgoing request of the module, to api.github.com, admin page only.
+	if (!getDolGlobalInt('AUVOERECHNUNG_UPDATE_CHECK', 1)) {
+		return null;
+	}
 	$now = time();
 	$cacheRaw = getDolGlobalString('AUVOERECHNUNG_UPDATE_CHECK_CACHE', '');
 	$cache = !empty($cacheRaw) ? json_decode($cacheRaw, true) : null;

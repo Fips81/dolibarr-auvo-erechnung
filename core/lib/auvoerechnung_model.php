@@ -124,7 +124,7 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 	// Leitweg-ID (routage ZRE/OZG-RE) doit être la SEULE valeur en BT-10 — elle
 	// prime donc sur le code service Chorus et sur ref_client. Hors Allemagne,
 	// comportement inchangé : code service Chorus (profil choruspro) sinon ref_client.
-	$buyerCountry = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : 'FR');
+	$buyerCountry = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : auvoerechnung_default_country());
 	$leitwegId = ($buyerCountry === 'DE') ? auvoerechnung_invoice_leitwegid($invoice) : '';
 	if ($leitwegId !== '') {
 		$buyerRef = $leitwegId;
@@ -205,7 +205,10 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 		$lineNum++;
 		$lines[] = [
 			'id'           => (string) $lineNum,
-			'name'         => $pl['desc'],
+			'name'         => $pl['name'],                    // BT-153
+			'description'  => $pl['itemDesc'],                // BT-154
+			'seller_item_id' => $pl['sellerId'],              // BT-155
+			'gtin'         => $pl['gtin'],                    // BT-157 (schéma 0160)
 			'net_price'    => $pl['unitPrice'],
 			'quantity'     => $pl['qty'],
 			'unit_code'    => $pl['unitCode'],
@@ -271,7 +274,7 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 		'delivery' => [
 			// BG-13 : lieu de livraison (contact « livraison » de la facture)
 			'ship_to'         => auvoerechnung_get_ship_to($invoice),
-			'ship_to_country' => $hasK ? (!empty($buyer->country_code) ? $buyer->country_code : 'FR') : '', // BT-80
+			'ship_to_country' => $hasK ? (!empty($buyer->country_code) ? $buyer->country_code : auvoerechnung_default_country()) : '', // BT-80
 			'date'            => !empty($deliveryDateTs) ? date('Ymd', $deliveryDateTs) : $issueDate,      // BT-72
 		],
 		'payment'  => [
@@ -387,7 +390,7 @@ function auvoerechnung_compute_totals($invoice, $sign, $prepared, $breakdown, &$
  */
 function auvoerechnung_build_party_model($role, $party, $email, $legalIdMode = 'siren', $extra = [])
 {
-	$country = !empty($party->country_code) ? $party->country_code : 'FR';
+	$country = !empty($party->country_code) ? $party->country_code : auvoerechnung_default_country();
 	$vat     = auvoerechnung_party_vat_id($party);
 	$isFR = (strtoupper($country) === 'FR');
 	$siren = $isFR ? auvoerechnung_party_siren($party) : '';
@@ -581,7 +584,16 @@ function auvoerechnung_model_to_cii($m)
 		$xml .= '      <ram:LineID>'.$e($l['id']).'</ram:LineID>'."\n";
 		$xml .= '    </ram:AssociatedDocumentLineDocument>'."\n";
 		$xml .= '    <ram:SpecifiedTradeProduct>'."\n";
+		if (($l['gtin'] ?? '') !== '') {
+			$xml .= '      <ram:GlobalID schemeID="0160">'.$e($l['gtin']).'</ram:GlobalID>'."\n";
+		}
+		if (($l['seller_item_id'] ?? '') !== '') {
+			$xml .= '      <ram:SellerAssignedID>'.$e($l['seller_item_id']).'</ram:SellerAssignedID>'."\n";
+		}
 		$xml .= '      <ram:Name>'.$e($l['name']).'</ram:Name>'."\n";
+		if (($l['description'] ?? '') !== '') {
+			$xml .= '      <ram:Description>'.$e($l['description']).'</ram:Description>'."\n";
+		}
 		$xml .= '    </ram:SpecifiedTradeProduct>'."\n";
 		$xml .= '    <ram:SpecifiedLineTradeAgreement>'."\n";
 		$xml .= '      <ram:NetPriceProductTradePrice>'."\n";
@@ -1102,7 +1114,16 @@ function auvoerechnung_model_to_ubl($m)
 		$xml .= '    <cbc:'.$qtyTag.' unitCode="'.$e($l['unit_code']).'">'.auvoerechnung_format_qty($l['quantity']).'</cbc:'.$qtyTag.'>'."\n"; // BT-129/130
 		$xml .= '    <cbc:LineExtensionAmount'.$money($l['net_amount']).'</cbc:LineExtensionAmount>'."\n"; // BT-131
 		$xml .= '    <cac:Item>'."\n";
+		if (($l['description'] ?? '') !== '') {
+			$xml .= '      <cbc:Description>'.$e($l['description']).'</cbc:Description>'."\n";             // BT-154
+		}
 		$xml .= '      <cbc:Name>'.$e($l['name']).'</cbc:Name>'."\n";                                  // BT-153
+		if (($l['seller_item_id'] ?? '') !== '') {
+			$xml .= '      <cac:SellersItemIdentification><cbc:ID>'.$e($l['seller_item_id']).'</cbc:ID></cac:SellersItemIdentification>'."\n"; // BT-155
+		}
+		if (($l['gtin'] ?? '') !== '') {
+			$xml .= '      <cac:StandardItemIdentification><cbc:ID schemeID="0160">'.$e($l['gtin']).'</cbc:ID></cac:StandardItemIdentification>'."\n"; // BT-157
+		}
 		$xml .= auvoerechnung_ubl_tax_category('ClassifiedTaxCategory', $l['vat_category'], $l['vat_rate'], '', '', '      ');
 		$xml .= '    </cac:Item>'."\n";
 		$xml .= '    <cac:Price>'."\n";

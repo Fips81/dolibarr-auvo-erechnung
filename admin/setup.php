@@ -74,6 +74,7 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		['AUVOERECHNUNG_PAYMENT_MEANS',trim(GETPOST('AUVOERECHNUNG_PAYMENT_MEANS', 'alpha')), 'chaine'],
 		['AUVOERECHNUNG_STRICT_MODE',  GETPOSTINT('AUVOERECHNUNG_STRICT_MODE'),     'int'],
 		['AUVOERECHNUNG_BR_CHECK',     GETPOSTINT('AUVOERECHNUNG_BR_CHECK'),        'int'],
+		['AUVOERECHNUNG_UPDATE_CHECK', GETPOSTINT('AUVOERECHNUNG_UPDATE_CHECK') ? 1 : 0, 'int'],
 		['AUVOERECHNUNG_CHORUS_ENABLED', GETPOSTINT('AUVOERECHNUNG_CHORUS_ENABLED'), 'int'],
 		['AUVOERECHNUNG_PHP_CLI_PATH', trim(GETPOST('AUVOERECHNUNG_PHP_CLI_PATH', 'alphanohtml')), 'chaine'],
 		['AUVOERECHNUNG_VERAPDF_PATH', trim(GETPOST('AUVOERECHNUNG_VERAPDF_PATH', 'alphanohtml')), 'chaine'],
@@ -243,7 +244,7 @@ print '<select name="AUVOERECHNUNG_BANK_ACCOUNT" class="flat minwidth300">';
 print '<option value="0">-- '.$langs->trans("Select").' --</option>';
 if ($resql) {
 	while ($obj = $db->fetch_object($resql)) {
-		$infoIban = !empty($obj->iban_prefix) ? ' ('.auvoerechnung_iban_short($obj->iban_prefix).')' : ' (pas d\'IBAN)';
+		$infoIban = !empty($obj->iban_prefix) ? ' ('.auvoerechnung_iban_short($obj->iban_prefix).')' : ' ('.$langs->trans("AuvoERechnungNoIban").')';
 		print '<option value="'.$obj->rowid.'"'.($currentBankAccount == $obj->rowid ? ' selected' : '').'>'.dol_escape_htmltag($obj->label.$infoIban).'</option>';
 	}
 }
@@ -387,6 +388,12 @@ $brCheck = getDolGlobalInt('AUVOERECHNUNG_BR_CHECK', 1);
 print '<select name="AUVOERECHNUNG_BR_CHECK" class="flat">';
 print '<option value="1"'.($brCheck ? ' selected' : '').'>'.$langs->trans("Yes").'</option>';
 print '<option value="0"'.(!$brCheck ? ' selected' : '').'>'.$langs->trans("No").'</option>';
+print '</select></td></tr>';
+print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungUpdateCheck").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungUpdateCheckHint").'</span></td><td>';
+$updCheck = getDolGlobalInt('AUVOERECHNUNG_UPDATE_CHECK', 1);
+print '<select name="AUVOERECHNUNG_UPDATE_CHECK" class="flat">';
+print '<option value="1"'.($updCheck ? ' selected' : '').'>'.$langs->trans("Yes").'</option>';
+print '<option value="0"'.(!$updCheck ? ' selected' : '').'>'.$langs->trans("No").'</option>';
 print '</select></td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungStrictMode").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungStrictModeHint").'</span></td><td>';
 $strict = getDolGlobalInt('AUVOERECHNUNG_STRICT_MODE', 0);

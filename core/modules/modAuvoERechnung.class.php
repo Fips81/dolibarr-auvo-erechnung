@@ -25,14 +25,10 @@ class modAuvoERechnung extends DolibarrModules
 		$this->family = "financial";
 		$this->module_position = 90;
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
-		$this->description = "Factures électroniques pour Dolibarr (ZUGFeRD / Factur-X EN16931)";
-		$this->descriptionlong = "Injecte un XML CrossIndustryInvoice EN16931 dans chaque PDF facture client généré, pour conformité Factur-X.";
-		// Libellé localisé pour la liste des modules : l'Allemagne connaît le format sous le nom ZUGFeRD
-		// (ZUGFeRD 2.x profil EN16931 COMFORT = Factur-X EN16931, même standard).
-		if (!empty($langs) && method_exists($langs, 'getDefaultLang') && $langs->getDefaultLang() == 'de_DE') {
-			$this->description = "E-Rechnungen für Dolibarr (ZUGFeRD / Factur-X EN16931)";
-			$this->descriptionlong = "Injiziert ein CrossIndustryInvoice-XML (EN16931) in jede erzeugte Kunden-Rechnungs-PDF, für ZUGFeRD-Konformität.";
-		}
+		// Liste des modules : Module194202Desc des fichiers de langue ; ce
+		// texte n'est qu'un repli.
+		$this->description = "E-invoices for Dolibarr: ZUGFeRD / Factur-X (EN16931) and XRechnung (CII/UBL)";
+		$this->descriptionlong = "Embeds an EN16931 CrossIndustryInvoice XML in every customer invoice PDF (ZUGFeRD / Factur-X) and creates XRechnung files in CII or UBL.";
 		$this->version = '5.1.1';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'bill';
@@ -105,6 +101,7 @@ class modAuvoERechnung extends DolibarrModules
 			array('AUVOERECHNUNG_CONTACT_NAME', 'chaine', '', 'XRechnung: Ansprechpartner (BT-41); leer = Ersteller der Rechnung', 1, 'current', 0),
 			array('AUVOERECHNUNG_CONTACT_PHONE', 'chaine', '', 'XRechnung: Telefon des Ansprechpartners (BT-42); leer = Ersteller, sonst Firma', 1, 'current', 0),
 			array('AUVOERECHNUNG_CONTACT_EMAIL', 'chaine', '', 'XRechnung: E-Mail des Ansprechpartners (BT-43); leer = Ersteller, sonst Firma', 1, 'current', 0),
+			array('AUVOERECHNUNG_UPDATE_CHECK', 'int', '1', 'Auf der Einstellungsseite bei GitHub nach einer neuen Version fragen (einmal pro Tag)', 1, 'current', 0),
 			array('AUVOERECHNUNG_VAT_DUE_DATE', 'chaine', 'auto', 'BT-8 Fälligkeit der USt: auto (Dolibarr-Steuermodus nur für Verkäufer in Frankreich), none, 5 (Soll), 72 (Ist)', 1, 'current', 0),
 			array('AUVOERECHNUNG_XRECHNUNG_SYNTAX', 'chaine', 'cii', 'XRechnung: Syntax CII oder UBL (Standard; je Kunde über das Feld E-Rechnungsformat abweichend)', 1, 'current', 0),
 			array('AUVOERECHNUNG_XR_EMBED_PDF', 'int', '0', 'XRechnung: PDF der Rechnung als Anlage einbetten (BG-24)', 1, 'current', 0),

@@ -1820,6 +1820,75 @@ lfx_assert(strpos($reason, '§ 3a Abs. 2 UStG') !== false && strpos($reason, '§
 echo "U46 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U47 données article (BT-153..157), pays manquant, contrôle de mise à jour';
+lfx_reset([
+	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
+	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
+	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
+], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+$seller = lfx_make_party([
+	'name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen',
+	'address' => 'Hauptstr. 1', 'email' => 'rechnung@muster.example', 'phone' => '06772 99',
+	'tva_intra' => 'DE811111111', 'tva_assuj' => 1,
+]);
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-1000';
+$inv->thirdparty = lfx_make_party(['name' => 'Bundesamt für Beispiele', 'country_code' => 'DE', 'zip' => '53113', 'town' => 'Bonn',
+	'address' => 'Amtsweg 1', 'email' => '', 'tva_intra' => '', 'array_options' => ['options_lfxleitwegid' => '991-33333TEST-33']]);
+$inv->lines = [
+	// Produit avec texte de ligne, référence et EAN valide
+	lfx_make_line(100.00, 19.0, 19.00, 2.0, 'Größe: XL', 0, ['fk_product' => 7, 'product_ref' => 'TS-100', 'product_label' => 'T-Shirt Basic', 'product_barcode' => '4006381333931']),
+	// Produit sans texte de ligne, code-barres interne (pas un GTIN)
+	lfx_make_line(50.00, 19.0, 9.50, 1.0, '', 1, ['fk_product' => 8, 'product_ref' => 'MONT', 'product_label' => 'Montage', 'product_barcode' => '12345']),
+	// Ligne libre sans texte
+	lfx_make_line(10.00, 19.0, 1.90, 1.0, '', 1),
+];
+$inv->total_ht = 160.00;
+$inv->total_tva = 30.40;
+$inv->total_ttc = 190.40;
+$w = [];
+$xr = auvoerechnung_build_xrechnung($inv, $seller, $w, [], 'cii');
+lfx_std_validate($xr['xml'], $xsdPath);
+$xp = lfx_xpath($xr['xml']);
+$p1 = '(//ram:SpecifiedTradeProduct)[1]';
+lfx_assert_eq('T-Shirt Basic', lfx_xp_str($xp, $p1.'/ram:Name'), 'BT-153 = libellé produit');
+lfx_assert_eq('Größe: XL', lfx_xp_str($xp, $p1.'/ram:Description'), 'BT-154 = texte de ligne');
+lfx_assert_eq('TS-100', lfx_xp_str($xp, $p1.'/ram:SellerAssignedID'), 'BT-155 = réf. produit');
+lfx_assert_eq('4006381333931', lfx_xp_str($xp, $p1.'/ram:GlobalID[@schemeID="0160"]'), 'BT-157 GTIN');
+$p2 = '(//ram:SpecifiedTradeProduct)[2]';
+lfx_assert_eq('Montage', lfx_xp_str($xp, $p2.'/ram:Name'), 'produit sans texte : libellé');
+lfx_assert_eq(null, lfx_xp_str($xp, $p2.'/ram:Description'), 'pas de BT-154 vide');
+lfx_assert_eq(null, lfx_xp_str($xp, $p2.'/ram:GlobalID'), 'code-barres non GTIN ignoré');
+lfx_assert_eq('Position', lfx_xp_str($xp, '(//ram:SpecifiedTradeProduct)[3]/ram:Name'), 'ligne libre vide : nom de repli');
+lfx_assert_eq(null, lfx_xp_str($xp, '(//ram:SpecifiedTradeProduct)[3]/ram:SellerAssignedID'), 'ligne libre : pas de BT-155');
+lfx_dump('xr-11-artikeldaten-cii', $xr['xml']);
+$ubl = auvoerechnung_build_xrechnung($inv, $seller, $w, [], 'ubl')['xml'];
+lfx_assert(auvoerechnung_validate_xsd($ubl, dirname(__DIR__)) === null, 'XSD UBL avec données article');
+$xpu = lfx_ubl_xpath($ubl);
+$i1 = '(//cac:InvoiceLine/cac:Item)[1]';
+lfx_assert_eq('Größe: XL', lfx_xp_str($xpu, $i1.'/cbc:Description'), 'UBL BT-154');
+lfx_assert_eq('T-Shirt Basic', lfx_xp_str($xpu, $i1.'/cbc:Name'), 'UBL BT-153');
+lfx_assert_eq('TS-100', lfx_xp_str($xpu, $i1.'/cac:SellersItemIdentification/cbc:ID'), 'UBL BT-155');
+lfx_assert_eq('4006381333931', lfx_xp_str($xpu, $i1.'/cac:StandardItemIdentification/cbc:ID[@schemeID="0160"]'), 'UBL BT-157');
+lfx_dump('ubl-artikeldaten', $ubl);
+lfx_assert(auvoerechnung_is_gtin('96385074') && auvoerechnung_is_gtin('036000291452') && !auvoerechnung_is_gtin('4006381333932'), 'contrôle GTIN (chiffre de contrôle)');
+
+// Pays manquant : avertissement, pays de la société supposé
+$inv->thirdparty->country_code = '';
+lfx_assert(lfx_contains(auvoerechnung_check_mandatory($inv, $seller), 'AuvoERechnungWarnBuyerNoCountry'), 'client sans pays signalé');
+$noCountry = clone $seller;
+$noCountry->country_code = '';
+lfx_assert(lfx_contains(auvoerechnung_check_mandatory($inv, $noCountry), 'AuvoERechnungWarnSellerNoCountry'), 'société sans pays signalée');
+$GLOBALS['mysoc'] = $seller;
+lfx_assert_eq('DE', auvoerechnung_default_country(), 'pays par défaut = pays de la société');
+unset($GLOBALS['mysoc']);
+
+// Contrôle de mise à jour désactivé : aucun appel réseau
+$GLOBALS['lfx_test_conf']['AUVOERECHNUNG_UPDATE_CHECK'] = 0;
+lfx_assert_eq(null, auvoerechnung_check_latest_release(null, '0.0.1'), 'contrôle de mise à jour désactivé');
+echo "U47 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

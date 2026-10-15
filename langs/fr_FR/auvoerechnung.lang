@@ -1,5 +1,5 @@
 Module194202Name = AuVo E-Rechnung
-Module194202Desc = Factures électroniques pour Dolibarr (ZUGFeRD / Factur-X EN16931)
+Module194202Desc = Factures électroniques pour Dolibarr : ZUGFeRD / Factur-X (EN16931) et XRechnung (CII/UBL)
 
 AuvoERechnungSetup = Configuration AuVo E-Rechnung
 AuvoERechnungBankAccount = Compte bancaire (IBAN/BIC)
@@ -11,6 +11,8 @@ PaymentMeans59 = Prélèvement SEPA
 PaymentMeans49 = Prélèvement (national)
 AuvoERechnungBrCheck = Contrôle des règles métier EN16931
 AuvoERechnungBrCheckHint = Vérifie avant injection un sous-ensemble des règles Schematron EN16931 (BR-CO-10..17, BR-27, BR-61, BR-IC-11/12, cohérence des catégories TVA...). Violations bloquantes en mode strict, ajoutées aux avertissements sinon.
+AuvoERechnungUpdateCheck = Rechercher les mises à jour
+AuvoERechnungUpdateCheckHint = La page de configuration interroge api.github.com au plus une fois par jour (délai 5 s). Aucune donnée n'est transmise hormis la requête elle-même. Seule connexion que le module ouvre de lui-même ; à désactiver sur un serveur sans accès Internet ou pour des raisons de confidentialité.
 AuvoERechnungVeraPdfPath = Validation PDF/A-3 par veraPDF (optionnel, outil externe)
 AuvoERechnungVeraPdfPathHint = Vide par défaut = désactivé, et c'est très bien ainsi : le contrôle XSD EN16931 + les règles BR internes tournent déjà. veraPDF n'est PAS fourni avec le module — c'est un outil tiers à installer vous-même (https://verapdf.org), puis à pointer ici. Si renseigné, chaque PDF est revalidé PDF/A-3b après injection : non bloquant (un échec ajoute juste un avertissement), ralentit la génération de quelques secondes.
 AuvoERechnungVeraPdfPlaceholder = ex : /usr/local/bin/verapdf — vide = désactivé
@@ -125,6 +127,10 @@ AuvoERechnungWarnBuyerEndpoint = adresse électronique du tiers acheteur manquan
 AuvoERechnungWarnBuyerSIRENRouting = SIREN/SIRET du tiers acheteur manquant — requis pour le routage sur le réseau des Plateformes Agréées (endpoint BT-49 schemeID 0225) ; une adresse email seule n'est pas routable
 AuvoERechnungWarnBuyerSIRETLen = le SIRET du tiers acheteur doit comporter 14 chiffres (BT-47), %s saisi(s)
 AuvoERechnungWarnNoBank = aucun compte bancaire configuré dans le module
+AuvoERechnungNoIban = pas d'IBAN
+AuvoERechnungLineNoName = Article
+AuvoERechnungWarnSellerNoCountry = Aucun pays pour votre société (Accueil > Configuration > Société/Organisation) — le module suppose la France
+AuvoERechnungWarnBuyerNoCountry = Aucun pays pour le client — le module suppose %s (pays de votre société) ; compléter la fiche tiers
 AuvoERechnungWarnNoForceFont = MAIN_PDF_FORCE_FONT non définie — le PDF généré n'est pas garanti PDF/A-3 (polices non embarquées) ; corrigeable en un clic dans Configuration du module AuVo E-Rechnung (diagnostic)
 AuvoERechnungWarnForceFontNotEmbedded = La police PDF « %s » n'est pas embarquée — le PDF généré n'est pas conforme PDF/A-3 ; passer à « pdfahelvetica » dans la configuration du module AuVo E-Rechnung (diagnostic)
 AuvoERechnungWarnPaymentMeansOmitted = moyen de paiement %s (virement) omis du XML : aucun IBAN configuré (BR-61 — configurer un compte bancaire dans le module)
