@@ -112,11 +112,6 @@ class modAuvoERechnung extends DolibarrModules
 			array('AUVOERECHNUNG_CHORUS_ENABLED', 'int', '0', 'Chorus-Pro-Funktionen aktivieren (Reiter, Menü, 2. PDF; nur Frankreich) — opt-in', 1, 'current', 0),
 		);
 
-		if (!isset($conf->auvoerechnung) || !isset($conf->auvoerechnung->enabled)) {
-			$conf->auvoerechnung = new stdClass();
-			$conf->auvoerechnung->enabled = 0;
-		}
-
 		$this->rights = array();
 		$this->menu = array();
 
@@ -154,6 +149,7 @@ class modAuvoERechnung extends DolibarrModules
 		$this->createEFormatExtraField();
 		$this->createSupplierNumberExtraField();
 		$this->createInvoiceExtraFields();
+		$this->updateExtraFieldConditions();
 		return $result;
 	}
 
@@ -197,12 +193,30 @@ class modAuvoERechnung extends DolibarrModules
 			$sql = "UPDATE ".MAIN_DB_PREFIX."extrafields SET";
 			$sql .= " label = '".$this->db->escape($label)."',";
 			$sql .= " langs = 'auvoerechnung@auvoerechnung',";
-			$sql .= " enabled = '".$this->db->escape('$conf->auvoerechnung->enabled')."'";
+			$sql .= " enabled = '".$this->db->escape('isModEnabled("auvoerechnung")')."'";
 			$sql .= " WHERE name = '".$this->db->escape($name)."'";
 			$sql .= " AND elementtype IN ('facture', 'societe')";
 			$sql .= " AND langs <> 'auvoerechnung@auvoerechnung'";
 			$this->db->query($sql);
 		}
+	}
+
+	/**
+	 * Extrafields created before 5.2.0 are shown under the condition
+	 * '$conf->auvoerechnung->enabled'; addExtraField() does not touch existing
+	 * fields, so switch them to isModEnabled(), which Dolibarr recommends
+	 * since the module objects in $conf are deprecated.
+	 *
+	 * @return void
+	 */
+	private function updateExtraFieldConditions()
+	{
+		$sql = "UPDATE ".MAIN_DB_PREFIX."extrafields";
+		$sql .= " SET enabled = '".$this->db->escape('isModEnabled("auvoerechnung")')."'";
+		$sql .= " WHERE name LIKE 'lfx%'";
+		$sql .= " AND elementtype IN ('facture', 'societe')";
+		$sql .= " AND enabled = '".$this->db->escape('$conf->auvoerechnung->enabled')."'";
+		$this->db->query($sql);
 	}
 
 	/**
@@ -284,7 +298,7 @@ class modAuvoERechnung extends DolibarrModules
 			$extrafields->addExtraField(
 				$d[0], $d[1], $d[2], $d[4], $size, 'facture',
 				0, 0, '', $param, 1, '', '0', '', '', '',
-				'auvoerechnung@auvoerechnung', '$conf->auvoerechnung->enabled'
+				'auvoerechnung@auvoerechnung', 'isModEnabled("auvoerechnung")'
 			);
 		}
 	}
@@ -330,7 +344,7 @@ class modAuvoERechnung extends DolibarrModules
 		$extrafields->addExtraField(
 			'lfxleitwegid', 'AuvoERechnungEfLeitwegId', 'varchar', 200, '46', 'societe',
 			0, 0, '', '', 1, '', '1', '', '', '',
-			'auvoerechnung@auvoerechnung', '$conf->auvoerechnung->enabled'
+			'auvoerechnung@auvoerechnung', 'isModEnabled("auvoerechnung")'
 		);
 	}
 
@@ -364,7 +378,7 @@ class modAuvoERechnung extends DolibarrModules
 		$extrafields->addExtraField(
 			'lfxeformat', 'AuvoERechnungEfEFormat', 'select', 201, '', 'societe',
 			0, 0, '', $param, 1, '', '1', '', '', '',
-			'auvoerechnung@auvoerechnung', '$conf->auvoerechnung->enabled'
+			'auvoerechnung@auvoerechnung', 'isModEnabled("auvoerechnung")'
 		);
 	}
 
@@ -385,7 +399,7 @@ class modAuvoERechnung extends DolibarrModules
 		$extrafields->addExtraField(
 			'lfxsupplierno', 'AuvoERechnungEfSupplierNo', 'varchar', 202, '100', 'societe',
 			0, 0, '', '', 1, '', '1', '', '', '',
-			'auvoerechnung@auvoerechnung', '$conf->auvoerechnung->enabled'
+			'auvoerechnung@auvoerechnung', 'isModEnabled("auvoerechnung")'
 		);
 	}
 
@@ -417,7 +431,7 @@ class modAuvoERechnung extends DolibarrModules
 			$extrafields->addExtraField(
 				$d[0], $d[1], $d[2], $d[3], $d[4], 'facture',
 				0, 0, '', '', 1, '', '1', '', '', '',
-				'auvoerechnung@auvoerechnung', '$conf->auvoerechnung->enabled', 0, 0
+				'auvoerechnung@auvoerechnung', 'isModEnabled("auvoerechnung")', 0, 0
 			);
 		}
 	}

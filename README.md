@@ -565,6 +565,7 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 - **Fehlendes Land:** Ein Kunde ohne Land gilt als Kunde aus dem Land der eigenen Firma (bisher Frankreich); für Kunde und eigene Firma ohne Land gibt es eine Warnung.
 - Französische Texte in der Oberfläche übersetzt („pas d'IBAN“, Ersatzname „Article“ für Positionen ohne Text), Modulbeschreibung nennt XRechnung.
 - README: wo die Tests liegen und wie sich die KoSIT-Prüfung nachvollziehen lässt.
+- **Zusatzfelder** werden über `isModEnabled("auvoerechnung")` statt über das veraltete `$conf->auvoerechnung->enabled` eingeblendet; bestehende Felder stellt das erneute Aktivieren um.
 - **Lizenz:** `LICENSE` enthält jetzt den vollständigen Text der GPLv3 (bisher nur den Lizenzhinweis); die Copyright-Angaben stehen im Abschnitt [Lizenz](#lizenz) und in den Dateiköpfen.
 
 - **Versand an die OZG-RE:** Neue Einstellung „OZG-RE: Einreichungsadresse“ und Menüpunkt „XRechnung an OZG-RE senden“ auf der Rechnung. Die XRechnung wird vor dem Versand neu erzeugt und geprüft, nach Rückfrage über den Mailversand von Dolibarr verschickt (genau eine Datei, höchstens 10 MB) und in den Ereignissen der Rechnung festgehalten. Ohne Leitweg-ID beim Kunden wird nicht gesendet; ein erneuter Versand wird in der Rückfrage angezeigt.
