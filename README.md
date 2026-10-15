@@ -55,7 +55,7 @@ Das Modul arbeitet mit den **aktuellen Fassungen** der deutschen und französisc
    - Fehlerbehandlungsmodus (best-effort / strikt), Prüfung der Geschäftsregeln
    - Optional: Skonto je Zahlungsbedingung, Pflichthinweise (Verzug, Mahnpauschale, Skonto), Pfad zur PHP-CLI, Pfad zu veraPDF; Chorus Pro nur für Verkäufer in Frankreich
 
-   Kennungen wie Steuernummer, USt-IdNr. und Handelsregisternummer kommen aus den Firmendaten (**Start > Einstellungen > Firma oder Institution**), die Soll-/Ist-Versteuerung (BT-8) aus den Steuereinstellungen von Dolibarr. Dafür gibt es keine eigenen Moduleinstellungen.
+   Kennungen wie Steuernummer, USt-IdNr. und Handelsregisternummer kommen aus den Firmendaten (**Start > Einstellungen > Firma oder Institution**), Dafür gibt es keine eigenen Moduleinstellungen. Die Soll-/Ist-Versteuerung (BT-8) wird in Deutschland nicht angegeben; wer sie braucht, wählt sie in den Moduleinstellungen.
 5. Eine **eingebettete Schriftart** im Selektor **„Schriftart der erzeugten PDF"** der Modulkonfiguration wählen (`pdfahelvetica` standardmäßig, mit ✓ markiert)
 6. Die **Diagnose** unten auf der Konfigurationsseite des Moduls prüfen (grüne Häkchen = OK)
 
@@ -224,7 +224,7 @@ Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrech
 | BT-1 Invoice ID | `$invoice->ref` |
 | BT-2 Issue date | `$invoice->date` |
 | BT-3 Type code | 380 / 381 (Gutschrift) / 384 (Korrektur) / 386 (Anzahlung; XRechnung: 326) |
-| BT-8 VAT due date code | Dolibarr-Umsatzsteuerregelung (`TAX_MODE`): 5 Soll-, 72 Ist-Versteuerung, weggelassen falls unbestimmt |
+| BT-8 VAT due date code | Einstellung „Umsatzsteuer: Fälligkeit“: 5 Soll-, 72 Ist-Versteuerung; standardmäßig nur für Verkäufer in Frankreich aus der Dolibarr-Umsatzsteuerregelung (`TAX_MODE`), sonst weggelassen |
 | BT-9 Due date | `$invoice->date_lim_reglement` |
 | BT-10 Buyer reference | Leitweg-ID der Rechnung („Leitweg-ID (abweichend)“), sonst des Kunden, falls eingetragen; sonst „Ihr Zeichen“ der Rechnung (`ref_client`); Chorus-Profil: Service-Code |
 | BT-13 Order reference | „Ihr Zeichen“ (Kunden-BestellNr.) des verknüpften Kundenauftrags; hat der Kunde eine Leitweg-ID, ersatzweise „Ihr Zeichen“ der Rechnung; Chorus-Profil: Verpflichtungsnummer |
@@ -370,6 +370,7 @@ Alle sind über den Administrationsbildschirm des Moduls konfigurierbar (**Start
 | `AUVOERECHNUNG_CONTACT_NAME` | string | *(leer)* | XRechnung: Ansprechpartner (BT-41); leer = Ersteller der Rechnung |
 | `AUVOERECHNUNG_CONTACT_PHONE` | string | *(leer)* | XRechnung: Telefon (BT-42); leer = Ersteller der Rechnung, sonst Firma |
 | `AUVOERECHNUNG_CONTACT_EMAIL` | string | *(leer)* | XRechnung: E-Mail (BT-43); leer = Ersteller der Rechnung, sonst Firma |
+| `AUVOERECHNUNG_VAT_DUE_DATE` | string | auto | USt-Fälligkeit (BT-8): `auto` (Dolibarr-Steuermodus, nur Verkäufer in Frankreich), `none`, `5` (Soll), `72` (Ist) |
 | `AUVOERECHNUNG_XRECHNUNG_SYNTAX` | string | cii | XRechnung-Syntax: `cii` oder `ubl` (pro Kunde abweichend über „E-Rechnungsformat“) |
 | `AUVOERECHNUNG_XR_EMBED_PDF` | int | 0 | XRechnung: PDF der Rechnung als Anlage einbetten (BG-24) |
 | `AUVOERECHNUNG_XR_EMBED_FILES` | int | 0 | XRechnung: hochgeladene Dokumente der Rechnung als Anlagen einbetten (BG-24) |
@@ -412,7 +413,7 @@ Regeln des Reform-Grundgerüsts Frankreich, vom Modul geprüft oder ausgegeben. 
 | BR-FR-16 | USt-Satz vs. geschlossene französische Liste (Mutterland + Überseegebiete) | **Nur Warnung** — ein legitimer Satz wird nie blockiert |
 | BR-FR-CO-04 / BR-FR-CO-05 | Korrekturrechnung (384…): genau **eine** Referenz auf die Ursprungsrechnung (BT-25) mit deren Datum — der Generator referenziert dann in BG-3 NUR die ersetzte Rechnung (verrechnete Anzahlungen bleiben über BT-113 geführt); Gutschrift (381…): mindestens eine datierte Referenz | Blockierender Verstoß (+ vorgelagerte Warnung, falls die Ursprungsrechnung nicht verknüpft ist) |
 | BR-FR-23 / BR-FR-25 | Elektronische Adresse 0225: nur alphanumerisch + `- _ .` (das konfigurierte Verkäufer-Suffix wird bei der Ausgabe bereinigt), max. 125 Zeichen | Blockierender Verstoß (Zeichensatz) + Warnung (Länge) |
-| BR-FR-MAP-03 / MAP-29 | USt-Fälligkeit (BT-8): `5` = Soll-Versteuerung (einziger vom PPF erwarteter CII-Wert), `72` = Ist-Versteuerung, abgeleitet von `TAX_MODE` | Automatisch ausgegeben |
+| BR-FR-MAP-03 / MAP-29 | USt-Fälligkeit (BT-8): `5` = Soll-Versteuerung (einziger vom PPF erwarteter CII-Wert), `72` = Ist-Versteuerung, abgeleitet von `TAX_MODE` (Einstellung „Automatisch“) | Automatisch ausgegeben |
 
 Zur Erinnerung: „blockierende Verstöße" unterbrechen die Erzeugung nur im Strikt-Modus (`AUVOERECHNUNG_STRICT_MODE=1`); im best-effort-Modus werden sie in der Warnmeldung und im Syslog konsolidiert.
 
@@ -539,6 +540,14 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 - **Leistungszeitraum für die ganze Rechnung** (Felder „Leistungszeitraum von/bis“), **Lieferort** aus dem Lieferkontakt der Rechnung (BG-13) und **„Keine E-Rechnung“** pro Rechnung.
 - **Testrechnung** auf der Einstellungsseite: ZUGFeRD und XRechnung mit den eigenen Firmendaten erzeugen, prüfen und herunterladen.
 - **Korrektur:** Anzahlungsrechnungen erhalten in der XRechnung den Code 326 statt 386 (BR-DE-17).
+- **Korrekturen aus einem Testbericht aus dem Dolibarr-Forum:**
+  - **BT-8 nicht mehr „Ist-Versteuerung“ auf jeder Rechnung:** Dolibarr setzt intern „Zahlung“ als Fälligkeit für Dienstleistungen, wenn nichts eingestellt ist; das Modul meldete dadurch Code 72 (Ist-Versteuerung). Neue Einstellung „Umsatzsteuer: Fälligkeit (BT-8)“, Standard „Automatisch“: für deutsche Verkäufer keine Angabe, den Dolibarr-Steuermodus übernimmt das Modul nur noch für Verkäufer in Frankreich.
+  - **Positionstexte aus dem Editor:** HTML-Entities wurden doppelt kodiert („Gr&amp;ouml;&amp;szlig;e“ statt „Größe“), Zeilenumbrüche gingen verloren. Jetzt reiner Text mit Zeilenumbrüchen.
+  - **Einzelpreis (BT-146)** ist der Preis nach Positionsrabatt wie auf der PDF (9,99 bei Menge 0,333), nicht mehr aus der Zeilensumme zurückgerechnet (10,00). Nur wenn Menge × Preis nicht zur Zeilensumme passt, wird wie bisher zurückgerechnet.
+  - **Drittland mit Waren und Leistungen:** Die G-Aufschlüsselung nennt beide Befreiungsgründe (§ 3a UStG und Ausfuhrlieferung) statt nur den der ersten Position.
+  - **BR-FR-16** (Liste französischer Steuersätze) warnt nicht mehr bei deutschen Verkäufern über 19 % / 7 %.
+  - **Diagnose:** Eine nicht eingebettete PDF-Schrift (z. B. `helvetica`) wird als Fehler mit Ein-Klick-Korrektur gemeldet statt mit grünem Haken; Warnung auch beim Erzeugen.
+  - LIMITATIONS: Teilzahlungen und warum Leistungen ins Drittland `G` statt `O` erhalten.
 - **Lizenz:** `LICENSE` enthält jetzt den vollständigen Text der GPLv3 (bisher nur den Lizenzhinweis); die Copyright-Angaben stehen im Abschnitt [Lizenz](#lizenz) und in den Dateiköpfen.
 
 - **Versand an die OZG-RE:** Neue Einstellung „OZG-RE: Einreichungsadresse“ und Menüpunkt „XRechnung an OZG-RE senden“ auf der Rechnung. Die XRechnung wird vor dem Versand neu erzeugt und geprüft, nach Rückfrage über den Mailversand von Dolibarr verschickt (genau eine Datei, höchstens 10 MB) und in den Ereignissen der Rechnung festgehalten. Ohne Leitweg-ID beim Kunden wird nicht gesendet; ein erneuter Versand wird in der Rückfrage angezeigt.

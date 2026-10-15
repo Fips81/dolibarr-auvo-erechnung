@@ -1736,6 +1736,90 @@ lfx_assert(auvoerechnung_einvoice_disabled($inv), 'e-facture désactivée sur la
 echo "U45 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U46 retours de test (BT-8, HTML, BR-FR-16, police, G mixte, prix unitaire)';
+lfx_reset([
+	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
+	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
+	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
+], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+$seller = lfx_make_party([
+	'name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen',
+	'address' => 'Hauptstr. 1', 'email' => 'rechnung@muster.example', 'phone' => '06772 99',
+	'tva_intra' => 'DE811111111', 'tva_assuj' => 1,
+]);
+$buyerDE = lfx_make_party(['name' => 'Kunde GmbH', 'country_code' => 'DE', 'zip' => '10115', 'town' => 'Berlin',
+	'address' => 'Weg 2', 'email' => 'ap@kunde.example', 'tva_intra' => 'DE999999999']);
+
+// BT-8 : Dolibarr met TAX_MODE_SELL_SERVICE = payment en mémoire quand rien
+// n'est enregistré ; un vendeur allemand ne doit pas en déduire « Ist » (72).
+$GLOBALS['lfx_test_conf']['TAX_MODE_SELL_SERVICE'] = 'payment';
+lfx_assert_eq('', auvoerechnung_resolve_vat_due_date_code($seller), 'BT-8 : vendeur DE, défaut Dolibarr ignoré');
+lfx_assert_eq('72', auvoerechnung_resolve_vat_due_date_code(lfx_make_party()), 'BT-8 : vendeur FR suit le régime Dolibarr');
+$GLOBALS['lfx_test_conf']['AUVOERECHNUNG_VAT_DUE_DATE'] = '5';
+lfx_assert_eq('5', auvoerechnung_resolve_vat_due_date_code($seller), 'BT-8 : Soll-Versteuerung choisie');
+$GLOBALS['lfx_test_conf']['AUVOERECHNUNG_VAT_DUE_DATE'] = 'none';
+lfx_assert_eq('', auvoerechnung_resolve_vat_due_date_code(lfx_make_party()), 'BT-8 : aucune indication');
+unset($GLOBALS['lfx_test_conf']['AUVOERECHNUNG_VAT_DUE_DATE'], $GLOBALS['lfx_test_conf']['TAX_MODE_SELL_SERVICE']);
+
+// Description WYSIWYG (HTML) → texte, sans double encodage des entités ;
+// prix unitaire réel (9,99 × 0,333) au lieu de la reconstitution 10,00
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-0900';
+$inv->thirdparty = $buyerDE;
+$inv->lines = [
+	lfx_make_line(119.00, 19.0, 22.61, 1.0, '<p>Montage&nbsp;vor Ort &amp; Anfahrt<br />Zeile&nbsp;2</p>', 1),
+	lfx_make_line(3.33, 19.0, 0.63, 0.333, 'Kabel', 0, ['subprice' => 9.99]),
+	lfx_make_line(90.00, 7.0, 6.30, 1.0, 'Fachbuch', 0, ['subprice' => 100.00, 'remise_percent' => 10]),
+];
+$inv->total_ht = 212.33;
+$inv->total_tva = 29.54;
+$inv->total_ttc = 241.87;
+$w = [];
+$xml = auvoerechnung_build_xml($inv, $seller, $w);
+lfx_std_validate($xml, $xsdPath);
+$xp = lfx_xpath($xml);
+lfx_assert_eq("Montage vor Ort & Anfahrt\nZeile 2", lfx_xp_str($xp, '(//ram:SpecifiedTradeProduct/ram:Name)[1]'), 'BT-153 sans balises ni entités');
+lfx_assert(strpos($xml, '&amp;nbsp;') === false && strpos($xml, '&amp;amp;') === false, 'pas de double encodage');
+lfx_assert_eq('9.99', lfx_xp_str($xp, '(//ram:NetPriceProductTradePrice/ram:ChargeAmount)[2]'), 'BT-146 = prix saisi');
+lfx_assert_eq('90.00', lfx_xp_str($xp, '(//ram:NetPriceProductTradePrice/ram:ChargeAmount)[3]'), 'BT-146 = prix après remise');
+lfx_assert_eq(10.0, auvoerechnung_line_unit_price((object) ['subprice' => 10.0], 1.0, 3.0, 29.99), 'prix modifié : reconstitution');
+lfx_assert_eq('', auvoerechnung_html_to_text('<p>&nbsp;</p>'), 'description vide');
+
+// BR-FR-16 : la liste des taux français ne concerne pas un vendeur allemand
+$warns = auvoerechnung_check_mandatory($inv, $seller);
+lfx_assert(!lfx_contains($warns, 'AuvoERechnungWarnVatRateNotFR'), 'BR-FR-16 : pas d\'avertissement pour 19 %/7 % en DE');
+$frInv = clone $inv;
+$frInv->thirdparty = lfx_make_party(['name' => 'Client SAS']);
+lfx_assert(lfx_contains(auvoerechnung_check_mandatory($frInv, lfx_make_party()), 'AuvoERechnungWarnVatRateNotFR'), 'BR-FR-16 : toujours actif pour un vendeur FR');
+
+// Police PDF de base non embarquée (helvetica) : avertissement PDF/A-3
+lfx_assert(auvoerechnung_pdf_font_embedded('helvetica') === false, 'helvetica non embarquée');
+lfx_assert(auvoerechnung_pdf_font_embedded('pdfahelvetica') === true, 'pdfahelvetica embarquée');
+$GLOBALS['lfx_test_conf']['MAIN_PDF_FORCE_FONT'] = 'helvetica';
+lfx_assert(lfx_contains(auvoerechnung_check_mandatory($inv, $seller), 'AuvoERechnungWarnForceFontNotEmbedded'), 'avertissement police non embarquée');
+$GLOBALS['lfx_test_conf']['MAIN_PDF_FORCE_FONT'] = 'pdfahelvetica';
+lfx_assert(!lfx_contains(auvoerechnung_check_mandatory($inv, $seller), 'AuvoERechnungWarnForceFontNotEmbedded'), 'pas d\'avertissement avec pdfahelvetica');
+
+// Pays tiers : prestation (§ 3a) et marchandise (export) dans une seule
+// ventilation G (BR-G-08), avec les deux motifs
+$inv = new LfxFakeInvoice();
+$inv->ref = 'RE2026-0901';
+$inv->thirdparty = lfx_make_party(['name' => 'ACME Inc', 'country_code' => 'US', 'zip' => '10001', 'town' => 'New York',
+	'address' => '1 Main St', 'email' => 'ap@acme.example', 'tva_intra' => '']);
+$inv->lines = [lfx_make_line(500.00, 0, 0, 1.0, 'Beratung', 1), lfx_make_line(300.00, 0, 0, 1.0, 'Ware', 0)];
+$inv->total_ht = 800.00;
+$inv->total_tva = 0;
+$inv->total_ttc = 800.00;
+$w = [];
+$xml = auvoerechnung_build_xml($inv, $seller, $w);
+lfx_std_validate($xml, $xsdPath);
+$xp = lfx_xpath($xml);
+lfx_assert_eq(1, $xp->query('//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax')->length, 'une seule ventilation G');
+$reason = (string) lfx_xp_str($xp, '//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax/ram:ExemptionReason');
+lfx_assert(strpos($reason, '§ 3a Abs. 2 UStG') !== false && strpos($reason, '§ 4 Nr. 1a') !== false, 'les deux motifs : '.$reason);
+echo "U46 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

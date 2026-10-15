@@ -81,6 +81,7 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		['AUVOERECHNUNG_CONTACT_NAME', trim(GETPOST('AUVOERECHNUNG_CONTACT_NAME', 'alphanohtml')), 'chaine'],
 		['AUVOERECHNUNG_CONTACT_PHONE', trim(GETPOST('AUVOERECHNUNG_CONTACT_PHONE', 'alphanohtml')), 'chaine'],
 		['AUVOERECHNUNG_CONTACT_EMAIL', trim(GETPOST('AUVOERECHNUNG_CONTACT_EMAIL', 'email')), 'chaine'],
+		['AUVOERECHNUNG_VAT_DUE_DATE', in_array(GETPOST('AUVOERECHNUNG_VAT_DUE_DATE', 'aZ09'), ['auto', 'none', '5', '72'], true) ? GETPOST('AUVOERECHNUNG_VAT_DUE_DATE', 'aZ09') : 'auto', 'chaine'],
 		['AUVOERECHNUNG_XRECHNUNG_SYNTAX', GETPOST('AUVOERECHNUNG_XRECHNUNG_SYNTAX', 'aZ09') === 'ubl' ? 'ubl' : 'cii', 'chaine'],
 		['AUVOERECHNUNG_XR_EMBED_PDF', GETPOSTINT('AUVOERECHNUNG_XR_EMBED_PDF') ? 1 : 0, 'int'],
 		['AUVOERECHNUNG_XR_EMBED_FILES', GETPOSTINT('AUVOERECHNUNG_XR_EMBED_FILES') ? 1 : 0, 'int'],
@@ -303,6 +304,14 @@ foreach ([
 }
 print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungXrVersion").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungXrVersionHint").'</span></td><td>';
 print '<input type="text" name="AUVOERECHNUNG_XRECHNUNG_VERSION" class="flat width75" value="'.dol_escape_htmltag(getDolGlobalString('AUVOERECHNUNG_XRECHNUNG_VERSION', '3.0')).'"></td></tr>';
+// BT-8 : exigibilité de la TVA (Soll-/Ist-Versteuerung)
+$vatDue = getDolGlobalString('AUVOERECHNUNG_VAT_DUE_DATE', 'auto');
+print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungVatDueDate").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungVatDueDateHint").'</span></td><td>';
+print '<select name="AUVOERECHNUNG_VAT_DUE_DATE" class="flat">';
+foreach (['auto' => 'AuvoERechnungVatDueDateAuto', 'none' => 'AuvoERechnungVatDueDateNone', '5' => 'AuvoERechnungVatDueDateInvoice', '72' => 'AuvoERechnungVatDueDatePayment'] as $val => $key) {
+	print '<option value="'.$val.'"'.($vatDue === (string) $val ? ' selected' : '').'>'.$langs->trans($key).'</option>';
+}
+print '</select></td></tr>';
 // Syntaxe de la XRechnung par défaut (CII ou UBL), modifiable par client
 $xrSyntax = getDolGlobalString('AUVOERECHNUNG_XRECHNUNG_SYNTAX', 'cii') === 'ubl' ? 'ubl' : 'cii';
 print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungXrSyntax").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungXrSyntaxHint").'</span></td><td>';
@@ -580,6 +589,12 @@ $forceFont = getDolGlobalString('MAIN_PDF_FORCE_FONT', '');
 if ($forceFont === '') {
 	$diagErrors[] = [
 		'msg' => $langs->trans("AuvoERechnungDiagForceFontMissing"),
+		'fix' => '/custom/auvoerechnung/admin/setup.php?action=setforcefont&token='.newToken(),
+		'fixlabel' => $langs->trans("AuvoERechnungDiagFixForceFont"),
+	];
+} elseif (auvoerechnung_pdf_font_embedded($forceFont) === false) {
+	$diagErrors[] = [
+		'msg' => $langs->trans("AuvoERechnungDiagForceFontNotEmbedded", dol_escape_htmltag($forceFont)),
 		'fix' => '/custom/auvoerechnung/admin/setup.php?action=setforcefont&token='.newToken(),
 		'fixlabel' => $langs->trans("AuvoERechnungDiagFixForceFont"),
 	];

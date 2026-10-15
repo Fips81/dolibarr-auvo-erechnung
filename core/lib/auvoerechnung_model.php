@@ -253,9 +253,10 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 			'type_code'          => ($isXRechnung && $typeCode === '386') ? '326' : $typeCode, // BT-3
 			'is_credit_note'     => $isCreditNote,
 			'currency'           => $currency,                                 // BT-5
-			// BT-8 : exigibilité TVA (5 = débits, 72 = encaissements), dérivée du
-			// régime TVA de Dolibarr (TAX_MODE) ; émise sur la catégorie S.
-			'vat_due_date_code'  => auvoerechnung_resolve_vat_due_date_code(),
+			// BT-8 : exigibilité TVA (5 = débits / Soll, 72 = encaissements / Ist) :
+			// réglage du module, sinon régime TVA de Dolibarr pour un vendeur
+			// français ; émise sur la catégorie S.
+			'vat_due_date_code'  => auvoerechnung_resolve_vat_due_date_code($mysoc),
 			'buyer_reference'    => (string) $buyerRef,                        // BT-10
 			'contract_reference' => ($profile === 'choruspro' && !empty($options['marche'])) ? (string) $options['marche'] : '', // BT-12
 			'order_reference'    => (string) $orderRef,                        // BT-13

@@ -205,7 +205,7 @@ function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdpart
 	// Constructeur unique de ligne préparée : utilisé par le chemin nominal ET
 	// le fallback "tout négatif" pour que les deux émettent le même mapping.
 	$buildLine = function ($line) use ($sign, $invoice, $thirdparty, $mysoc) {
-		$desc = trim(strip_tags($line->desc ?: ($line->description ?? $line->label ?? '')));
+		$desc = auvoerechnung_html_to_text($line->desc ?: ($line->description ?? $line->label ?? ''));
 		if ($desc === '') {
 			$desc = 'Article';
 		}
@@ -214,7 +214,7 @@ function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdpart
 		return [
 			'desc'      => $desc,
 			'qty'       => ($qty != 0.0) ? $qty : 1.0,
-			'unitPrice' => ($qty != 0.0) ? $lineTotal / $qty : $lineTotal,
+			'unitPrice' => auvoerechnung_line_unit_price($line, $sign, $qty, $lineTotal),
 			'lineTotal' => $lineTotal,
 			'lineTax'   => $sign * (float) $line->total_tva,
 			'vatRate'   => (float) $line->tva_tx,
@@ -604,6 +604,11 @@ function auvoerechnung_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$bui
 				'exemption'    => $taxCat['exemption'],
 				'vatex'        => $taxCat['vatex'],
 			];
+		} elseif (!empty($taxCat['exemption']) && strpos((string) $breakdown[$key]['exemption'], $taxCat['exemption']) === false) {
+			// One breakdown per category and rate (BR-G-08 & co. sum all lines
+			// of a category): lines with different legal grounds, e.g. export
+			// goods and a § 3a service to a third country, name both grounds.
+			$breakdown[$key]['exemption'] = trim($breakdown[$key]['exemption'].'; '.$taxCat['exemption'], '; ');
 		}
 		$breakdown[$key]['base'] += $base;
 		$breakdown[$key]['tax'] += $tax;
@@ -812,23 +817,26 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
 	// BR-FR-16 : taux de TVA hors liste française fermée (métropole + DOM).
 	// AVERTISSEMENT uniquement — la liste de la norme peut évoluer et un taux
 	// légitime ne doit jamais être bloqué.
-	$frVatRates = [0.0, 0.9, 1.05, 1.75, 2.1, 5.5, 7.0, 8.5, 9.2, 9.6, 10.0, 13.0, 19.6, 20.0, 20.6];
-	$flaggedRates = [];
-	foreach ((array) ($invoice->lines ?? []) as $line) {
-		$rate = round((float) ($line->tva_tx ?? 0), 2);
-		$known = false;
-		foreach ($frVatRates as $fr) {
-			if (abs($rate - $fr) < 0.001) {
-				$known = true;
-				break;
+	// Seulement pour un vendeur français : 19 % ou 7 % sont des taux allemands normaux.
+	if ($sellerIsFR) {
+		$frVatRates = [0.0, 0.9, 1.05, 1.75, 2.1, 5.5, 7.0, 8.5, 9.2, 9.6, 10.0, 13.0, 19.6, 20.0, 20.6];
+		$flaggedRates = [];
+		foreach ((array) ($invoice->lines ?? []) as $line) {
+			$rate = round((float) ($line->tva_tx ?? 0), 2);
+			$known = false;
+			foreach ($frVatRates as $fr) {
+				if (abs($rate - $fr) < 0.001) {
+					$known = true;
+					break;
+				}
+			}
+			if (!$known) {
+				$flaggedRates[(string) $rate] = true;
 			}
 		}
-		if (!$known) {
-			$flaggedRates[(string) $rate] = true;
+		foreach (array_keys($flaggedRates) as $rate) {
+			$warnings[] = auvoerechnung_trans('AuvoERechnungWarnVatRateNotFR', $rate);
 		}
-	}
-	foreach (array_keys($flaggedRates) as $rate) {
-		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnVatRateNotFR', $rate);
 	}
 
 	// BR-FR-23/25 : suffixe d'adresse électronique vendeur — charset fermé
@@ -855,8 +863,11 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
 
 	// PDF/A-3 : sans police embarquée forcée, le PDF TCPDF utilise les polices
 	// base-14 non embarquées et échoue à la validation veraPDF.
-	if (function_exists('getDolGlobalString') && getDolGlobalString('MAIN_PDF_FORCE_FONT', '') === '') {
+	$forceFont = function_exists('getDolGlobalString') ? getDolGlobalString('MAIN_PDF_FORCE_FONT', '') : '';
+	if ($forceFont === '') {
 		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnNoForceFont');
+	} elseif (auvoerechnung_pdf_font_embedded($forceFont) === false) {
+		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnForceFontNotEmbedded', $forceFont);
 	}
 
 	return $warnings;
@@ -1431,8 +1442,10 @@ function auvoerechnung_list_pdf_fonts()
  * TAX_MODE, Configuration > Taxes) — plus de réglage dédié dans le module.
  *   TAX_MODE 1 = sur les débits      → '5'
  *   TAX_MODE 2 = sur les encaissements → '72'
- *   TAX_MODE 0 = standard (mixte) : on suit TAX_MODE_SELL_SERVICE si explicite,
- *                sinon on omet (BT-8 optionnel, ne pas deviner).
+ *   TAX_MODE 0 = standard (mixte) : on suit TAX_MODE_SELL_SERVICE.
+ *
+ * Only for French sellers (setting AUVOERECHNUNG_VAT_DUE_DATE = auto); other
+ * sellers get BT-8 only when set explicitly (5 = Soll, 72 = Ist).
  *
  * Conformité XP Z12-012 vérifiée (2026-07) : la codelist UNTDID 2475 admise par
  * EN16931 en CII est {5, 29, 72}. Pour l'option « débits », la règle
@@ -1444,10 +1457,22 @@ function auvoerechnung_list_pdf_fonts()
  * qui est correct — toute ligne à taux > 0 est classée S par ce module, et
  * l'exigibilité n'a pas de sens sur les catégories sans TVA due (E/K/G/AE/O/Z).
  *
+ * @param object|null $mysoc  Seller; null keeps the Dolibarr mapping
  * @return string  '5', '72' ou '' (omis)
  */
-function auvoerechnung_resolve_vat_due_date_code()
+function auvoerechnung_resolve_vat_due_date_code($mysoc = null)
 {
+	// Own setting first: Dolibarr fills TAX_MODE_SELL_SERVICE with 'payment'
+	// in memory when it was never saved (conf.class.php), so a German system
+	// that never touched the French tax options would claim "Ist-Versteuerung"
+	// (72) on every invoice. Germany does not need BT-8 at all.
+	$setting = getDolGlobalString('AUVOERECHNUNG_VAT_DUE_DATE', 'auto');
+	if ($setting === '5' || $setting === '72') {
+		return $setting;
+	}
+	if ($setting === 'none' || ($mysoc !== null && !auvoerechnung_seller_is_fr($mysoc))) {
+		return '';
+	}
 	$mode = getDolGlobalInt('TAX_MODE', 0);
 	if ($mode === 1) {
 		return '5';
@@ -2292,6 +2317,70 @@ function auvoerechnung_format_qty($qty)
 }
 
 /**
+ * Converts a Dolibarr line description (WYSIWYG HTML) to plain text: line
+ * breaks from <br> and block ends are kept, tags removed, entities decoded
+ * (&nbsp; becomes a space), so the XML carries the text and not "&amp;nbsp;".
+ *
+ * @param string $html
+ * @return string
+ */
+function auvoerechnung_html_to_text($html)
+{
+	$s = (string) $html;
+	$s = preg_replace('~<br\s*/?>|</(?:p|div|li|h[1-6]|tr)>~i', "\n", $s);
+	$s = strip_tags($s);
+	$s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+	$s = str_replace(["\xC2\xA0", "\r\n", "\r", "\t"], [' ', "\n", "\n", ' '], $s);
+	$out = [];
+	foreach (explode("\n", $s) as $l) {
+		$l = trim(preg_replace('/ {2,}/', ' ', $l));
+		if ($l !== '' || (end($out) !== '' && !empty($out))) {
+			$out[] = $l;
+		}
+	}
+	return trim(implode("\n", $out));
+}
+
+/**
+ * Net unit price of a line (BT-146). The price after the line discount when
+ * quantity x price gives the line total to the cent (as on the PDF), else the
+ * line total divided by the quantity (prices with more than 4 decimals, lines
+ * changed by hand).
+ *
+ * @param object $line       Dolibarr invoice line
+ * @param float  $sign       -1 for a credit note
+ * @param float  $qty        absolute quantity
+ * @param float  $lineTotal  signed, rounded line total
+ * @return float
+ */
+function auvoerechnung_line_unit_price($line, $sign, $qty, $lineTotal)
+{
+	if ($qty == 0.0) {
+		return $lineTotal;
+	}
+	if (isset($line->subprice) && is_numeric($line->subprice)) {
+		$net = round($sign * (float) $line->subprice * (1 - (float) ($line->remise_percent ?? 0) / 100), 4);
+		if (abs(round($net * $qty, 2) - $lineTotal) < 0.005) {
+			return $net;
+		}
+	}
+	return $lineTotal / $qty;
+}
+
+/**
+ * Whether a TCPDF font embeds its glyphs in the PDF (PDF/A-3 needs this).
+ * The base-14 fonts (helvetica, times, courier...) are never embedded.
+ *
+ * @param string $font  Value of MAIN_PDF_FORCE_FONT
+ * @return bool|null    null when the font is not in the TCPDF font folder
+ */
+function auvoerechnung_pdf_font_embedded($font)
+{
+	$fonts = auvoerechnung_list_pdf_fonts();
+	return array_key_exists($font, $fonts) ? $fonts[$font] : null;
+}
+
+/**
  * Formate un prix unitaire net (BT-146) : 2 décimales, étendu à 4 quand la
  * précision le justifie (ex. 100/3 = 33.3333) pour limiter l'écart qty x prix.
  */
@@ -2301,7 +2390,8 @@ function auvoerechnung_format_unit_price($price)
 	if (abs(round($price, 2) - round($price, 4)) < 0.0000001) {
 		return number_format($price, 2, '.', '');
 	}
-	return number_format($price, 4, '.', '');
+	// 14.3920 -> 14.392 (price after a 20 % discount on 17.99)
+	return preg_replace('/(\.\d\d\d*?)0+$/', '$1', number_format($price, 4, '.', ''));
 }
 
 /**

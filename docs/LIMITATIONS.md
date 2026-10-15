@@ -89,10 +89,24 @@ korrekt ausgegeben (Erkennung über `product_type` + USt-IdNr. des Käufers).
 ### Kategorien O, Z, L, M
 **Verhalten: nicht ausgegeben.**
 `O` (nicht steuerbar): wird nie erzeugt — die Kleinunternehmerregelung ist
-eine Befreiung (`E`), kein nicht steuerbarer Umsatz. `Z` (Nullsatz): im
+eine Befreiung (`E`), kein nicht steuerbarer Umsatz. Auch Leistungen an
+Kunden im Drittland (§ 3a Abs. 2 UStG) erhalten `G` statt `O`: Eine Rechnung
+mit `O` darf laut EN 16931 **keine USt-IdNr.** von Verkäufer und Käufer
+enthalten (BR-O-02) und **keine anderen Kategorien** (BR-O-11), der
+Verkäufer bräuchte dann eine andere Kennung (BR-CO-26). Beides ist für
+übliche Rechnungen nicht erfüllbar (mit dem KoSIT-Validator geprüft).
+Enthält eine Drittlandsrechnung Waren und Leistungen, gibt es nach BR-G-08
+genau eine `G`-Aufschlüsselung; sie nennt beide Befreiungsgründe. `Z` (Nullsatz): im
 deutschen Recht nur für Sonderfälle (z. B. § 12 Abs. 3 UStG Photovoltaik);
 derzeit nicht abgebildet. `L`/`M` (Kanaren/Ceuta): außerhalb des
 Anwendungsbereichs.
+
+### Teilzahlungen
+**Verhalten: nicht im XML.**
+Die E-Rechnung bildet die Rechnung zum Zeitpunkt der Ausstellung ab. Spätere
+(Teil-)Zahlungen ändern sie nicht: `DuePayableAmount` (BT-115) ist der
+Rechnungsbetrag abzüglich verrechneter Anzahlungen (BT-113), auch wenn die
+von Dolibarr neu erzeugte PDF einen Restbetrag zeigt.
 
 ### Skonto (BT-20)
 **Verhalten: je Zahlungsbedingung, bis zu zwei Stufen.**
