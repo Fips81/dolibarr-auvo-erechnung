@@ -539,6 +539,7 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 - **Leistungszeitraum für die ganze Rechnung** (Felder „Leistungszeitraum von/bis“), **Lieferort** aus dem Lieferkontakt der Rechnung (BG-13) und **„Keine E-Rechnung“** pro Rechnung.
 - **Testrechnung** auf der Einstellungsseite: ZUGFeRD und XRechnung mit den eigenen Firmendaten erzeugen, prüfen und herunterladen.
 - **Korrektur:** Anzahlungsrechnungen erhalten in der XRechnung den Code 326 statt 386 (BR-DE-17).
+- **Lizenz:** `LICENSE` enthält jetzt den vollständigen Text der GPLv3 (bisher nur den Lizenzhinweis); die Copyright-Angaben stehen im Abschnitt [Lizenz](#lizenz) und in den Dateiköpfen.
 
 - **Versand an die OZG-RE:** Neue Einstellung „OZG-RE: Einreichungsadresse“ und Menüpunkt „XRechnung an OZG-RE senden“ auf der Rechnung. Die XRechnung wird vor dem Versand neu erzeugt und geprüft, nach Rückfrage über den Mailversand von Dolibarr verschickt (genau eine Datei, höchstens 10 MB) und in den Ereignissen der Rechnung festgehalten. Ohne Leitweg-ID beim Kunden wird nicht gesendet; ein erneuter Versand wird in der Rückfrage angezeigt.
 
