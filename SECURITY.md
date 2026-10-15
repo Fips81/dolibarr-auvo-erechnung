@@ -39,9 +39,9 @@ AuVo E-Rechnung ist ein Dolibarr-Modul, das die PDFs von Kundenrechnungen automa
 ### Angriffsfläche
 
 - **Hook `afterPDFCreation`**: läuft im Kontext einer Rechnungs-PDF-Erzeugung (authentifizierter Nutzer)
-- **Hooks `invoicecard`** (Buttons „ZUGFeRD prüfen / neu erzeugen“): nur für authentifizierte Nutzer mit Rechnungsrechten (`lire` / `creer`), geschützt durch CSRF-Token (`currentToken()`)
+- **Hooks `invoicecard`** (Buttons „ZUGFeRD prüfen / neu erzeugen“): nur für authentifizierte Nutzer mit den Modulrechten (prüfen / neu erzeugen / an OZG-RE senden) **und** den Rechnungsrechten (`lire` / `creer`), geschützt durch CSRF-Token (`currentToken()`)
 - **Admin-Konfigurationsseite**: `admin/setup.php`, nur für Admins über `accessforbidden()` + CSRF-Schutz beim Speichern
-- **REST-API**: `class/api_auvoerechnung.class.php`, nur verfügbar, wenn das Dolibarr-Modul REST-API aktiv ist; API-Schlüssel erforderlich, Rechte `facture->lire` + `_checkAccessToResource()` werden geprüft
+- **REST-API**: `class/api_auvoerechnung.class.php`, nur verfügbar, wenn das Dolibarr-Modul REST-API aktiv ist; API-Schlüssel erforderlich, Modulrecht „E-Rechnungen prüfen und herunterladen“, `facture->lire` und `_checkAccessToResource()` werden geprüft
 - **CLI-Skripte**: `scripts/inject_facturx.php`, `scripts/export_facturx_batch.php`, `tests/*.php`, `demo/*.php` — alle gegen direkten HTTP-Zugriff durch `PHP_SAPI === 'cli'` geschützt; die Ordner `scripts/`, `tests/`, `demo/` enthalten zusätzlich eine `.htaccess` mit `Require all denied`
 - **Einziger ausgehender HTTP-Aufruf**: Prüfung der neuesten GitHub-Release über `api.github.com` beim Laden der Admin-Konfigurationsseite, mit 24-h-Cache (für Erfolge **und** Fehler) und 5 s Timeout (es werden keine lokalen Daten gesendet, nur ein anonymer `GET`)
 - **Optionales externes Programm**: veraPDF (`AUVOERECHNUNG_VERAPDF_PATH`, Admin-Konstante), aufgerufen mit `escapeshellarg()` + `is_executable()`

@@ -100,6 +100,39 @@ function auvoerechnung_seller_is_fr($mysoc)
 }
 
 /**
+ * Rights of the module (since 5.2.0), always together with the invoice
+ * rights of Dolibarr, which stay required:
+ *  - read:  check the embedded XML, download the XRechnung (invoices: read)
+ *  - write: regenerate ZUGFeRD PDF, XRechnung, Chorus Pro (invoices: create)
+ *  - send:  send the XRechnung to the OZG-RE (invoices: create, plus "send
+ *           by email" with advanced permissions, like the core mail button)
+ * The automatic ZUGFeRD XML when Dolibarr builds the PDF needs no right.
+ *
+ * @param User   $user
+ * @param string $what  read|write|send
+ * @return bool
+ */
+function auvoerechnung_user_can($user, $what)
+{
+	if (!is_object($user) || !method_exists($user, 'hasRight')) {
+		return false;
+	}
+	if (!$user->hasRight('auvoerechnung', 'einvoice', $what)) {
+		return false;
+	}
+	if ($what === 'read') {
+		return (bool) $user->hasRight('facture', 'lire');
+	}
+	if (!$user->hasRight('facture', 'creer')) {
+		return false;
+	}
+	if ($what === 'send' && getDolGlobalString('MAIN_USE_ADVANCED_PERMS')) {
+		return (bool) $user->hasRight('facture', 'invoice_advance', 'send');
+	}
+	return true;
+}
+
+/**
  * Country assumed for a party without country: the seller's own country
  * (a customer without country is most likely a domestic one), FR only when
  * the company itself has no country. check_mandatory() warns in both cases.

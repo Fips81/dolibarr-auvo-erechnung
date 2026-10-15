@@ -172,8 +172,9 @@ class AuvoerechnungApi extends DolibarrApi
 	 */
 	protected function loadInvoice($id)
 	{
-		if (!DolibarrApiAccess::$user->hasRight('facture', 'lire')) {
-			throw new RestException(403, 'Insufficient rights to read invoices');
+		require_once dirname(__DIR__).'/core/lib/auvoerechnung.lib.php';
+		if (!auvoerechnung_user_can(DolibarrApiAccess::$user, 'read')) {
+			throw new RestException(403, 'Insufficient rights to read invoices or e-invoices');
 		}
 
 		$invoice = new Facture($this->db);

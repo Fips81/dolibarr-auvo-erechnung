@@ -1889,6 +1889,37 @@ lfx_assert_eq(null, auvoerechnung_check_latest_release(null, '0.0.1'), 'contrôl
 echo "U47 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U48 droits du module (en plus des droits factures)';
+class LfxFakeUser
+{
+	public $r;
+	public function __construct($rights)
+	{
+		$this->r = $rights;
+	}
+	public function hasRight($module, $perm, $sub = '')
+	{
+		return in_array(trim($module.'.'.$perm.'.'.$sub, '.'), $this->r, true);
+	}
+}
+$all = ['facture.lire', 'facture.creer', 'facture.invoice_advance.send', 'auvoerechnung.einvoice.read', 'auvoerechnung.einvoice.write', 'auvoerechnung.einvoice.send'];
+$u = new LfxFakeUser($all);
+lfx_assert(auvoerechnung_user_can($u, 'read') && auvoerechnung_user_can($u, 'write') && auvoerechnung_user_can($u, 'send'), 'tous les droits');
+$u = new LfxFakeUser(['facture.lire', 'facture.creer']);
+lfx_assert(!auvoerechnung_user_can($u, 'read') && !auvoerechnung_user_can($u, 'write'), 'droits factures seuls : pas d\'accès au module');
+$u = new LfxFakeUser(['auvoerechnung.einvoice.read', 'auvoerechnung.einvoice.write']);
+lfx_assert(!auvoerechnung_user_can($u, 'read') && !auvoerechnung_user_can($u, 'write'), 'droits module seuls : pas d\'accès aux factures');
+$u = new LfxFakeUser(['facture.lire', 'facture.creer', 'auvoerechnung.einvoice.read']);
+lfx_assert(auvoerechnung_user_can($u, 'read') && !auvoerechnung_user_can($u, 'write') && !auvoerechnung_user_can($u, 'send'), 'lecture seule');
+$u = new LfxFakeUser(['facture.lire', 'facture.creer', 'auvoerechnung.einvoice.send']);
+lfx_assert(auvoerechnung_user_can($u, 'send'), 'envoi sans droits avancés');
+$GLOBALS['lfx_test_conf']['MAIN_USE_ADVANCED_PERMS'] = '1';
+lfx_assert(!auvoerechnung_user_can($u, 'send'), 'droits avancés : envoi e-mail des factures requis');
+unset($GLOBALS['lfx_test_conf']['MAIN_USE_ADVANCED_PERMS']);
+lfx_assert(!auvoerechnung_user_can(null, 'read'), 'sans utilisateur');
+echo "U48 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

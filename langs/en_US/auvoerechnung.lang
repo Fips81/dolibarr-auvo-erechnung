@@ -1,5 +1,8 @@
 Module194202Name = AuVo E-Rechnung
 Module194202Desc = E-invoices for Dolibarr: ZUGFeRD / Factur-X (EN16931) and XRechnung (CII/UBL)
+Permission19420201 = Check and download e-invoices
+Permission19420202 = Regenerate e-invoices (ZUGFeRD PDF, XRechnung, Chorus Pro)
+Permission19420203 = Send XRechnung to the OZG-RE
 
 AuvoERechnungSetup = AuVo E-Rechnung setup
 AuvoERechnungBankAccount = Bank account (IBAN/BIC)

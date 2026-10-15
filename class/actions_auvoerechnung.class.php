@@ -854,8 +854,12 @@ class ActionsAuvoERechnung
 		if (!auvoerechnung_wants_xrechnung($invoice->thirdparty, $invoice) || auvoerechnung_einvoice_disabled($invoice)) {
 			return 0;
 		}
+		global $user;
+		if (!$this->userCanRead($user)) {
+			return 0;
+		}
 		$file = auvoerechnung_xrechnung_path($invoice->ref, (int) ($invoice->entity ?? $conf->entity));
-		if ($file !== '' && !is_file($file)) {
+		if ($file !== '' && !is_file($file) && $this->userCanWrite($user)) {
 			$res = $this->generateXRechnungXml($invoice, $mysoc, $modulePath);
 			if ($res !== null && !$res['ok']) {
 				setEventMessages(array_shift($res['msgs']), $res['msgs'], 'warnings');
@@ -1137,10 +1141,8 @@ class ActionsAuvoERechnung
 	 */
 	protected function userCanRead($user)
 	{
-		if (method_exists($user, 'hasRight')) {
-			return (bool) $user->hasRight('facture', 'lire');
-		}
-		return !empty($user->rights->facture->lire);
+		require_once dirname(__DIR__).'/core/lib/auvoerechnung.lib.php';
+		return auvoerechnung_user_can($user, 'read');
 	}
 
 	/**
@@ -1148,10 +1150,8 @@ class ActionsAuvoERechnung
 	 */
 	protected function userCanWrite($user)
 	{
-		if (method_exists($user, 'hasRight')) {
-			return (bool) $user->hasRight('facture', 'creer');
-		}
-		return !empty($user->rights->facture->creer);
+		require_once dirname(__DIR__).'/core/lib/auvoerechnung.lib.php';
+		return auvoerechnung_user_can($user, 'write');
 	}
 
 	/**
@@ -1160,10 +1160,8 @@ class ActionsAuvoERechnung
 	 */
 	protected function userCanSend($user)
 	{
-		if (!$this->userCanWrite($user)) {
-			return false;
-		}
-		return !getDolGlobalString('MAIN_USE_ADVANCED_PERMS') || (method_exists($user, 'hasRight') && $user->hasRight('facture', 'invoice_advance', 'send'));
+		require_once dirname(__DIR__).'/core/lib/auvoerechnung.lib.php';
+		return auvoerechnung_user_can($user, 'send');
 	}
 
 	/**

@@ -112,7 +112,29 @@ class modAuvoERechnung extends DolibarrModules
 			array('AUVOERECHNUNG_CHORUS_ENABLED', 'int', '0', 'Chorus-Pro-Funktionen aktivieren (Reiter, Menü, 2. PDF; nur Frankreich) — opt-in', 1, 'current', 0),
 		);
 
+		// Droits propres (en plus des droits factures du cœur, qui restent
+		// requis) : voir/télécharger, (re)générer, envoyer à l'OZG-RE. La
+		// génération automatique à la création du PDF ne dépend d'aucun droit.
 		$this->rights = array();
+		$r = 0;
+		$this->rights[$r][0] = $this->numero.sprintf('%02d', $r + 1);
+		$this->rights[$r][1] = 'E-Rechnungen prüfen und herunterladen';
+		$this->rights[$r][3] = 1;
+		$this->rights[$r][4] = 'einvoice';
+		$this->rights[$r][5] = 'read';
+		$r++;
+		$this->rights[$r][0] = $this->numero.sprintf('%02d', $r + 1);
+		$this->rights[$r][1] = 'E-Rechnungen neu erzeugen (ZUGFeRD-PDF, XRechnung, Chorus Pro)';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'einvoice';
+		$this->rights[$r][5] = 'write';
+		$r++;
+		$this->rights[$r][0] = $this->numero.sprintf('%02d', $r + 1);
+		$this->rights[$r][1] = 'XRechnung an die OZG-RE senden';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'einvoice';
+		$this->rights[$r][5] = 'send';
+		$r++;
 		$this->menu = array();
 
 		// Onglet dédié « Chorus Pro » sur la fiche facture (regroupe les champs
@@ -150,6 +172,7 @@ class modAuvoERechnung extends DolibarrModules
 		$this->createSupplierNumberExtraField();
 		$this->createInvoiceExtraFields();
 		$this->updateExtraFieldConditions();
+		$this->grantRightsFromInvoiceRights();
 		return $result;
 	}
 
@@ -199,6 +222,42 @@ class modAuvoERechnung extends DolibarrModules
 			$sql .= " AND langs <> 'auvoerechnung@auvoerechnung'";
 			$this->db->query($sql);
 		}
+	}
+
+	/**
+	 * Own rights exist since 5.2.0. So that nobody loses a function with the
+	 * update, users and groups get them once from the invoice rights they
+	 * already had: read invoices (11) -> read, create invoices (12) -> write,
+	 * and send (12, plus "send by email" (15) with advanced permissions).
+	 * Runs only once: rights taken away later are not given back.
+	 *
+	 * @return void
+	 */
+	private function grantRightsFromInvoiceRights()
+	{
+		require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+		if (getDolGlobalInt('AUVOERECHNUNG_RIGHTS_GRANTED')) {
+			return;
+		}
+		$base = (int) $this->numero * 100;
+		$map = array(
+			$base + 1 => array(11),
+			$base + 2 => array(12),
+			$base + 3 => getDolGlobalString('MAIN_USE_ADVANCED_PERMS') ? array(12, 15) : array(12),
+		);
+		foreach ($map as $newId => $needed) {
+			foreach (array('user_rights' => 'fk_user', 'usergroup_rights' => 'fk_usergroup') as $table => $col) {
+				$sql = "INSERT INTO ".MAIN_DB_PREFIX.$table." (entity, ".$col.", fk_id)";
+				$sql .= " SELECT DISTINCT o.entity, o.".$col.", ".((int) $newId)." FROM ".MAIN_DB_PREFIX.$table." as o";
+				$sql .= " WHERE o.fk_id = ".((int) $needed[0]);
+				foreach (array_slice($needed, 1) as $other) {
+					$sql .= " AND EXISTS (SELECT 1 FROM ".MAIN_DB_PREFIX.$table." as x WHERE x.entity = o.entity AND x.".$col." = o.".$col." AND x.fk_id = ".((int) $other).")";
+				}
+				$sql .= " AND NOT EXISTS (SELECT 1 FROM ".MAIN_DB_PREFIX.$table." as n WHERE n.entity = o.entity AND n.".$col." = o.".$col." AND n.fk_id = ".((int) $newId).")";
+				$this->db->query($sql);
+			}
+		}
+		dolibarr_set_const($this->db, 'AUVOERECHNUNG_RIGHTS_GRANTED', '1', 'chaine', 0, 'Eigene Rechte einmalig aus den Rechnungsrechten übernommen (5.2.0)', 0);
 	}
 
 	/**

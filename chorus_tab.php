@@ -30,7 +30,7 @@ $langs->loadLangs(array('bills', 'auvoerechnung@auvoerechnung'));
 $id = GETPOSTINT('id');
 $action = GETPOST('action', 'aZ09');
 
-if (!$user->hasRight('facture', 'lire')) {
+if (!auvoerechnung_user_can($user, 'read')) {
 	accessforbidden();
 }
 
@@ -45,7 +45,7 @@ $form = new Form($db);
 /*
  * Enregistrement des paramètres Chorus
  */
-if ($action === 'savechorus' && $user->hasRight('facture', 'creer')) {
+if ($action === 'savechorus' && auvoerechnung_user_can($user, 'write')) {
 	if (GETPOST('token', 'alpha') !== currentToken()) {
 		accessforbidden('Bad value for CSRF token');
 	}
@@ -67,7 +67,7 @@ if ($action === 'savechorus' && $user->hasRight('facture', 'creer')) {
  * masqués du PDF. N'ajoute que les champs non vides, sans doublon, sans toucher
  * au reste de la note.
  */
-if ($action === 'writechorusnote' && $user->hasRight('facture', 'creer')) {
+if ($action === 'writechorusnote' && auvoerechnung_user_can($user, 'write')) {
 	if (GETPOST('token', 'alpha') !== currentToken()) {
 		accessforbidden('Bad value for CSRF token');
 	}
@@ -171,7 +171,7 @@ print '</form>';
 
 // Bouton manuel : reporter les références Chorus remplies dans la note publique
 // de la facture (qui s'imprime sur le PDF). Sur demande, jamais automatique.
-if ($user->hasRight('facture', 'creer')) {
+if (auvoerechnung_user_can($user, 'write')) {
 	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int) $object->id).'" class="center" style="margin-top:16px;">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
 	print '<input type="hidden" name="action" value="writechorusnote">';

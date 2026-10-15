@@ -59,6 +59,16 @@ Das Modul arbeitet mit den **aktuellen Fassungen** der deutschen und französisc
 5. Eine **eingebettete Schriftart** im Selektor **„Schriftart der erzeugten PDF"** der Modulkonfiguration wählen (`pdfahelvetica` standardmäßig, mit ✓ markiert)
 6. Die **Diagnose** unten auf der Konfigurationsseite des Moduls prüfen (grüne Häkchen = OK)
 
+**Benutzerrechte** (*Benutzer & Gruppen > Benutzer > Berechtigungen*, Modul AuVo E-Rechnung). Sie gelten zusätzlich zu den Rechten für Kundenrechnungen, die weiterhin nötig sind:
+
+| Recht | Erlaubt | Zusätzlich nötig |
+|---|---|---|
+| E-Rechnungen prüfen und herunterladen | „ZUGFeRD prüfen“, „XRechnung herunterladen“, REST-API, XRechnung als Anhang im Mailformular | Rechnungen lesen |
+| E-Rechnungen neu erzeugen | PDF/ZUGFeRD neu erzeugen, „XRechnung erzeugen“, Chorus-Pro-Reiter und -PDF | Rechnungen erstellen |
+| XRechnung an die OZG-RE senden | „XRechnung an OZG-RE senden“ | Rechnungen erstellen; mit erweiterten Rechten auch „Rechnungen per E-Mail senden“ |
+
+Die ZUGFeRD-Einbettung beim Erzeugen der PDF braucht kein eigenes Recht. Neue Benutzer erhalten standardmäßig nur das erste Recht. Beim Update auf 5.2.0 bekommen bestehende Benutzer und Gruppen die Rechte einmalig passend zu ihren Rechnungsrechten, damit niemand eine Funktion verliert.
+
 > **Achtung** — Verwenden Sie nicht den "Download ZIP"-Button der Startseite des Repos
 > (der rohe Quellcode). Dieses Archiv entpackt sich zu `dolibarr-auvo-erechnung-main/`
 > statt zu `auvoerechnung/`, was die Dolibarr-Installation kaputt macht (Fehler *"You requested
@@ -191,7 +201,7 @@ Seit 3.8.0 klinkt sich das Modul auch in den Hook `afterODTCreation` (Kontext `o
 - Interne XML-Validierung vor PDF-Injektion (well-formed + XSD EN16931 + Geschäftsregeln)
 - Modus `AUVOERECHNUNG_STRICT_MODE`: Wahl zwischen fail-open (best-effort) und fail-closed (strikt)
 - CSRF-Schutz beim Admin-POST und bei den Aktionen der Rechnungskarte (`currentToken()`)
-- REST-API: Rechte `facture->lire` + `_checkAccessToResource()`; Menü der Rechnungskarte: Rechte `lire`/`creer`
+- Eigene Rechte (prüfen/herunterladen, neu erzeugen, an OZG-RE senden), immer zusammen mit den Rechnungsrechten `lire`/`creer`; REST-API zusätzlich `_checkAccessToResource()`
 - Nur ein ausgehender HTTP-Aufruf: GitHub-Versionscheck alle 24h (Cache in der DB, auch Fehlschläge)
 
 Bedrohungsmodell, detaillierte Schutzmaßnahmen und Meldeprozess: siehe [SECURITY.md](SECURITY.md). Kontakt für Disclosure: **r.vogel@auvo-design.de**.
@@ -449,7 +459,7 @@ Deutsche Verzugshinweise (§ 288 BGB) werden **nicht** automatisch ausgegeben: i
 
 ## REST-API
 
-Mit aktiviertem Dolibarr-REST-API-Modul (Benutzer-API-Schlüssel, Rechnungsrechte):
+Mit aktiviertem Dolibarr-REST-API-Modul (Benutzer-API-Schlüssel, Rechte „Rechnungen lesen“ und „E-Rechnungen prüfen und herunterladen“):
 
 | Endpoint | Beschreibung |
 |---|---|
@@ -565,6 +575,7 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 - **Fehlendes Land:** Ein Kunde ohne Land gilt als Kunde aus dem Land der eigenen Firma (bisher Frankreich); für Kunde und eigene Firma ohne Land gibt es eine Warnung.
 - Französische Texte in der Oberfläche übersetzt („pas d'IBAN“, Ersatzname „Article“ für Positionen ohne Text), Modulbeschreibung nennt XRechnung.
 - README: wo die Tests liegen und wie sich die KoSIT-Prüfung nachvollziehen lässt.
+- **Eigene Benutzerrechte:** „E-Rechnungen prüfen und herunterladen“, „E-Rechnungen neu erzeugen“ und „XRechnung an die OZG-RE senden“, jeweils zusätzlich zu den Rechnungsrechten (Tabelle unter [Installation](#installation)). Beim erneuten Aktivieren erhalten bestehende Benutzer und Gruppen sie einmalig passend zu ihren Rechnungsrechten.
 - **Zusatzfelder** werden über `isModEnabled("auvoerechnung")` statt über das veraltete `$conf->auvoerechnung->enabled` eingeblendet; bestehende Felder stellt das erneute Aktivieren um.
 - **Lizenz:** `LICENSE` enthält jetzt den vollständigen Text der GPLv3 (bisher nur den Lizenzhinweis); die Copyright-Angaben stehen im Abschnitt [Lizenz](#lizenz) und in den Dateiköpfen.
 
