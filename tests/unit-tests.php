@@ -1970,6 +1970,37 @@ lfx_assert(strpos($chorusTab, "restrictedArea(\$user, 'facture', \$object->id") 
 lfx_assert(strpos($chorusTab, 'restrictedArea') < strpos($chorusTab, "'savechorus'"), 'restrictedArea avant toute action');
 echo "U49 OK\n";
 
+$currentTest = 'U50 Leitweg-ID nur für Käufer in Deutschland, OZG-RE nur für freigegebene Rechnungen';
+lfx_reset([
+	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
+	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
+	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
+], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+$seller = lfx_make_party([
+	'name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen',
+	'address' => 'Hauptstr. 1', 'email' => 'rechnung@muster.example', 'phone' => '06772 99',
+	'tva_intra' => 'DE811111111', 'tva_assuj' => 1,
+]);
+foreach (['DE' => true, 'AT' => false] as $country => $accepted) {
+	$inv = new LfxFakeInvoice();
+	$inv->ref = 'RE2026-2000';
+	$inv->thirdparty = lfx_make_party(['name' => 'Kunde', 'country_code' => $country, 'zip' => '1010', 'town' => 'Ort',
+		'address' => 'Weg 1', 'email' => '', 'tva_intra' => '', 'array_options' => ['options_lfxleitwegid' => '991-33333TEST-33']]);
+	lfx_assert_eq($accepted ? '991-33333TEST-33' : '', auvoerechnung_invoice_leitwegid($inv), "Leitweg-ID bei Käufer $country");
+	$problems = auvoerechnung_check_xrechnung($inv, $seller);
+	$hasRefProblem = lfx_contains($problems, auvoerechnung_trans('AuvoERechnungXrMissingBuyerRef'));
+	lfx_assert_eq(!$accepted, $hasRefProblem, "Vorprüfung BT-10 bei Käufer $country");
+}
+// Mit Kundenreferenz ist ein ausländischer Käufer in Ordnung
+$inv->ref_client = 'PO-4711';
+lfx_assert(!lfx_contains(auvoerechnung_check_xrechnung($inv, $seller), auvoerechnung_trans('AuvoERechnungXrMissingBuyerRef')), 'Kundenreferenz genügt für BT-10');
+
+$src = file_get_contents(__DIR__.'/../class/actions_auvoerechnung.class.php');
+$p = strpos($src, 'function sendXRechnungToOzgRe');
+lfx_assert($p !== false && strpos($src, "AuvoERechnungOzgReDraft", $p) !== false
+	&& strpos($src, "AuvoERechnungOzgReDraft", $p) < strpos($src, 'generateXRechnungXml($invoice', $p), 'OZG-RE: Entwurfsprüfung vor dem Erzeugen');
+echo "U50 OK\n";
+
 // ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";

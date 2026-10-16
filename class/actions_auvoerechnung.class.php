@@ -935,6 +935,12 @@ class ActionsAuvoERechnung
 		require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
 		$langs->loadLangs(['mails', 'auvoerechnung@auvoerechnung']);
 
+		// Nur freigegebene Rechnungen (kein Entwurf mit vorläufiger Referenz)
+		if ((int) ($invoice->status ?? $invoice->statut ?? 0) < 1) {
+			setEventMessages($langs->trans('AuvoERechnungOzgReNotSent'), [$langs->trans('AuvoERechnungOzgReDraft')], 'errors');
+			return false;
+		}
+
 		$to = getDolGlobalString('AUVOERECHNUNG_OZGRE_EMAIL');
 		if ($to === '' || !isValidEmail($to)) {
 			setEventMessages($langs->trans('AuvoERechnungOzgReNoAddress'), null, 'errors');

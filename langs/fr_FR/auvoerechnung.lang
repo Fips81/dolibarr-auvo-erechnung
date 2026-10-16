@@ -356,6 +356,7 @@ AuvoERechnungOzgReAlreadySent = Cette facture a déjà été envoyée à l'OZG-R
 AuvoERechnungOzgReNoAddress = Aucune adresse de dépôt OZG-RE valide dans la configuration du module.
 AuvoERechnungOzgReMailsDisabled = L'envoi d'e-mails est désactivé dans Dolibarr (MAIN_DISABLE_ALL_MAILS).
 AuvoERechnungOzgReNotSent = La XRechnung n'a pas été envoyée à l'OZG-RE.
+AuvoERechnungOzgReDraft = La facture est un brouillon et doit d'abord être validée
 AuvoERechnungOzgReTooLarge = La XRechnung dépasse 10 Mo, limite du canal e-mail de l'OZG-RE. Déposez-la via l'interface web de l'OZG-RE.
 AuvoERechnungOzgReMailBody = XRechnung %s
 AuvoERechnungOzgReEvent = XRechnung %s envoyée à l'OZG-RE

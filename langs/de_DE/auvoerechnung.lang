@@ -356,6 +356,7 @@ AuvoERechnungOzgReAlreadySent = Diese Rechnung wurde schon an die OZG-RE gesende
 AuvoERechnungOzgReNoAddress = Keine gültige OZG-RE-Einreichungsadresse in den Moduleinstellungen eingetragen.
 AuvoERechnungOzgReMailsDisabled = Der E-Mail-Versand ist in Dolibarr abgeschaltet (MAIN_DISABLE_ALL_MAILS).
 AuvoERechnungOzgReNotSent = Die XRechnung wurde nicht an die OZG-RE gesendet.
+AuvoERechnungOzgReDraft = Die Rechnung ist ein Entwurf und muss zuerst freigegeben werden
 AuvoERechnungOzgReTooLarge = Die XRechnung ist größer als 10 MB, die OZG-RE nimmt per E-Mail höchstens 10 MB an. Bitte über die Weboberfläche der OZG-RE hochladen.
 AuvoERechnungOzgReMailBody = XRechnung %s
 AuvoERechnungOzgReEvent = XRechnung %s an OZG-RE gesendet

@@ -1782,8 +1782,15 @@ function auvoerechnung_party_leitwegid($party)
  */
 function auvoerechnung_invoice_leitwegid($invoice)
 {
+	// Die Leitweg-ID gilt nur für Käufer in Deutschland (wie im Datenmodell BT-10/BT-49).
+	// Für ausländische Käufer wird sie ignoriert, damit Vorprüfung und XML übereinstimmen.
+	$buyer = $invoice->thirdparty ?? null;
+	$country = strtoupper((is_object($buyer) && !empty($buyer->country_code)) ? $buyer->country_code : auvoerechnung_default_country());
+	if ($country !== 'DE') {
+		return '';
+	}
 	$own = auvoerechnung_party_leitwegid($invoice);
-	return $own !== '' ? $own : auvoerechnung_party_leitwegid($invoice->thirdparty ?? null);
+	return $own !== '' ? $own : auvoerechnung_party_leitwegid($buyer);
 }
 
 /**

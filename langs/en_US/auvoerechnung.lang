@@ -356,6 +356,7 @@ AuvoERechnungOzgReAlreadySent = This invoice has already been sent to the OZG-RE
 AuvoERechnungOzgReNoAddress = No valid OZG-RE submission address set in the module setup.
 AuvoERechnungOzgReMailsDisabled = E-mail sending is disabled in Dolibarr (MAIN_DISABLE_ALL_MAILS).
 AuvoERechnungOzgReNotSent = The XRechnung was not sent to the OZG-RE.
+AuvoERechnungOzgReDraft = The invoice is a draft and must be validated first
 AuvoERechnungOzgReTooLarge = The XRechnung is larger than 10 MB; the OZG-RE accepts at most 10 MB by e-mail. Please upload it in the OZG-RE web interface.
 AuvoERechnungOzgReMailBody = XRechnung %s
 AuvoERechnungOzgReEvent = XRechnung %s sent to OZG-RE
