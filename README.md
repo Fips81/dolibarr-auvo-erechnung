@@ -590,7 +590,6 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 - **Skonto:** Neuer Tab „Skonto“ in den Moduleinstellungen. Je Zahlungsbedingung bis zu zwei Stufen (Tage, Prozent); Ausgabe in BT-20 im KoSIT-Format `#SKONTO#TAGE=7#PROZENT=2.00#` mit abschließendem Zeilenumbruch, in XRechnung und ZUGFeRD. Gutschriften erhalten kein Skonto. Vorschlag aus der Bezeichnung der Zahlungsbedingung, Warnung, wenn die Skontofrist nicht vor dem Zahlungsziel liegt.
 - **Interne Prüfung BR-DE-18:** prüft jetzt auch den Zeilenumbruch nach der letzten Skonto-Zeile, wie der KoSIT-Validator.
 - **CI:** Das Prüfskript erkennt die Ablehnung durch den KoSIT-Validator 1.6 jetzt direkt am Ergebnis (`reject`), nicht nur an den einzelnen Fehlermeldungen. GitHub Actions auf Node 24.
-- Kein erneutes Aktivieren des Moduls nötig.
 
 ### 5.1.1 — PDF/A-Korrektur und Dokumentation (Oktober 2026)
 
