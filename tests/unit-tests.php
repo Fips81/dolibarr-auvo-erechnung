@@ -1919,6 +1919,57 @@ unset($GLOBALS['lfx_test_conf']['MAIN_USE_ADVANCED_PERMS']);
 lfx_assert(!auvoerechnung_user_can(null, 'read'), 'sans utilisateur');
 echo "U48 OK\n";
 
+$currentTest = 'U49 unités UN/ECE par code Dolibarr, unité inconnue, accès chorus_tab';
+$GLOBALS['db'] = new LfxFakeDb();
+$units = [
+	91 => ['MO', 'm', 'MON'],   // mois (libellé court « m » : ne doit PAS donner MIN)
+	92 => ['MI', 'mn', 'MIN'],
+	93 => ['W', 'w', 'WEE'],
+	94 => ['Y', 'y', 'ANN'],
+	95 => ['S', 's', 'SEC'],
+	96 => ['H', 'h', 'HUR'],
+	97 => ['D', 'd', 'DAY'],
+	98 => ['M', 'm', 'MTR'],
+	99 => ['P', 'p', 'C62'],
+	100 => ['SET', 'set', 'SET'],
+	101 => ['MG', 'mg', 'MGM'],
+	102 => ['CM3', 'cm3', 'CMQ'],
+	103 => ['ZZ', 'pcs', 'C62'],   // unité utilisateur reconnue par son libellé
+	104 => ['ZH', 'h', 'HUR'],     // unité utilisateur « h »
+];
+foreach ($units as $id => [$code, $short, $expected]) {
+	lfx_reset([], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001'], [
+		'c_units WHERE rowid = '.$id => [(object) ['code' => $code, 'short_label' => $short]],
+	]);
+	$unknown = null;
+	lfx_assert_eq($expected, auvoerechnung_map_unit_code((object) ['fk_unit' => $id], $unknown), "unité $code/$short");
+	lfx_assert_eq(null, $unknown, "unité $code/$short reconnue : pas d'avertissement");
+}
+lfx_assert_eq('C62', auvoerechnung_map_unit_code((object) ['fk_unit' => 0]), 'sans unité : C62');
+// Unité utilisateur sans correspondance : C62 + avertissement (une seule fois par unité)
+lfx_reset([], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001'], [
+	'c_units WHERE rowid = 105' => [(object) ['code' => 'PAL', 'short_label' => 'Palette']],
+]);
+$unknown = null;
+lfx_assert_eq('C62', auvoerechnung_map_unit_code((object) ['fk_unit' => 105], $unknown), 'unité inconnue : C62');
+lfx_assert_eq('Palette', $unknown, 'unité inconnue signalée');
+$unknown = null;
+auvoerechnung_map_unit_code((object) ['fk_unit' => 105], $unknown);
+lfx_assert_eq('Palette', $unknown, 'unité inconnue signalée aussi depuis le cache');
+$l1 = lfx_make_line(10.0, 19.0, 1.9, 1.0, 'A', 0, ['fk_unit' => 105]);
+$l2 = lfx_make_line(10.0, 19.0, 1.9, 1.0, 'B', 0, ['fk_unit' => 105]);
+$bw = [];
+$prep = auvoerechnung_prepare_lines([$l1, $l2], 1, new LfxFakeInvoice(), lfx_make_party(['country_code' => 'DE']), lfx_make_party(['country_code' => 'DE']), $bw);
+lfx_assert_eq(1, count($bw), 'un seul avertissement par unité inconnue');
+lfx_assert_eq('C62', $prep['lines'][0]['unitCode'], 'ligne en unité inconnue : C62');
+unset($GLOBALS['db']);
+
+// chorus_tab.php : contrôle d'accès à la facture (entités, tiers externes)
+$chorusTab = file_get_contents(__DIR__.'/../chorus_tab.php');
+lfx_assert(strpos($chorusTab, "restrictedArea(\$user, 'facture', \$object->id") !== false, 'chorus_tab.php appelle restrictedArea sur la facture');
+lfx_assert(strpos($chorusTab, 'restrictedArea') < strpos($chorusTab, "'savechorus'"), 'restrictedArea avant toute action');
+echo "U49 OK\n";
+
 // ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";

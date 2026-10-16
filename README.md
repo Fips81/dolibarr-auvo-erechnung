@@ -570,6 +570,8 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
   - **BR-FR-16** (Liste französischer Steuersätze) warnt nicht mehr bei deutschen Verkäufern über 19 % / 7 %.
   - **Diagnose:** Eine nicht eingebettete PDF-Schrift (z. B. `helvetica`) wird als Fehler mit Ein-Klick-Korrektur gemeldet statt mit grünem Haken; Warnung auch beim Erzeugen.
   - LIMITATIONS: Teilzahlungen und warum Leistungen ins Drittland `G` statt `O` erhalten.
+- **Einheiten (UN/ECE Rec 20):** Das Mapping richtet sich jetzt nach dem Code der Dolibarr-Einheit statt nach dem Kurzlabel. Behoben: **Monat wurde als Minute (MIN) ausgegeben** (jetzt MON); Woche, Jahr, Minute, Sekunde, Set sowie weitere Gewichts-, Längen-, Flächen- und Volumeneinheiten wurden als „Stück“ (C62) ausgegeben. Selbst angelegte Einheiten ohne Zuordnung bleiben C62, erzeugen aber eine Warnung.
+- **Zugriffsschutz Chorus-Pro-Tab:** `chorus_tab.php` prüft den Zugriff auf die Rechnung jetzt mit `restrictedArea` (externe Benutzer, Zugriff nur auf eigene Geschäftspartner, Entity).
 - **Artikeldaten in der E-Rechnung:** Produktbezeichnung als Name (BT-153), abweichender Positionstext als Beschreibung (BT-154), Produkt-Ref als Artikelnummer (BT-155) und ein gültiger EAN/GTIN-Barcode als Standardkennung (BT-157), in CII und UBL. Positionen mit Produkt und leerem Text hießen bisher „Article“.
 - **Update-Prüfung abschaltbar:** neue Einstellung „Nach Updates suchen“ (Server ohne Internetzugang, Datenschutz).
 - **Fehlendes Land:** Ein Kunde ohne Land gilt als Kunde aus dem Land der eigenen Firma (bisher Frankreich); für Kunde und eigene Firma ohne Land gibt es eine Warnung.

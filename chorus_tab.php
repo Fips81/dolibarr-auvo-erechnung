@@ -40,6 +40,9 @@ if ($id <= 0 || $object->fetch($id) <= 0) {
 }
 $object->fetch_thirdparty();
 
+// Zugriff auf die Rechnung (Entity, externe Benutzer, Zugriff nur auf eigene Geschäftspartner)
+restrictedArea($user, 'facture', $object->id, '', '', 'fk_soc', 'rowid');
+
 $form = new Form($db);
 
 /*

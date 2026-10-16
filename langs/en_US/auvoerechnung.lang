@@ -141,6 +141,7 @@ AuvoERechnungWarnDirectDebitNoICS = SEPA direct debit: creditor ICS missing (BT-
 AuvoERechnungWarnDirectDebitNoRUM = SEPA direct debit: mandate reference (RUM) missing (BT-89) — fill in the third party's default bank account with its mandate reference
 AuvoERechnungWarnCreditNoteNoSource = credit note without a linked source invoice: the reference to the original invoice (BG-3, mandatory French mention) cannot be emitted — create the credit note from the original invoice
 AuvoERechnungWarnAllNegativeLines = fully negative invoice that is not a credit note: lines emitted as-is, the XML violates BR-27 (use a Dolibarr credit note)
+AuvoERechnungWarnUnitUnmapped = unit "%s" has no UN/ECE code and is emitted as "piece" (C62); check the unit
 AuvoERechnungWarnSituationInvoice = situation (progress billing) invoice: emitted as TypeCode 380, but the mapping of cumulative amounts/retentions is not guaranteed compliant (documented limitation)
 AuvoERechnungWarnRoundingAdjusted = VAT rounding gap of %s spread on the main category to guarantee BR-CO-14 (check the totals)
 AuvoERechnungWarnTaxMismatch = gap of %s between line VAT and the invoice VAT total, not attributable (no taxed category)

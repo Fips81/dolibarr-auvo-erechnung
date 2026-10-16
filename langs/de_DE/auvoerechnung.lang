@@ -141,6 +141,7 @@ AuvoERechnungWarnDirectDebitNoICS = SEPA-Lastschrift: Gläubiger-Identifikations
 AuvoERechnungWarnDirectDebitNoRUM = SEPA-Lastschrift: Mandatsreferenz fehlt (BT-89) — hinterlegen Sie die Mandatsreferenz im Standard-Bankkonto des Geschäftspartners
 AuvoERechnungWarnCreditNoteNoSource = Gutschrift ohne verknüpfte Ursprungsrechnung: Die Referenz auf die Originalrechnung (BG-3, französische Pflichtangabe) kann nicht ausgegeben werden — erstellen Sie die Gutschrift aus der Originalrechnung
 AuvoERechnungWarnAllNegativeLines = Vollständig negative Rechnung, die keine Gutschrift ist: Positionen werden unverändert ausgegeben, das XML verletzt BR-27 (verwenden Sie eine Dolibarr-Gutschrift)
+AuvoERechnungWarnUnitUnmapped = Einheit „%s“ hat keinen UN/ECE-Code und wird als „Stück“ (C62) ausgegeben; Einheit prüfen
 AuvoERechnungWarnSituationInvoice = Abschlagsrechnung (Baufortschritt): wird als TypeCode 380 ausgegeben, aber die Abbildung kumulierter Beträge/Einbehalte ist nicht garantiert konform (dokumentierte Einschränkung)
 AuvoERechnungWarnRoundingAdjusted = MwSt-Rundungsdifferenz von %s auf die Hauptkategorie verteilt, um BR-CO-14 zu gewährleisten (Summen prüfen)
 AuvoERechnungWarnTaxMismatch = Differenz von %s zwischen Positions-MwSt und der MwSt-Gesamtsumme der Rechnung, nicht zuordenbar (keine besteuerte Kategorie)

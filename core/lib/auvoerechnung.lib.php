@@ -250,7 +250,8 @@ function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdpart
 {
 	// Constructeur unique de ligne préparée : utilisé par le chemin nominal ET
 	// le fallback "tout négatif" pour que les deux émettent le même mapping.
-	$buildLine = function ($line) use ($sign, $invoice, $thirdparty, $mysoc) {
+	$warnedUnits = [];
+	$buildLine = function ($line) use ($sign, $invoice, $thirdparty, $mysoc, &$buildWarnings, &$warnedUnits) {
 		$desc = auvoerechnung_html_to_text($line->desc ?: ($line->description ?? $line->label ?? ''));
 		$item = auvoerechnung_line_item($line, $desc);
 		if ($desc === '') {
@@ -265,6 +266,12 @@ function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdpart
 		}
 		$lineTotal = round($sign * (float) $line->total_ht, 2);
 		$qty = abs((float) $line->qty);
+		$unknownUnit = null;
+		$unitCode = auvoerechnung_map_unit_code($line, $unknownUnit);
+		if ($unknownUnit !== null && !isset($warnedUnits[$unknownUnit])) {
+			$warnedUnits[$unknownUnit] = true;
+			$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnUnitUnmapped', $unknownUnit);
+		}
 		return [
 			'desc'      => $desc,
 			'name'      => $item['name'],
@@ -277,7 +284,7 @@ function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdpart
 			'lineTax'   => $sign * (float) $line->total_tva,
 			'vatRate'   => (float) $line->tva_tx,
 			'taxCat'    => auvoerechnung_resolve_tax_category($line, $invoice, $thirdparty, $mysoc),
-			'unitCode'  => auvoerechnung_map_unit_code($line),
+			'unitCode'  => $unitCode,
 		];
 	};
 
@@ -943,38 +950,34 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
 
 /**
  * Mappe l'unité Dolibarr d'une ligne vers le code UN/ECE Rec 20 attendu par Factur-X.
- * Cherche via $line->fk_unit dans llx_c_units, fallback C62 (pièce / one) si absent.
  *
- * @param object $line Ligne de facture Dolibarr
+ * Résolution par le CODE de l'unité Dolibarr (llx_c_units.code : H, D, W, MO...,
+ * univoque), puis, pour les unités ajoutées par l'utilisateur, par le libellé
+ * court. Sans correspondance : C62 (pièce / one) et $unknown reçoit le libellé,
+ * pour que l'appelant puisse avertir au lieu d'émettre silencieusement « pièce ».
+ *
+ * @param object      $line    Ligne de facture Dolibarr
+ * @param string|null $unknown Reçoit le libellé de l'unité sans correspondance
  * @return string Code UN/ECE (ex: HUR, DAY, MTR, KGM, C62...)
  */
-function auvoerechnung_map_unit_code($line)
+function auvoerechnung_map_unit_code($line, &$unknown = null)
 {
 	static $unitCache = [];
+	static $codeMap = [
+		'T' => 'TNE', 'KG' => 'KGM', 'G' => 'GRM', 'MG' => 'MGM', 'OZ' => 'ONZ', 'LB' => 'LBR',
+		'M' => 'MTR', 'DM' => 'DMT', 'CM' => 'CMT', 'MM' => 'MMT', 'FT' => 'FOT', 'IN' => 'INH',
+		'M2' => 'MTK', 'DM2' => 'DMK', 'CM2' => 'CMK', 'MM2' => 'MMK', 'FT2' => 'FTK', 'IN2' => 'INK',
+		'M3' => 'MTQ', 'DM3' => 'DMQ', 'CM3' => 'CMQ', 'MM3' => 'MMQ', 'FT3' => 'FTQ', 'IN3' => 'INQ',
+		'OZ3' => 'OZA', 'L' => 'LTR', 'GAL' => 'GLL',
+		'P' => 'C62', 'SET' => 'SET',
+		'S' => 'SEC', 'MI' => 'MIN', 'H' => 'HUR', 'D' => 'DAY', 'W' => 'WEE', 'MO' => 'MON', 'Y' => 'ANN',
+	];
+	// Unités ajoutées par l'utilisateur : libellé court (sans ambiguïté seulement)
 	static $shortLabelMap = [
-		'h'      => 'HUR', // heure
-		'min'    => 'MIN', // minute
-		'd'      => 'DAY', // jour
-		'week'   => 'WEE', // semaine
-		'wk'     => 'WEE',
-		'month'  => 'MON', // mois
-		'm'      => 'MTR', // mètre (conflit avec min/month résolu par unit_type)
-		'cm'     => 'CMT',
-		'mm'     => 'MMT',
-		'km'     => 'KMT',
-		'm2'     => 'MTK', // mètre carré
-		'm3'     => 'MTQ', // mètre cube
-		'kg'     => 'KGM',
-		'g'      => 'GRM',
-		't'      => 'TNE', // tonne métrique
-		'l'      => 'LTR',
-		'cl'     => 'CLT',
-		'ml'     => 'MLT',
-		'p'      => 'C62', // pièce
-		'pc'     => 'C62',
-		'pcs'    => 'C62',
-		'piece'  => 'C62',
-		'u'      => 'C62', // unité
+		'h' => 'HUR', 'mn' => 'MIN', 'min' => 'MIN', 'd' => 'DAY', 'w' => 'WEE', 'wk' => 'WEE',
+		'week' => 'WEE', 'month' => 'MON', 'y' => 'ANN', 'cl' => 'CLT', 'ml' => 'MLT', 'km' => 'KMT',
+		'kg' => 'KGM', 'g' => 'GRM', 't' => 'TNE', 'l' => 'LTR', 'm2' => 'MTK', 'm3' => 'MTQ',
+		'p' => 'C62', 'pc' => 'C62', 'pcs' => 'C62', 'piece' => 'C62', 'u' => 'C62',
 	];
 
 	$fkUnit = !empty($line->fk_unit) ? (int) $line->fk_unit : 0;
@@ -982,29 +985,34 @@ function auvoerechnung_map_unit_code($line)
 		return 'C62';
 	}
 	if (isset($unitCache[$fkUnit])) {
-		return $unitCache[$fkUnit];
+		$unknown = $unitCache[$fkUnit][1];
+		return $unitCache[$fkUnit][0];
 	}
 
 	global $db;
 	if (!is_object($db)) {
 		return 'C62';
 	}
-	$sql = "SELECT short_label, unit_type FROM ".MAIN_DB_PREFIX."c_units WHERE rowid = ".$fkUnit;
-	$res = $db->query($sql);
-	if (!$res) {
-		return $unitCache[$fkUnit] = 'C62';
-	}
-	$obj = $db->fetch_object($res);
-	if (!$obj || empty($obj->short_label)) {
-		return $unitCache[$fkUnit] = 'C62';
+	$res = $db->query("SELECT code, short_label FROM ".MAIN_DB_PREFIX."c_units WHERE rowid = ".$fkUnit);
+	$obj = $res ? $db->fetch_object($res) : false;
+	if (!$obj) {
+		return 'C62';
 	}
 
-	$code = strtolower(trim($obj->short_label));
-	// Désambiguïser 'm' : time=minute (MIN), size=mètre (MTR)
-	if ($code === 'm') {
-		return $unitCache[$fkUnit] = ($obj->unit_type === 'time') ? 'MIN' : 'MTR';
+	$code = strtoupper(trim((string) $obj->code));
+	$label = trim((string) $obj->short_label);
+	$unmapped = null;
+	if (isset($codeMap[$code])) {
+		$unece = $codeMap[$code];
+	} elseif (isset($shortLabelMap[strtolower($label)])) {
+		$unece = $shortLabelMap[strtolower($label)];
+	} else {
+		$unece = 'C62';
+		$unmapped = ($label !== '') ? $label : $code;
 	}
-	return $unitCache[$fkUnit] = ($shortLabelMap[$code] ?? 'C62');
+	$unitCache[$fkUnit] = [$unece, $unmapped];
+	$unknown = $unmapped;
+	return $unece;
 }
 
 /**

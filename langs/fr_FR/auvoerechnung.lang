@@ -141,6 +141,7 @@ AuvoERechnungWarnDirectDebitNoICS = prélèvement SEPA : ICS créancier manquant
 AuvoERechnungWarnDirectDebitNoRUM = prélèvement SEPA : référence de mandat RUM manquante (BT-89) — renseigner le RIB par défaut du tiers avec sa RUM
 AuvoERechnungWarnCreditNoteNoSource = avoir sans facture d'origine liée : la référence à la facture initiale (BG-3, mention obligatoire FR) ne peut pas être émise — créer l'avoir depuis la facture d'origine
 AuvoERechnungWarnAllNegativeLines = facture entièrement négative hors avoir : lignes émises telles quelles, le XML viole BR-27 (utiliser un avoir Dolibarr)
+AuvoERechnungWarnUnitUnmapped = unité « %s » sans code UN/ECE, émise comme « pièce » (C62) ; vérifier l'unité
 AuvoERechnungWarnSituationInvoice = facture de situation : émise en TypeCode 380, mais le mapping des cumuls/retenues de situation n'est pas garanti conforme (limitation documentée)
 AuvoERechnungWarnRoundingAdjusted = écart d'arrondi TVA de %s € réparti sur la catégorie principale pour garantir BR-CO-14 (vérifier les totaux)
 AuvoERechnungWarnTaxMismatch = écart de %s € entre la TVA des lignes et le total TVA de la facture, non imputable (aucune catégorie taxée)
