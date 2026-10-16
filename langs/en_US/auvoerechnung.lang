@@ -178,7 +178,7 @@ AuvoERechnungChorusGenerated = Chorus Pro PDF generated alongside: %s
 AuvoERechnungChorusErr = The Chorus Pro PDF could not be generated (the standard Factur-X PDF remains valid)
 
 # Factur-X dropdown menu (v3.4.1)
-AuvoERechnungMenuLabel = Factur-X
+AuvoERechnungMenuLabel = E-invoice
 AuvoERechnungBtnGenerateChorus = Generate Chorus PDF
 
 # Chorus Pro tab (v3.4.0)

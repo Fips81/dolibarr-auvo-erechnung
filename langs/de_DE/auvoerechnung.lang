@@ -178,7 +178,7 @@ AuvoERechnungChorusGenerated = Chorus-Pro-PDF zusätzlich erzeugt: %s
 AuvoERechnungChorusErr = Die Chorus-Pro-PDF konnte nicht erzeugt werden (die Standard-ZUGFeRD-PDF bleibt gültig)
 
 # Factur-X dropdown menu (v3.4.1)
-AuvoERechnungMenuLabel = ZUGFeRD
+AuvoERechnungMenuLabel = E-Rechnung
 AuvoERechnungBtnGenerateChorus = Chorus-PDF erzeugen
 
 # Chorus Pro tab (v3.4.0)
