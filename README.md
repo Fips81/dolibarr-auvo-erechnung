@@ -565,6 +565,14 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 
 > Hinweis: Das Modul hieß früher LemonFacturX, AuvoZugferd und DoliZUGFeRD. In älteren Einträgen sind Klassen-, Konstanten-, Datei- und Repo-Namen an die heutigen Namen (`auvoerechnung`, `AUVOERECHNUNG_*`) angepasst.
 
+### 5.2.1 — Härtung, Endrechnung mit Anzahlungen, Abhängigkeiten (Oktober 2026)
+
+- **Endrechnung mit Anzahlungen (BMF-Schreiben vom 15.10.2026, Rn. 3):** Bei deutschen Verkäufern steht neben dem abgezogenen Betrag (BT-113) jetzt eine Aufstellung der Teilentgelte im Freitext BT-22: Anzahlungsrechnung, Datum, Entgelt, Steuersatz, Steuer, Brutto. Diese Darstellung wird bis 30.06.2030 nicht beanstandet.
+- **Härtung:** `$_SERVER['PHP_SELF']` wird in allen Links und Formular-Actions des Moduls (Rechnungsmenü, Bestätigungsdialog, Einstellungsseite, Chorus-Pro-Tab) mit `dol_escape_htmltag()` ausgegeben (Befund aus einem Audit; kein ausnutzbarer Fall, nur konsequenter).
+- **REST-API `GET invoice/{id}/xrechnung`:** Die Anlagen (BG-24, base64) stehen nur noch im zurückgegebenen XML, wenn `with_attachments=1` angegeben wird. **Verhaltensänderung:** bisher waren sie immer enthalten. Die gespeicherte Datei `{ref}-XRECHNUNG.xml` enthält die Anlagen weiterhin.
+- Wartung der eingebetteten Abhängigkeiten: `setasign/fpdi` 2.6.9, `smalot/pdfparser` 2.13.1, `symfony/polyfill-mbstring` 1.43.3.
+- README: steuerliche Einordnung zum BMF-Schreiben vom 15.10.2026.
+
 ### 5.2.0 — Skonto, Versand an die OZG-RE, Anlagen, UBL (Oktober 2026)
 
 - **Modul einmal deaktivieren und wieder aktivieren**, damit das neue Feld an der Rechnung, die neuen Auswahlwerte im Feld „E-Rechnungsformat“ und der Mail-Hook angelegt werden.
@@ -585,7 +593,6 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
   - LIMITATIONS: Teilzahlungen und warum Leistungen ins Drittland `G` statt `O` erhalten.
 - **Einheiten (UN/ECE Rec 20):** Das Mapping richtet sich jetzt nach dem Code der Dolibarr-Einheit statt nach dem Kurzlabel. Behoben: **Monat wurde als Minute (MIN) ausgegeben** (jetzt MON); Woche, Jahr, Minute, Sekunde, Set sowie weitere Gewichts-, Längen-, Flächen- und Volumeneinheiten wurden als „Stück“ (C62) ausgegeben. Selbst angelegte Einheiten ohne Zuordnung bleiben C62, erzeugen aber eine Warnung.
 - **Menü auf der Rechnung** heißt jetzt „E-Rechnung ▾“ statt „ZUGFeRD ▾“, weil es auch die XRechnung-Aktionen enthält.
-- **Endrechnung mit Anzahlungen (BMF-Schreiben vom 15.10.2026, Rn. 3):** Bei deutschen Verkäufern steht neben dem abgezogenen Betrag (BT-113) jetzt eine Aufstellung der Teilentgelte im Freitext BT-22: Anzahlungsrechnung, Datum, Entgelt, Steuersatz, Steuer, Brutto. Diese Darstellung wird bis 30.06.2030 nicht beanstandet.
 - **Leitweg-ID nur für Käufer in Deutschland:** Die Vorprüfung ignoriert sie jetzt wie das XML bei ausländischen Käufern. Bisher meldete sie „vollständig“, obwohl BR-DE-15 verletzt war.
 - **OZG-RE-Versand** sendet keine Entwürfe.
 - **Zugriffsschutz Chorus-Pro-Tab:** `chorus_tab.php` prüft den Zugriff auf die Rechnung jetzt mit `restrictedArea` (externe Benutzer, Zugriff nur auf eigene Geschäftspartner, Entity).

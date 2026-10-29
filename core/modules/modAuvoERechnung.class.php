@@ -29,7 +29,7 @@ class modAuvoERechnung extends DolibarrModules
 		// texte n'est qu'un repli.
 		$this->description = "E-invoices for Dolibarr: ZUGFeRD / Factur-X (EN16931) and XRechnung (CII/UBL)";
 		$this->descriptionlong = "Embeds an EN16931 CrossIndustryInvoice XML in every customer invoice PDF (ZUGFeRD / Factur-X) and creates XRechnung files in CII or UBL.";
-		$this->version = '5.2.0';
+		$this->version = '5.2.1';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'bill';
 		$this->editor_name = 'auvo-design';
