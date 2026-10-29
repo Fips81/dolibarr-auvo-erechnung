@@ -76,13 +76,16 @@ class AuvoerechnungApi extends DolibarrApi
 	 * le menu de la fiche facture). 'problems' liste les données manquantes
 	 * (contrôle amont) ; 'violations' les règles EN16931/BR-DE non respectées.
 	 * 'xml' est null tant que des données manquent.
+	 * Les pièces jointes BG-24 (base64, potentiellement volumineuses) ne sont
+	 * incluses que sur demande (?with_attachments=1).
 	 *
 	 * @param int $id ID de la facture
+	 * @param int $with_attachments 1 pour inclure les pièces jointes BG-24 dans le XML {@from query}
 	 * @return array
 	 *
 	 * @url GET invoice/{id}/xrechnung
 	 */
-	public function getXRechnung($id)
+	public function getXRechnung($id, $with_attachments = 0)
 	{
 		global $mysoc, $conf;
 
@@ -103,7 +106,7 @@ class AuvoerechnungApi extends DolibarrApi
 		$violations = [];
 		$buildWarnings = [];
 		if (empty($problems)) {
-			$xr = auvoerechnung_build_xrechnung($invoice, $mysoc, $buildWarnings, ['attachments' => auvoerechnung_collect_attachments($invoice, $buildWarnings)], $syntax);
+			$xr = auvoerechnung_build_xrechnung($invoice, $mysoc, $buildWarnings, ['attachments' => $with_attachments ? auvoerechnung_collect_attachments($invoice, $buildWarnings) : []], $syntax);
 			$xml = $xr['xml'];
 			$xsdError = auvoerechnung_validate_xsd($xml, $modulePath);
 			$violations = array_merge($xsdError !== null ? [$xsdError] : [], auvoerechnung_validate_business_rules($xr['cii']));

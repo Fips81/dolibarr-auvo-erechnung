@@ -131,7 +131,7 @@ $isChorus = auvoerechnung_is_chorus_invoice($object);
 print '<div class="info" style="margin-bottom:12px;">'.$langs->trans('AuvoERechnungChorusDetected').' : <strong>'
 	.($isChorus ? $langs->trans('Yes') : $langs->trans('No')).'</strong></div>';
 
-print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int) $object->id).'">';
+print '<form method="POST" action="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'?id='.((int) $object->id).'">';
 print '<input type="hidden" name="token" value="'.newToken().'">';
 print '<input type="hidden" name="action" value="savechorus">';
 
@@ -175,7 +175,7 @@ print '</form>';
 // Bouton manuel : reporter les références Chorus remplies dans la note publique
 // de la facture (qui s'imprime sur le PDF). Sur demande, jamais automatique.
 if (auvoerechnung_user_can($user, 'write')) {
-	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int) $object->id).'" class="center" style="margin-top:16px;">';
+	print '<form method="POST" action="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'?id='.((int) $object->id).'" class="center" style="margin-top:16px;">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
 	print '<input type="hidden" name="action" value="writechorusnote">';
 	print '<input type="submit" class="button button-add" value="'.dol_escape_htmltag($langs->trans('AuvoERechnungChorusToNote')).'">';

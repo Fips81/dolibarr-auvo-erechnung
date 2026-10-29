@@ -678,7 +678,7 @@ class ActionsAuvoERechnung
 		// Menu déroulant unique « Factur-X ▾ » regroupant les actions du module
 		// (et l'envoi via SUPER PDP si ce module compagnon est actif).
 		$id = (int) $object->id;
-		$url = $_SERVER['PHP_SELF'].'?facid='.$id.'&token='.newToken();
+		$url = dol_escape_htmltag($_SERVER['PHP_SELF']).'?facid='.$id.'&token='.newToken();
 		$canRead = $this->userCanRead($user);
 		$canWrite = $this->userCanWrite($user);
 
@@ -907,7 +907,7 @@ class ActionsAuvoERechnung
 			$question .= '<br><span class="warning">'.$langs->trans('AuvoERechnungOzgReAlreadySent').'</span>';
 		}
 		$form = new Form($this->db);
-		$this->resPrint = $form->formconfirm($_SERVER['PHP_SELF'].'?facid='.((int) $object->id), $langs->trans('AuvoERechnungBtnOzgRe'), $question, 'auvoerechnung_confirm_ozgre', '', 'yes', 1);
+		$this->resPrint = $form->formconfirm(dol_escape_htmltag($_SERVER['PHP_SELF']).'?facid='.((int) $object->id), $langs->trans('AuvoERechnungBtnOzgRe'), $question, 'auvoerechnung_confirm_ozgre', '', 'yes', 1);
 		return 0;
 	}
 

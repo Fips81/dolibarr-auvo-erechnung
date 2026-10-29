@@ -251,7 +251,7 @@ if (!isset($tabs[$tab])) {
 }
 $head = [];
 foreach ($tabs as $key => $transKey) {
-	$head[] = [$_SERVER['PHP_SELF'].'?tab='.$key, $langs->trans($transKey), $key];
+	$head[] = [dol_escape_htmltag($_SERVER['PHP_SELF']).'?tab='.$key, $langs->trans($transKey), $key];
 }
 print dol_get_fiche_head($head, $tab, '', -1, '');
 
@@ -545,7 +545,7 @@ if ($tab === 'general') {
 	print '<br>';
 	print load_fiche_titre($langs->trans("AuvoERechnungTestTitle"), '', '');
 	print '<div class="opacitymedium" style="margin-bottom:8px;">'.$langs->trans("AuvoERechnungTestInfo").'</div>';
-	print '<a class="butAction" style="margin-left:0;" href="'.$_SERVER['PHP_SELF'].'?tab=overview&action=testinvoice&token='.newToken().'#testinvoice">'.$langs->trans("AuvoERechnungTestButton").'</a>';
+	print '<a class="butAction" style="margin-left:0;" href="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'?tab=overview&action=testinvoice&token='.newToken().'#testinvoice">'.$langs->trans("AuvoERechnungTestButton").'</a>';
 	if ($testResults !== null) {
 		print '<table class="noborder centpercent" id="testinvoice" style="margin-top:10px;">';
 		print '<tr class="liste_titre"><td>'.$langs->trans("AuvoERechnungTestFormat").'</td><td>'.$langs->trans("AuvoERechnungTestResult").'</td><td></td></tr>';
