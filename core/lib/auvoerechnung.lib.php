@@ -1210,6 +1210,52 @@ function auvoerechnung_get_preceding_invoices($invoice, $typeCode = '')
 }
 
 /**
+ * Texte BT-22 pour une facture finale avec acomptes imputés (§ 14 Abs. 5 UStG).
+ *
+ * BMF-Schreiben vom 15.10.2026 (Rn. 3) : Bis 30.06.2030 wird beanstandungsfrei
+ * hingenommen, wenn die Teilentgelte als Summe in BT-113 abgezogen werden und
+ * die Angaben nach UStAE 14.8 Abs. 7/8 (Entgelt, Steuersatz, Steuer je
+ * Anzahlung) im Freitext BT-22 stehen. Vide si aucun acompte (facture de type
+ * acompte inclus) n'est imputé, ou si la base est inaccessible.
+ *
+ * @param object $invoice Facture Dolibarr
+ * @return string Texte (une ligne par acompte) ou chaîne vide
+ */
+function auvoerechnung_build_deposit_note($invoice)
+{
+	$db = $invoice->db ?? null;
+	if (!is_object($db) || empty($invoice->id) || auvoerechnung_get_prepaid_amount($invoice) <= 0) {
+		return '';
+	}
+	$sql = "SELECT f.ref, f.datef, re.amount_ht, re.amount_tva, re.amount_ttc, re.tva_tx"
+		." FROM ".MAIN_DB_PREFIX."societe_remise_except re"
+		." INNER JOIN ".MAIN_DB_PREFIX."facture f ON f.rowid = re.fk_facture_source"
+		." WHERE re.fk_facture = ".((int) $invoice->id)." AND f.type = 3"
+		." ORDER BY f.datef, f.rowid";
+	$res = $db->query($sql);
+	if (!$res) {
+		return '';
+	}
+	$lines = [];
+	while ($obj = $db->fetch_object($res)) {
+		$date = !empty($obj->datef) ? substr($obj->datef, 8, 2).'.'.substr($obj->datef, 5, 2).'.'.substr($obj->datef, 0, 4) : '';
+		$lines[] = auvoerechnung_trans(
+			'AuvoERechnungDepositNoteLine',
+			$obj->ref,
+			$date,
+			number_format((float) $obj->amount_ht, 2, ',', '.'),
+			rtrim(rtrim(number_format((float) $obj->tva_tx, 2, ',', '.'), '0'), ','),
+			number_format((float) $obj->amount_tva, 2, ',', '.'),
+			number_format((float) $obj->amount_ttc, 2, ',', '.')
+		);
+	}
+	if (!$lines) {
+		return '';
+	}
+	return auvoerechnung_trans_raw('AuvoERechnungDepositNoteHead')."\n".implode("\n", $lines);
+}
+
+/**
  * N° de commande DE L'ACHETEUR (BT-13 « Purchase order reference ») de la
  * première commande client liée à la facture, via llx_element_element.
  *

@@ -387,3 +387,5 @@ AuvoERechnungEfPeriodStart = Service period from
 AuvoERechnungEfPeriodEnd = Service period to
 AuvoERechnungEfNoEInvoice = No e-invoice
 AuvoERechnungWarnPeriodOrder = Service period: the end is before the start (BR-29). Please check the "Service period from/to" fields of the invoice.
+AuvoERechnungDepositNoteHead = Deduction of partial payments already received (§ 14 (5) UStG):
+AuvoERechnungDepositNoteLine = Deposit invoice %s dated %s: net %s EUR, VAT rate %s %%, VAT %s EUR, gross %s EUR

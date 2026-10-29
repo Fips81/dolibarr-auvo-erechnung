@@ -572,6 +572,7 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
   - LIMITATIONS: Teilzahlungen und warum Leistungen ins Drittland `G` statt `O` erhalten.
 - **Einheiten (UN/ECE Rec 20):** Das Mapping richtet sich jetzt nach dem Code der Dolibarr-Einheit statt nach dem Kurzlabel. Behoben: **Monat wurde als Minute (MIN) ausgegeben** (jetzt MON); Woche, Jahr, Minute, Sekunde, Set sowie weitere Gewichts-, Längen-, Flächen- und Volumeneinheiten wurden als „Stück“ (C62) ausgegeben. Selbst angelegte Einheiten ohne Zuordnung bleiben C62, erzeugen aber eine Warnung.
 - **Menü auf der Rechnung** heißt jetzt „E-Rechnung ▾“ statt „ZUGFeRD ▾“, weil es auch die XRechnung-Aktionen enthält.
+- **Endrechnung mit Anzahlungen (BMF-Schreiben vom 15.10.2026, Rn. 3):** Bei deutschen Verkäufern steht neben dem abgezogenen Betrag (BT-113) jetzt eine Aufstellung der Teilentgelte im Freitext BT-22: Anzahlungsrechnung, Datum, Entgelt, Steuersatz, Steuer, Brutto. Diese Darstellung wird bis 30.06.2030 nicht beanstandet.
 - **Leitweg-ID nur für Käufer in Deutschland:** Die Vorprüfung ignoriert sie jetzt wie das XML bei ausländischen Käufern. Bisher meldete sie „vollständig“, obwohl BR-DE-15 verletzt war.
 - **OZG-RE-Versand** sendet keine Entwürfe.
 - **Zugriffsschutz Chorus-Pro-Tab:** `chorus_tab.php` prüft den Zugriff auf die Rechnung jetzt mit `restrictedArea` (externe Benutzer, Zugriff nur auf eigene Geschäftspartner, Entity).

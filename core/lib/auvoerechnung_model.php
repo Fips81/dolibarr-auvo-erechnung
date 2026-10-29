@@ -120,6 +120,15 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 		}
 	}
 
+	// BT-22 : Teilentgelte einer Endrechnung (BMF 15.10.2026 Rn. 3, UStAE 14.8).
+	// Verkäufer in Frankreich: eigene BR-FR-Mentions, keine zusätzliche Note.
+	if (!$sellerIsFR && $typeCode === '380') {
+		$depositNote = auvoerechnung_build_deposit_note($invoice);
+		if ($depositNote !== '') {
+			$notes[] = ['subject' => 'AAI', 'content' => $depositNote];
+		}
+	}
+
 	// BT-10 : référence acheteur. Pour un acheteur secteur public allemand, la
 	// Leitweg-ID (routage ZRE/OZG-RE) doit être la SEULE valeur en BT-10 — elle
 	// prime donc sur le code service Chorus et sur ref_client. Hors Allemagne,

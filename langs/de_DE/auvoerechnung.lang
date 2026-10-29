@@ -387,3 +387,5 @@ AuvoERechnungEfPeriodStart = Leistungszeitraum von
 AuvoERechnungEfPeriodEnd = Leistungszeitraum bis
 AuvoERechnungEfNoEInvoice = Keine E-Rechnung
 AuvoERechnungWarnPeriodOrder = Leistungszeitraum: das Ende liegt vor dem Beginn (BR-29). Bitte die Felder „Leistungszeitraum von/bis“ an der Rechnung prüfen.
+AuvoERechnungDepositNoteHead = Abzug bereits vereinnahmter Teilentgelte (§ 14 Abs. 5 UStG):
+AuvoERechnungDepositNoteLine = Anzahlungsrechnung %s vom %s: Entgelt %s EUR, Steuersatz %s %%, Steuer %s EUR, brutto %s EUR

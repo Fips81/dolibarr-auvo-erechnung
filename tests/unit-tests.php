@@ -2001,6 +2001,28 @@ lfx_assert($p !== false && strpos($src, "AuvoERechnungOzgReDraft", $p) !== false
 	&& strpos($src, "AuvoERechnungOzgReDraft", $p) < strpos($src, 'generateXRechnungXml($invoice', $p), 'OZG-RE: Entwurfsprüfung vor dem Erzeugen');
 echo "U50 OK\n";
 
+// Endrechnung mit Anzahlung: BT-113 + Teilentgelte in BT-22 (BMF 15.10.2026 Rn. 3)
+$currentTest = 'U51 Endrechnung mit Anzahlung: Teilentgelte in BT-22';
+$fin = clone $inv;
+$fin->lines = [lfx_make_line(1000.00, 19.0, 190.00, 1.0, 'Planung', 1)];
+$fin->total_ht = 1000.00;
+$fin->total_tva = 190.00;
+$fin->total_ttc = 1190.00;
+$fin->id = 77;
+$fin->type = 0;
+$fin->sumDepositsUsed = 595.00;
+$GLOBALS['lfx_test_db_handlers'] = ['societe_remise_except re' => [(object) ['ref' => 'AB2026-0001', 'datef' => '2026-03-02', 'amount_ht' => 500.0, 'amount_tva' => 95.0, 'amount_ttc' => 595.0, 'tva_tx' => 19.0]]];
+$w = [];
+$xmlFin = auvoerechnung_build_xml($fin, $seller, $w);
+lfx_std_validate($xmlFin, $xsdPath);
+$noteFin = lfx_xp_str(lfx_xpath($xmlFin), '/rsm:CrossIndustryInvoice/rsm:ExchangedDocument/ram:IncludedNote/ram:Content');
+lfx_assert(strpos($noteFin, 'AB2026-0001') !== false && strpos($noteFin, '02.03.2026') !== false && strpos($noteFin, '500,00') !== false && strpos($noteFin, '95,00') !== false, 'Endrechnung: Teilentgelte in BT-22');
+$GLOBALS['lfx_test_db_handlers'] = [];
+$w = [];
+$fin->sumDepositsUsed = 0.0;
+lfx_assert(strpos(lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($fin, $seller, $w)), '/rsm:CrossIndustryInvoice/rsm:ExchangedDocument/ram:IncludedNote/ram:Content'), 'Teilentgelte') === false, 'ohne Anzahlung keine Teilentgelt-Note');
+echo "U51 OK\n";
+
 // ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
