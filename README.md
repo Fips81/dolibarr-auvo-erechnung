@@ -403,6 +403,19 @@ Standardmäßig läuft das Modul im **best-effort**-Modus: ist das Factur-X-XML 
 
 Im **Strikt-Modus** (`AUVOERECHNUNG_STRICT_MODE=1`) liefert dieselbe Situation einen sichtbaren, blockierenden Fehler, und Verstöße gegen Geschäftsregeln (BR-\*) werden blockierend. **Bewusste Einschränkung**: da der Hook erst nach der PDF-Erzeugung durch Dolibarr greift, bleibt die bereits erzeugte klassische PDF auch im Strikt-Modus auf der Festplatte erhalten — vor dem Versand „ZUGFeRD prüfen" nutzen, um eine Datei zu kontrollieren.
 
+### Steuerliche Einordnung (BMF-Schreiben vom 15.10.2026)
+
+Das BMF-Schreiben vom 15.10.2026 ergänzt die Schreiben vom 15.10.2024 und 15.10.2025 und bringt vor allem Erleichterungen. Für das Modul sind diese Punkte relevant:
+
+- **Endrechnung mit Anzahlungen (Rn. 3/4):** Bis 30.06.2030 genügt es, die Teilentgelte als Summe in BT-113 abzusetzen und die Details in BT-22 oder in einem eingebetteten Anhang anzugeben. Das Modul trägt sie bei deutschen Verkäufern in BT-22 ein.
+- **Bruttopreisrechnungen (Rn. 19):** Bis 31.12.2027 genügen im strukturierten Teil die Summen je Steuersatz, wenn die Einzelpositionen in einem eingebetteten, lesbaren Anhang stehen (Anlagen siehe XRechnung, BG-24).
+- **Berichtigung (Rn. 20/21):** Eine Berichtigung muss als E-Rechnung erfolgen. Welcher Rechnungstyp für welchen Vorgang gilt, ist offen, jeder taugliche Typ ist zulässig. Das Modul gibt Ersatzrechnungen als 384 und Gutschriften als 381 aus.
+- **Rabatt-, Bonus- und Skontovereinbarungen (Rn. 15/16):** Ein allgemeiner Hinweis in der Rechnung genügt.
+- **Formatfehler und Geschäftsregelfehler (Rn. 22/23):** Umsatzsteuerlich ist eine Datei mit Geschäftsregelfehler (ohne Formatfehler) weiterhin eine E-Rechnung, sofern die Pflichtangaben nach §§ 14, 14a UStG richtig und vollständig sind. Das spricht für den Standardmodus „best-effort“; technisch bleibt die Datei dann nicht EN-16931-konform.
+- **Übergang:** Bis 31.12.2026 ausgestellte E-Rechnungen werden auch dann nicht beanstandet, wenn sie die zusätzlichen Vorgaben dieses Schreibens nicht erfüllen.
+
+Das Modul ersetzt keine steuerliche Beratung. Ob eine Rechnung die Pflichtangaben erfüllt, hängt von den Daten in Dolibarr ab.
+
 ### Interne Validierung
 
 Vor der PDF-Injektion validiert das Modul das XML systematisch:

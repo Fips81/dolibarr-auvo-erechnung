@@ -41,6 +41,13 @@ ausgegebenen Beträge sind die der Dolibarr-Rechnung (Differenz der Situation),
 was in der Regel korrekt ist, die Konformität ist aber nicht garantiert —
 daher die Warnung.
 
+Steuerlich ist das für Deutschland unkritisch: Das BMF-Schreiben vom 15.10.2026
+(Rn. 3 und 4) lässt bei Endrechnungen bis zum 30.06.2030 zu, dass bereits
+vereinnahmte Teilentgelte als Summe in BT-113 abgesetzt werden und die Details
+in BT-22 oder in einem eingebetteten Anhang stehen. Die Abschlagsrechnungen
+selbst sind als TypeCode 380 gültige E-Rechnungen. Für die Aufstellung der
+Teilentgelte siehe den Abschnitt zu Anzahlungen unten.
+
 ### Gutschriftsverfahren (TypeCode 389)
 **Verhalten: nicht behandelt (Ausgabe als normale Rechnung).**
 Dolibarr kennt bei Kundenrechnungen kein Gutschriftsverfahren
@@ -57,6 +64,12 @@ Anzahlung entrichtete Umsatzsteuer wird nicht gesondert ausgewiesen (das von
 manchen Plattformen empfohlene Schema „negative Positionen je Steuersatz“ ist
 aus den Dolibarr-Daten nicht allgemein ableitbar). Das entspricht dem
 Verhalten der meisten aktuellen ZUGFeRD/Factur-X-Implementierungen.
+
+Bei Verkäufern in Deutschland steht zusätzlich eine Aufstellung der Teilentgelte
+(Anzahlungsrechnung, Datum, Entgelt, Steuersatz, Steuer, brutto) im Freitext
+BT-22. Das entspricht Rn. 3 des BMF-Schreibens vom 15.10.2026 und wird bis zum
+30.06.2030 nicht beanstandet. Nur Anzahlungsrechnungen werden aufgeführt,
+angerechnete Gutschriften nicht.
 
 ### Steuerbefreiungen (BT-120/BT-121)
 **Verhalten: teilweise.**
