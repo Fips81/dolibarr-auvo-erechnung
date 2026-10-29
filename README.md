@@ -493,10 +493,10 @@ Extrahiert das eingebettete Factur-X-XML aller validierten Rechnungen (des angeg
 Der Ordner `vendor/` enthält die benötigten Libs (kein Composer auf dem Server erforderlich):
 
 - `atgp/factur-x` v3.5.0 — Erzeugung von Factur-X-PDFs (Schemata Factur-X 1.09.2 / ZUGFeRD 2.5.2)
-- `setasign/fpdi` v2.6.8 — Lesen/Schreiben von PDFs
+- `setasign/fpdi` v2.6.9 — Lesen/Schreiben von PDFs
 - `setasign/fpdf` 1.9.0 — PDF-Engine (von atgp genutzt, **nicht** von Dolibarr; Patch `/F 4`, siehe PDF/A-3-Konformität)
-- `smalot/pdfparser` v2.12.5 — PDF-Parsing
-- `symfony/polyfill-mbstring` v1.43.0 — mbstring-Kompatibilität
+- `smalot/pdfparser` v2.13.1 — PDF-Parsing
+- `symfony/polyfill-mbstring` v1.43.3 — mbstring-Kompatibilität
 - `oasis/ubl-2.1` — XML-Schemata UBL 2.1 Invoice/CreditNote (OASIS, aus dem KoSIT-Bundle) für die Schema-Prüfung der XRechnung in UBL
 
 ## PDF/A-3-Konformität
