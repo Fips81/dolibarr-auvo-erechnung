@@ -483,6 +483,30 @@ function auvoerechnung_migrate_skonto_keys($db)
 }
 
 /**
+ * Retire de la configuration Skonto les conditions de règlement qui n'existent
+ * plus dans le dictionnaire. Dolibarr ne pose pas de clé étrangère sur
+ * c_payment_term : une condition utilisée peut être supprimée, et un id libéré
+ * peut être réattribué (auto-incrément recalculé au redémarrage sur d'anciens
+ * MySQL/MariaDB) — sans ce nettoyage, la nouvelle condition hériterait des
+ * paliers.
+ *
+ * @param array<string,mixed> $all          Configuration indexée par id
+ * @param int[]               $existingIds  Ids présents dans le dictionnaire
+ * @return array<string,mixed>
+ */
+function auvoerechnung_skonto_drop_orphans($all, $existingIds)
+{
+	$keep = array_flip(array_map('intval', $existingIds));
+	$out = [];
+	foreach ($all as $id => $terms) {
+		if (isset($keep[(int) $id])) {
+			$out[(string) $id] = $terms;
+		}
+	}
+	return $out;
+}
+
+/**
  * Prévient les autres modules d'un changement des paliers Skonto, par le hook
  * « auvoerechnungSkontoChanged » (contexte « auvoerechnungsetup »).
  * Paramètres du hook : 'terms' (configuration complète, indexée par id de

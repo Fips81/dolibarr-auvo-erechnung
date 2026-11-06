@@ -61,6 +61,21 @@ if ($resql) {
 	}
 }
 
+// Skonto des conditions supprimées du dictionnaire : retiré dès l'ouverture de
+// la page (pas seulement au prochain enregistrement). Uniquement si la lecture
+// du dictionnaire a réussi, sinon tout serait considéré comme orphelin.
+if ($resql) {
+	$skontoStored = json_decode(getDolGlobalString('AUVOERECHNUNG_SKONTO_TERMS', ''), true);
+	if (is_array($skontoStored) && !empty($skontoStored)) {
+		$skontoClean = auvoerechnung_skonto_drop_orphans($skontoStored, array_merge(array_keys($paymentTerms), array_keys($paymentTermsInactive)));
+		if (count($skontoClean) !== count($skontoStored)
+			&& dolibarr_set_const($db, 'AUVOERECHNUNG_SKONTO_TERMS', empty($skontoClean) ? '' : json_encode($skontoClean), 'chaine', 0, '', $conf->entity) > 0) {
+			dol_syslog('auvoerechnung: Skonto gelöschter Zahlungsbedingungen entfernt: '.implode(', ', array_diff(array_keys($skontoStored), array_keys($skontoClean))), LOG_INFO);
+			auvoerechnung_notify_skonto_changed($skontoClean, $skontoStored);
+		}
+	}
+}
+
 // Les valeurs par défaut des mentions légales BR-FR sont définies dans la lib
 // (AUVOERECHNUNG_DEFAULT_NOTE_*) pour rester synchronisées avec le builder XML.
 
@@ -106,8 +121,8 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 	];
 	// Paliers Skonto par condition de règlement (2 maximum), stockés en JSON
 	// indexé par id. Une ligne incomplète ou hors bornes est ignorée avec un
-	// avertissement. Les paliers des conditions inactives sont conservés, ceux
-	// des conditions supprimées du dictionnaire disparaissent ici.
+	// avertissement. Les paliers des conditions inactives sont conservés (ceux
+	// des conditions supprimées ont été retirés à l'ouverture de la page).
 	$skonto = [];
 	$saveSkonto = GETPOSTISSET('save_skonto');
 	$skontoPrevious = json_decode(getDolGlobalString('AUVOERECHNUNG_SKONTO_TERMS', ''), true);

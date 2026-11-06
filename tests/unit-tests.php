@@ -1351,6 +1351,8 @@ lfx_assert_eq(1, auvoerechnung_migrate_skonto_keys(new LfxFakeDb()), 'migration 
 lfx_assert_eq(['5' => [['days' => 3, 'percent' => 1]], '8' => [['days' => 10, 'percent' => 2]]], json_decode($GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO_TERMS'], true), 'migration : indexé par id, existant prioritaire');
 lfx_assert(!isset($GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO']), 'migration : ancienne constante supprimée');
 lfx_assert_eq(0, auvoerechnung_migrate_skonto_keys(new LfxFakeDb()), 'migration idempotente');
+lfx_assert_eq(['8' => [['days' => 10, 'percent' => 2]]], auvoerechnung_skonto_drop_orphans(['5' => [['days' => 3, 'percent' => 1]], '8' => [['days' => 10, 'percent' => 2]]], [8, 9]), 'conditions supprimées retirées');
+lfx_assert_eq([], auvoerechnung_skonto_drop_orphans(['5' => [['days' => 3, 'percent' => 1]]], []), 'dictionnaire vide : tout est orphelin');
 $GLOBALS['lfx_test_db_handlers'] = [];
 $GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO_TERMS'] = json_encode(['7' => [['days' => 7, 'percent' => 2]], '12' => [['days' => 14, 'percent' => 2], ['days' => 7, 'percent' => 3.5]]]);
 lfx_assert_eq(['days' => 7, 'percent' => 2.0], auvoerechnung_guess_skonto('7 Tage 2% Skonto 14 Tage netto'), 'suggestion « 7 Tage 2% Skonto »');
