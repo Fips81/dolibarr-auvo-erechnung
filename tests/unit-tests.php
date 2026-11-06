@@ -1327,14 +1327,32 @@ lfx_reset([
 	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
 	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
 	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
-	'AUVOERECHNUNG_SKONTO' => json_encode([
-		'7D' => [['days' => 7, 'percent' => 2]],
-		'SK2' => [['days' => 14, 'percent' => 2], ['days' => 7, 'percent' => 3.5], ['days' => 0, 'percent' => 5], ['days' => 10, 'percent' => 150]],
+	'AUVOERECHNUNG_SKONTO_TERMS' => json_encode([
+		'7' => [['days' => 7, 'percent' => 2]],
+		'12' => [['days' => 14, 'percent' => 2], ['days' => 7, 'percent' => 3.5], ['days' => 0, 'percent' => 5], ['days' => 10, 'percent' => 150]],
 	]),
 ], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
-lfx_assert_eq([['days' => 7, 'percent' => 3.5], ['days' => 14, 'percent' => 2.0]], auvoerechnung_get_skonto_terms('SK2'), 'paliers triés, entrées invalides ignorées');
-lfx_assert_eq([], auvoerechnung_get_skonto_terms('30D'), 'pas de Skonto sans configuration');
-lfx_assert_eq("#SKONTO#TAGE=7#PROZENT=3.50#\n#SKONTO#TAGE=14#PROZENT=2.00#\n", auvoerechnung_skonto_lines(auvoerechnung_get_skonto_terms('SK2')), 'syntaxe KoSIT, saut de ligne final');
+lfx_assert_eq([['days' => 7, 'percent' => 3.5], ['days' => 14, 'percent' => 2.0]], auvoerechnung_get_skonto_terms(12), 'paliers triés, entrées invalides ignorées');
+lfx_assert_eq([], auvoerechnung_get_skonto_terms(3), 'pas de Skonto sans configuration');
+lfx_assert_eq([], auvoerechnung_get_skonto_terms(0, '7D'), 'format par id : le code seul ne suffit pas');
+lfx_assert_eq("#SKONTO#TAGE=7#PROZENT=3.50#\n#SKONTO#TAGE=14#PROZENT=2.00#\n", auvoerechnung_skonto_lines(auvoerechnung_get_skonto_terms(12)), 'syntaxe KoSIT, saut de ligne final');
+// Ancien format 5.2.x (indexé par code), lu tant que la migration n'est pas passée
+$GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO_TERMS'] = '';
+$GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO'] = json_encode(['SK2' => [['days' => 10, 'percent' => 2]]]);
+lfx_assert_eq([['days' => 10, 'percent' => 2.0]], auvoerechnung_get_skonto_terms(12, 'SK2'), 'ancien format : lecture par code');
+$GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO_TERMS'] = json_encode(['7' => [['days' => 7, 'percent' => 2]], '12' => [['days' => 14, 'percent' => 2], ['days' => 7, 'percent' => 3.5]]]);
+lfx_assert_eq([['days' => 7, 'percent' => 3.5], ['days' => 14, 'percent' => 2.0]], auvoerechnung_get_skonto_terms(12, 'SK2'), 'nouveau format prioritaire sur l\'ancien');
+unset($GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO']);
+// Migration code → id : codes inconnus abandonnés, entrée par id existante conservée
+$GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO_TERMS'] = json_encode(['5' => [['days' => 3, 'percent' => 1]]]);
+$GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO'] = json_encode(['10D2' => [['days' => 10, 'percent' => 2]], 'SK5' => [['days' => 5, 'percent' => 4]], 'GONE' => [['days' => 7, 'percent' => 2]]]);
+$GLOBALS['lfx_test_db_handlers'] = ["code = '10D2'" => [(object) ['rowid' => 8]], "code = 'SK5'" => [(object) ['rowid' => 5]]];
+lfx_assert_eq(1, auvoerechnung_migrate_skonto_keys(new LfxFakeDb()), 'migration : une condition reprise');
+lfx_assert_eq(['5' => [['days' => 3, 'percent' => 1]], '8' => [['days' => 10, 'percent' => 2]]], json_decode($GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO_TERMS'], true), 'migration : indexé par id, existant prioritaire');
+lfx_assert(!isset($GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO']), 'migration : ancienne constante supprimée');
+lfx_assert_eq(0, auvoerechnung_migrate_skonto_keys(new LfxFakeDb()), 'migration idempotente');
+$GLOBALS['lfx_test_db_handlers'] = [];
+$GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO_TERMS'] = json_encode(['7' => [['days' => 7, 'percent' => 2]], '12' => [['days' => 14, 'percent' => 2], ['days' => 7, 'percent' => 3.5]]]);
 lfx_assert_eq(['days' => 7, 'percent' => 2.0], auvoerechnung_guess_skonto('7 Tage 2% Skonto 14 Tage netto'), 'suggestion « 7 Tage 2% Skonto »');
 lfx_assert_eq(['days' => 10, 'percent' => 2.5], auvoerechnung_guess_skonto('2,5 % Skonto bei Zahlung innerhalb von 10 Tagen'), 'suggestion « 2,5 % Skonto … 10 Tagen »');
 lfx_assert_eq(null, auvoerechnung_guess_skonto('Zahlbar innerhalb 30 Tagen'), 'pas de suggestion sans Skonto');
@@ -1347,6 +1365,7 @@ $seller = lfx_make_party([
 $inv = new LfxFakeInvoice();
 $inv->ref = 'RE2026-0400';
 $inv->ref_client = 'BEST-4712';
+$inv->cond_reglement_id = 7;
 $inv->cond_reglement_code = '7D';
 $inv->cond_reglement_doc = "Zahlbar innerhalb 14 Tagen.\n#Bei Zahlung innerhalb 7 Tagen 2 % Skonto.";
 $inv->thirdparty = lfx_make_party(['name' => 'Bundesamt für Beispiele', 'country_code' => 'DE', 'zip' => '53113', 'town' => 'Bonn',
@@ -1368,6 +1387,7 @@ foreach (['xrechnung' => ['profile' => 'xrechnung'], 'zugferd' => []] as $label 
 }
 // Deux paliers
 $inv2 = clone $inv;
+$inv2->cond_reglement_id = 12;
 $inv2->cond_reglement_code = 'SK2';
 $inv2->cond_reglement_doc = '';
 $w = [];
@@ -1377,6 +1397,7 @@ lfx_assert_eq("#SKONTO#TAGE=7#PROZENT=3.50#\n#SKONTO#TAGE=14#PROZENT=2.00#\n", l
 lfx_dump('xr-06-skonto-2-stufen', $xml2);
 // Sans Skonto configuré : pas de BT-20 (comportement antérieur inchangé)
 $inv3 = clone $inv;
+$inv3->cond_reglement_id = 3;
 $inv3->cond_reglement_code = '30D';
 lfx_assert_eq(0, lfx_xpath(auvoerechnung_build_xml($inv3, $seller, $w, ['profile' => 'xrechnung']))->query('//ram:SpecifiedTradePaymentTerms/ram:Description')->length, 'pas de BT-20 sans Skonto');
 // Avoir : pas d'escompte
@@ -1565,7 +1586,7 @@ lfx_reset([
 	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
 	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
 	'AUVOERECHNUNG_PAYMENT_MEANS' => '58',
-	'AUVOERECHNUNG_SKONTO' => json_encode(['7D' => [['days' => 7, 'percent' => 2]]]),
+	'AUVOERECHNUNG_SKONTO_TERMS' => json_encode(['7' => [['days' => 7, 'percent' => 2]]]),
 ], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
 $seller = lfx_make_party([
 	'name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen',
@@ -1588,6 +1609,7 @@ lfx_assert_eq('cii', auvoerechnung_xrechnung_syntax(lfx_make_party(['array_optio
 $inv = new LfxFakeInvoice();
 $inv->ref = 'RE2026-0700';
 $inv->ref_client = 'BEST-4711';
+$inv->cond_reglement_id = 7;
 $inv->cond_reglement_code = '7D';
 $inv->cond_reglement_doc = 'Zahlbar innerhalb 14 Tagen.';
 $inv->thirdparty = $amt;

@@ -1188,7 +1188,7 @@ class ActionsAuvoERechnung
 			return auvoerechnung_resolve_php_cli($this->db);
 		}
 
-		$phpBin = getDolGlobalString('AUVOERECHNUNG_PHP_CLI_PATH', 'php');
+		$phpBin = $manual;
 
 		// Hardening : la constante est modifiable par un admin via /admin/const.php.
 		// escapeshellarg() sur la commande bloque déjà toute injection shell (une
@@ -1202,11 +1202,13 @@ class ActionsAuvoERechnung
 			$this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrPhpCliChars'), $strict);
 			return null;
 		}
+		// Dossier saisi au lieu du binaire (fréquent sous Windows) → php.exe / php.
+		$phpBin = auvoerechnung_php_cli_from_dir($phpBin);
 
 		// Si l'admin a fourni un chemin absolu, on vérifie qu'il pointe vraiment
 		// vers un exécutable. Cas relatif ("php", "php8.2") : on laisse passer
 		// au shell qui résoudra via PATH.
-		if (strpos($phpBin, '/') !== false && !is_executable($phpBin)) {
+		if (strpbrk($phpBin, '/\\') !== false && !is_executable($phpBin)) {
 			$this->handleNonFatal('AuVo E-Rechnung: '.auvoerechnung_trans('AuvoERechnungErrPhpCliNotFound', $phpBin), $strict);
 			return null;
 		}

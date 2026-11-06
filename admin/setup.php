@@ -41,13 +41,23 @@ auvoerechnung_fix_chorus_extrafields_display($db);
 
 $action = GETPOST('action', 'aZ09');
 
-// Conditions de règlement actives (dictionnaire c_payment_term), pour la
-// configuration des paliers Skonto.
+// Skonto : reprise de l'ancien format indexé par code (5.2.x), sans attendre
+// une réactivation du module.
+auvoerechnung_migrate_skonto_keys($db);
+
+// Conditions de règlement (dictionnaire c_payment_term), indexées par id, pour
+// la configuration des paliers Skonto. Seules les actives sont affichées ; les
+// inactives gardent leurs paliers (factures existantes).
 $paymentTerms = [];
-$resql = $db->query("SELECT rowid, code, libelle, libelle_facture, type_cdr, nbjour FROM ".MAIN_DB_PREFIX."c_payment_term WHERE active = 1 AND entity IN (".getEntity('c_payment_term').") ORDER BY sortorder, rowid");
+$paymentTermsInactive = [];
+$resql = $db->query("SELECT rowid, code, libelle, libelle_facture, type_cdr, nbjour, active FROM ".MAIN_DB_PREFIX."c_payment_term WHERE entity IN (".getEntity('c_payment_term').") ORDER BY sortorder, rowid");
 if ($resql) {
 	while ($obj = $db->fetch_object($resql)) {
-		$paymentTerms[$obj->code] = $obj;
+		if ((int) $obj->active === 1) {
+			$paymentTerms[(int) $obj->rowid] = $obj;
+		} else {
+			$paymentTermsInactive[(int) $obj->rowid] = $obj;
+		}
 	}
 }
 
@@ -94,16 +104,25 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		['AUVOERECHNUNG_NOTES_IN_FOOTER', GETPOSTINT('AUVOERECHNUNG_NOTES_IN_FOOTER'), 'int'],
 		['AUVOERECHNUNG_NOTES_OVERWRITE', GETPOSTINT('AUVOERECHNUNG_NOTES_OVERWRITE'), 'int'],
 	];
-	// Paliers Skonto par condition de règlement (2 maximum), stockés en JSON.
-	// Une ligne incomplète ou hors bornes est ignorée avec un avertissement.
+	// Paliers Skonto par condition de règlement (2 maximum), stockés en JSON
+	// indexé par id. Une ligne incomplète ou hors bornes est ignorée avec un
+	// avertissement. Les paliers des conditions inactives sont conservés, ceux
+	// des conditions supprimées du dictionnaire disparaissent ici.
 	$skonto = [];
 	$saveSkonto = GETPOSTISSET('save_skonto');
+	$skontoPrevious = json_decode(getDolGlobalString('AUVOERECHNUNG_SKONTO_TERMS', ''), true);
+	$skontoPrevious = is_array($skontoPrevious) ? $skontoPrevious : [];
 	$skontoDays = GETPOST('skonto_days', 'array');
 	$skontoPct = GETPOST('skonto_pct', 'array');
-	foreach ($paymentTerms as $ptCode => $pt) {
+	foreach ($paymentTermsInactive as $ptId => $pt) {
+		if (!empty($skontoPrevious[(string) $ptId])) {
+			$skonto[(string) $ptId] = $skontoPrevious[(string) $ptId];
+		}
+	}
+	foreach ($paymentTerms as $ptId => $pt) {
 		for ($i = 0; $i < 2; $i++) {
-			$d = trim((string) ($skontoDays[$ptCode][$i] ?? ''));
-			$p = str_replace(',', '.', trim((string) ($skontoPct[$ptCode][$i] ?? '')));
+			$d = trim((string) ($skontoDays[$ptId][$i] ?? ''));
+			$p = str_replace(',', '.', trim((string) ($skontoPct[$ptId][$i] ?? '')));
 			if ($d === '' && $p === '') {
 				continue;
 			}
@@ -111,11 +130,11 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 				setEventMessages($langs->trans('AuvoERechnungSkontoInvalid', $pt->libelle), null, 'warnings');
 				continue;
 			}
-			$skonto[$ptCode][] = ['days' => (int) $d, 'percent' => round((float) $p, 2)];
+			$skonto[(string) $ptId][] = ['days' => (int) $d, 'percent' => round((float) $p, 2)];
 		}
 	}
 	if ($saveSkonto) {
-		$updates[] = ['AUVOERECHNUNG_SKONTO', empty($skonto) ? '' : json_encode($skonto), 'chaine', true];
+		$updates[] = ['AUVOERECHNUNG_SKONTO_TERMS', empty($skonto) ? '' : json_encode($skonto), 'chaine', true];
 	}
 
 	// Le bloc PA (suffixe d'endpoint BT-34) n'est affiché que pour un vendeur
@@ -154,6 +173,12 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		if ($pdfFont === '' || isset($availableFonts[$pdfFont])) {
 			dolibarr_set_const($db, 'MAIN_PDF_FORCE_FONT', $pdfFont, 'chaine', 1, '', $conf->entity);
 		}
+	}
+
+	// Autres modules (hook auvoerechnungSkontoChanged) : seulement si les
+	// paliers ont réellement changé.
+	if (!$error && $saveSkonto && $skonto != $skontoPrevious) {
+		auvoerechnung_notify_skonto_changed($skonto, $skontoPrevious);
 	}
 
 	if (!$error) {
@@ -404,9 +429,10 @@ if ($tab === 'general') {
 	print '<input type="hidden" name="save_skonto" value="1">';
 	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("AuvoERechnungSecSkonto").'</td></tr>';
 	print '<tr class="oddeven"><td colspan="2"><span class="opacitymedium small">'.$langs->trans("AuvoERechnungSkontoInfo").'</span></td></tr>';
-	foreach ($paymentTerms as $ptCode => $pt) {
+	foreach ($paymentTerms as $ptId => $pt) {
+		$ptCode = $pt->code;
 		$ptLabel = $langs->trans('PaymentConditionShort'.$ptCode) !== 'PaymentConditionShort'.$ptCode ? $langs->trans('PaymentConditionShort'.$ptCode) : $pt->libelle;
-		$terms = auvoerechnung_get_skonto_terms($ptCode);
+		$terms = auvoerechnung_get_skonto_terms($ptId, $ptCode);
 		$guess = empty($terms) ? auvoerechnung_guess_skonto($pt->libelle.' '.$pt->libelle_facture) : null;
 		print '<tr class="oddeven"><td>'.dol_escape_htmltag($ptLabel);
 		if ((int) $pt->nbjour > 0) {
@@ -425,8 +451,8 @@ if ($tab === 'general') {
 			$t = $terms[$i] ?? null;
 			$phDays = ($i === 0 && $guess) ? ' placeholder="'.$guess['days'].'"' : '';
 			$phPct = ($i === 0 && $guess) ? ' placeholder="'.dol_escape_htmltag(price($guess['percent'])).'"' : '';
-			print '<input type="text" name="skonto_days['.dol_escape_htmltag($ptCode).']['.$i.']" class="flat width50 right" value="'.($t ? $t['days'] : '').'"'.$phDays.'> '.$langs->trans('AuvoERechnungSkontoDays').' ';
-			print '<input type="text" name="skonto_pct['.dol_escape_htmltag($ptCode).']['.$i.']" class="flat width50 right" value="'.($t ? dol_escape_htmltag(price($t['percent'])) : '').'"'.$phPct.'> %';
+			print '<input type="text" name="skonto_days['.((int) $ptId).']['.$i.']" class="flat width50 right" value="'.($t ? $t['days'] : '').'"'.$phDays.'> '.$langs->trans('AuvoERechnungSkontoDays').' ';
+			print '<input type="text" name="skonto_pct['.((int) $ptId).']['.$i.']" class="flat width50 right" value="'.($t ? dol_escape_htmltag(price($t['percent'])) : '').'"'.$phPct.'> %';
 			print $i === 0 ? ' &nbsp; &nbsp; ' : '';
 		}
 		print '</td></tr>';

@@ -108,7 +108,7 @@ class modAuvoERechnung extends DolibarrModules
 			array('AUVOERECHNUNG_XR_EMBED_FILES', 'int', '0', 'XRechnung: hochgeladene Dokumente der Rechnung als Anlagen einbetten (BG-24)', 1, 'current', 0),
 			array('AUVOERECHNUNG_MAIL_ATTACH_XR', 'int', '1', 'XRechnung beim Mailversand der Rechnung automatisch anhängen', 1, 'current', 0),
 			array('AUVOERECHNUNG_OZGRE_EMAIL', 'chaine', '', 'XRechnung: persönliche Einreichungsadresse des OZG-RE-Kontos (E-Mail-Kanal); leer = kein Versand', 1, 'current', 0),
-			array('AUVOERECHNUNG_SKONTO', 'chaine', '', 'Skonto je Zahlungsbedingung (JSON, BT-20 #SKONTO#); Einstellung auf der Modulseite', 1, 'current', 0),
+			array('AUVOERECHNUNG_SKONTO_TERMS', 'chaine', '', 'Skonto je Zahlungsbedingung (JSON nach ID der Zahlungsbedingung, BT-20 #SKONTO#); Einstellung auf der Modulseite', 1, 'current', 0),
 			array('AUVOERECHNUNG_CHORUS_ENABLED', 'int', '0', 'Chorus-Pro-Funktionen aktivieren (Reiter, Menü, 2. PDF; nur Frankreich) — opt-in', 1, 'current', 0),
 		);
 
@@ -173,6 +173,9 @@ class modAuvoERechnung extends DolibarrModules
 		$this->createInvoiceExtraFields();
 		$this->updateExtraFieldConditions();
 		$this->grantRightsFromInvoiceRights();
+		// Skonto 5.2.x (indexé par code) → indexé par id de condition de règlement.
+		dol_include_once('/auvoerechnung/core/lib/auvoerechnung.lib.php');
+		auvoerechnung_migrate_skonto_keys($this->db);
 		return $result;
 	}
 

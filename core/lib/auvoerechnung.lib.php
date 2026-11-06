@@ -395,25 +395,37 @@ function auvoerechnung_get_direct_debit_info($db, $buyer, &$buildWarnings)
 /**
  * Paliers d'escompte (Skonto) configurés pour une condition de règlement.
  *
- * Configuration : constante AUVOERECHNUNG_SKONTO, JSON indexé par le code de
- * la condition de règlement Dolibarr (dictionnaire c_payment_term), ex.
- * {"7D":[{"days":7,"percent":2}]}. Les entrées invalides sont ignorées.
+ * Configuration : constante AUVOERECHNUNG_SKONTO_TERMS, JSON indexé par l'id
+ * (rowid) de la condition de règlement Dolibarr (dictionnaire c_payment_term),
+ * ex. {"3":[{"days":7,"percent":2}]}. L'id reste stable quand le code ou le
+ * libellé de la condition est modifié dans le dictionnaire. Les entrées
+ * invalides sont ignorées.
  *
- * @param string $paymentTermCode  Code de la condition de règlement
+ * Jusqu'à 5.2.x, la constante AUVOERECHNUNG_SKONTO était indexée par le code :
+ * tant que auvoerechnung_migrate_skonto_keys() n'est pas passée, on lit
+ * l'ancien format via $paymentTermCode.
+ *
+ * Fonction publique, utilisable par d'autres modules (dol_include_once de
+ * /auvoerechnung/core/lib/auvoerechnung.lib.php).
+ *
+ * @param int    $paymentTermId    Id de la condition de règlement (Facture::cond_reglement_id)
+ * @param string $paymentTermCode  Code de la condition (ancien format uniquement)
  * @return array<int,array{days:int,percent:float}>  Paliers triés par délai
  */
-function auvoerechnung_get_skonto_terms($paymentTermCode)
+function auvoerechnung_get_skonto_terms($paymentTermId, $paymentTermCode = '')
 {
-	$code = trim((string) $paymentTermCode);
-	if ($code === '') {
-		return [];
+	if (getDolGlobalString('AUVOERECHNUNG_SKONTO_TERMS') === '' && getDolGlobalString('AUVOERECHNUNG_SKONTO') !== '') {
+		$all = json_decode(getDolGlobalString('AUVOERECHNUNG_SKONTO'), true);
+		$key = trim((string) $paymentTermCode);
+	} else {
+		$all = json_decode(getDolGlobalString('AUVOERECHNUNG_SKONTO_TERMS', ''), true);
+		$key = (int) $paymentTermId > 0 ? (string) (int) $paymentTermId : '';
 	}
-	$all = json_decode(getDolGlobalString('AUVOERECHNUNG_SKONTO', ''), true);
-	if (!is_array($all) || empty($all[$code]) || !is_array($all[$code])) {
+	if ($key === '' || !is_array($all) || empty($all[$key]) || !is_array($all[$key])) {
 		return [];
 	}
 	$terms = [];
-	foreach ($all[$code] as $t) {
+	foreach ($all[$key] as $t) {
 		$days = isset($t['days']) ? (int) $t['days'] : 0;
 		$percent = isset($t['percent']) ? round((float) $t['percent'], 2) : 0.0;
 		if ($days > 0 && $days <= 365 && $percent > 0 && $percent < 100) {
@@ -422,6 +434,76 @@ function auvoerechnung_get_skonto_terms($paymentTermCode)
 	}
 	ksort($terms);
 	return array_values($terms);
+}
+
+/**
+ * Migration 5.2.x → 5.3.0 : AUVOERECHNUNG_SKONTO (indexé par code) devient
+ * AUVOERECHNUNG_SKONTO_TERMS (indexé par id). Les codes introuvables dans le
+ * dictionnaire sont abandonnés (journalisés). L'ancienne constante est
+ * supprimée ensuite. Idempotent : sans ancienne constante, ne fait rien.
+ *
+ * @param DoliDB $db
+ * @return int  Nombre de conditions reprises, -1 si erreur
+ */
+function auvoerechnung_migrate_skonto_keys($db)
+{
+	global $conf;
+	$old = getDolGlobalString('AUVOERECHNUNG_SKONTO');
+	if ($old === '') {
+		return 0;
+	}
+	if (!function_exists('dolibarr_del_const')) {
+		require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+	}
+	$byCode = json_decode($old, true);
+	$byId = json_decode(getDolGlobalString('AUVOERECHNUNG_SKONTO_TERMS', ''), true);
+	if (!is_array($byId)) {
+		$byId = [];
+	}
+	$n = 0;
+	foreach ((is_array($byCode) ? $byCode : []) as $code => $terms) {
+		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."c_payment_term WHERE code = '".$db->escape((string) $code)."' AND entity IN (".getEntity('c_payment_term').")";
+		$resql = $db->query($sql);
+		$obj = $resql ? $db->fetch_object($resql) : null;
+		if (!$obj) {
+			dol_syslog('auvoerechnung: Skonto für unbekannte Zahlungsbedingung '.$code.' verworfen', LOG_WARNING);
+			continue;
+		}
+		if (!isset($byId[(string) (int) $obj->rowid])) {
+			$byId[(string) (int) $obj->rowid] = $terms;
+			$n++;
+		}
+	}
+	$entity = (int) ($conf->entity ?? 1);
+	if (dolibarr_set_const($db, 'AUVOERECHNUNG_SKONTO_TERMS', empty($byId) ? '' : json_encode($byId), 'chaine', 0, '', $entity) < 0) {
+		return -1;
+	}
+	dolibarr_del_const($db, 'AUVOERECHNUNG_SKONTO', $entity);
+	return $n;
+}
+
+/**
+ * Prévient les autres modules d'un changement des paliers Skonto, par le hook
+ * « auvoerechnungSkontoChanged » (contexte « auvoerechnungsetup »).
+ * Paramètres du hook : 'terms' (configuration complète, indexée par id de
+ * condition de règlement) et 'previous' (configuration avant modification).
+ *
+ * @param array<string,array<int,array{days:int,percent:float}>> $terms
+ * @param array<string,array<int,array{days:int,percent:float}>> $previous
+ * @return void
+ */
+function auvoerechnung_notify_skonto_changed($terms, $previous)
+{
+	global $hookmanager, $db;
+	if (!is_object($hookmanager)) {
+		include_once DOL_DOCUMENT_ROOT.'/core/class/hookmanager.class.php';
+		$hookmanager = new HookManager($db);
+	}
+	$hookmanager->initHooks(['auvoerechnungsetup']);
+	$parameters = ['terms' => $terms, 'previous' => $previous];
+	$object = null;
+	$tmpaction = '';
+	$hookmanager->executeHooks('auvoerechnungSkontoChanged', $parameters, $object, $tmpaction);
 }
 
 /**
@@ -484,7 +566,7 @@ function auvoerechnung_build_payment_terms_description($invoice, $isCreditNote =
 	if ($isCreditNote) {
 		return '';
 	}
-	$terms = auvoerechnung_get_skonto_terms($invoice->cond_reglement_code ?? '');
+	$terms = auvoerechnung_get_skonto_terms($invoice->cond_reglement_id ?? 0, $invoice->cond_reglement_code ?? '');
 	if (empty($terms)) {
 		return '';
 	}
@@ -1612,7 +1694,8 @@ function auvoerechnung_resolve_vat_due_date_code($mysoc = null)
 
 /**
  * Résout le binaire PHP CLI pour le subprocess d'injection.
- *  1. surcharge manuelle (AUVOERECHNUNG_PHP_CLI_PATH non vide) → utilisée telle quelle ;
+ *  1. surcharge manuelle (AUVOERECHNUNG_PHP_CLI_PATH non vide) → utilisée telle
+ *     quelle ; un dossier est complété par php.exe (Windows) ou php ;
  *  2. cache (AUVOERECHNUNG_PHP_CLI_CACHE) encore valide → réutilisé ;
  *  3. sinon auto-détection puis mise en cache.
  *
@@ -1625,7 +1708,7 @@ function auvoerechnung_resolve_php_cli($db)
 	// fera mieux, et retombe sur 'php' au pire). Une surcharge = un chemin précis.
 	$manual = trim(getDolGlobalString('AUVOERECHNUNG_PHP_CLI_PATH', ''));
 	if ($manual !== '' && $manual !== 'php') {
-		return $manual;
+		return auvoerechnung_php_cli_from_dir($manual);
 	}
 	$cache = trim(getDolGlobalString('AUVOERECHNUNG_PHP_CLI_CACHE', ''));
 	if ($cache !== '' && auvoerechnung_php_cli_is_valid($cache)) {
@@ -1639,6 +1722,22 @@ function auvoerechnung_resolve_php_cli($db)
 		dolibarr_set_const($db, 'AUVOERECHNUNG_PHP_CLI_CACHE', $detected, 'chaine', 0, '', 0);
 	}
 	return $detected !== '' ? $detected : 'php';
+}
+
+/**
+ * Surcharge manuelle du binaire PHP CLI : si l'utilisateur a saisi un dossier
+ * (ex. C:\laragon\bin\php\php-8.3.16), on y ajoute php.exe sous Windows,
+ * php ailleurs. Un chemin de fichier est renvoyé tel quel.
+ *
+ * @param string $path
+ * @return string
+ */
+function auvoerechnung_php_cli_from_dir($path)
+{
+	if (!@is_dir($path)) {
+		return $path;
+	}
+	return rtrim($path, '/\\').DIRECTORY_SEPARATOR.(DIRECTORY_SEPARATOR === '\\' ? 'php.exe' : 'php');
 }
 
 /**
@@ -1664,6 +1763,18 @@ function auvoerechnung_detect_php_cli()
 		// (ex C:\php\php-cgi.exe → C:\php\php.exe).
 		if (DIRECTORY_SEPARATOR === '\\') {
 			$candidates[] = dirname(PHP_BINARY).'\\php.exe';
+		}
+	}
+	// Windows avec mod_php (Laragon, XAMPP, WAMP) : PHP_BINARY pointe sur
+	// httpd.exe. Le dossier de PHP se retrouve via le php.ini chargé ou le
+	// dossier des extensions (…\php-8.x\ext).
+	if (DIRECTORY_SEPARATOR === '\\') {
+		$ini = php_ini_loaded_file();
+		if ($ini) {
+			$candidates[] = dirname($ini).'\\php.exe';
+		}
+		if (defined('PHP_EXTENSION_DIR') && PHP_EXTENSION_DIR !== '') {
+			$candidates[] = dirname(PHP_EXTENSION_DIR).'\\php.exe';
 		}
 	}
 	foreach (array('/usr/bin/', '/usr/local/bin/', '') as $dir) {
@@ -2048,6 +2159,7 @@ function auvoerechnung_sample_invoice($invoice, $buyer, $mysoc)
 	$invoice->total_ttc = $invoice->total_ht + $invoice->total_tva;
 	$invoice->thirdparty = $buyer;
 	$invoice->socid = 0;
+	$invoice->cond_reglement_id = 0;
 	$invoice->cond_reglement_code = '';
 	$invoice->array_options = [];
 }

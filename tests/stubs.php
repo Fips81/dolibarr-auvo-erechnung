@@ -38,6 +38,13 @@ if (!function_exists('dolibarr_set_const')) {
 		return 1;
 	}
 }
+if (!function_exists('dolibarr_del_const')) {
+	function dolibarr_del_const($db, $name, $entity = 1)
+	{
+		unset($GLOBALS['lfx_test_conf'][$name]);
+		return 1;
+	}
+}
 if (!function_exists('dol_now')) {
 	function dol_now()
 	{
@@ -112,6 +119,7 @@ class LfxFakeInvoice
 	public $id = 0;
 	public $ref = 'TEST';
 	public $ref_client = '';
+	public $cond_reglement_id = 0;
 	public $cond_reglement_code = '';
 	public $cond_reglement_doc = '';
 	public $array_options = [];

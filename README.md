@@ -222,7 +222,8 @@ Für öffentliche Auftraggeber in Deutschland (und Firmenkunden, die es verlange
 - **Felder an der Rechnung:** „Leistungszeitraum von/bis“ (BG-14 für die ganze Rechnung, statt der Leistungsdaten der Positionen) und „Keine E-Rechnung“ (die PDF bleibt eine normale PDF, keine XRechnung, kein automatischer Mail-Anhang). Ein Kontakt mit der Rolle „Lieferung“ an der Rechnung wird als Lieferort (BG-13) übernommen.
 - **Anzahlungsrechnungen** erhalten in der XRechnung den Code 326 (BR-DE-17 lässt 386 nicht zu); im ZUGFeRD bleibt 386.
 - **Testrechnung:** Im Tab „Übersicht“ der Einstellungsseite erzeugt „Testrechnung erzeugen und prüfen“ eine ZUGFeRD- und eine XRechnung-Datei mit den eigenen Firmendaten und einem Testkunden, prüft beide und bietet sie zum Download an. Es wird nichts gespeichert.
-- **Skonto:** In den Moduleinstellungen (Tab „Skonto“) lassen sich je Zahlungsbedingung bis zu zwei Skontostufen eintragen, z. B. 7 Tage 2 %. Das Modul schreibt sie in BT-20 im vorgeschriebenen Format `#SKONTO#TAGE=7#PROZENT=2.00#` (BR-DE-18), hinter den Text der Zahlungsbedingung, in der XRechnung und im ZUGFeRD-XML. Steht „Skonto“ in der Bezeichnung einer Zahlungsbedingung, zeigt die Einstellungsseite einen Vorschlag an.
+- **Skonto:** In den Moduleinstellungen (Tab „Skonto“) lassen sich je Zahlungsbedingung bis zu zwei Skontostufen eintragen, z. B. 7 Tage 2 %. Das Modul schreibt sie in BT-20 im vorgeschriebenen Format `#SKONTO#TAGE=7#PROZENT=2.00#` (BR-DE-18), hinter den Text der Zahlungsbedingung, in der XRechnung und im ZUGFeRD-XML. Steht „Skonto“ in der Bezeichnung einer Zahlungsbedingung, zeigt die Einstellungsseite einen Vorschlag an. Das Skonto hängt an der ID der Zahlungsbedingung: Code und Bezeichnung lassen sich im Wörterbuch ändern, ohne dass die Einstellung verloren geht.
+- **Skonto in anderen Modulen:** `auvoerechnung_get_skonto_terms($condReglementId)` aus `core/lib/auvoerechnung.lib.php` liefert die Stufen einer Zahlungsbedingung (`[['days' => 7, 'percent' => 2.0], …]`, nach Tagen sortiert). Nach jeder Änderung auf der Einstellungsseite löst das Modul den Hook `auvoerechnungSkontoChanged` im Kontext `auvoerechnungsetup` aus, mit den Parametern `terms` (neue Einstellung, nach ID der Zahlungsbedingung) und `previous` (alte Einstellung).
 - **Aktualität:** Die KoSIT veröffentlicht zum 01.02. und 01.07. Die Version der Kennung (Standard `3.0`) ist in den Moduleinstellungen einstellbar.
 
 Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrechnung).
@@ -391,9 +392,9 @@ Alle sind über den Administrationsbildschirm des Moduls konfigurierbar (**Start
 | `AUVOERECHNUNG_XR_EMBED_FILES` | int | 0 | XRechnung: hochgeladene Dokumente der Rechnung als Anlagen einbetten (BG-24) |
 | `AUVOERECHNUNG_MAIL_ATTACH_XR` | int | 1 | XRechnung im Formular „Per E-Mail senden“ automatisch anhängen |
 | `AUVOERECHNUNG_OZGRE_EMAIL` | string | *(leer)* | XRechnung: persönliche Einreichungsadresse des OZG-RE-Kontos; aktiviert „XRechnung an OZG-RE senden“ |
-| `AUVOERECHNUNG_SKONTO` | JSON | *(leer)* | Skonto je Zahlungsbedingung (Code aus dem Wörterbuch), z. B. `{"7D":[{"days":7,"percent":2}]}`; wird über die Einstellungsseite gepflegt |
+| `AUVOERECHNUNG_SKONTO_TERMS` | JSON | *(leer)* | Skonto je Zahlungsbedingung (ID aus dem Wörterbuch `c_payment_term`), z. B. `{"3":[{"days":7,"percent":2}]}`; wird über die Einstellungsseite gepflegt (bis 5.2.1: `AUVOERECHNUNG_SKONTO`, nach Code) |
 
-> **Hinweis PHP CLI**: relevant, sobald der **Subprozess** genutzt wird, also im Standardmodus `auto` mit verfügbarem `exec()` und im Modus `subprocess`. Das Modul erkennt das richtige PHP-CLI-Binary automatisch. Auf Servern mit mehreren PHP-Versionen, oder wenn die Auto-Erkennung fehlschlägt, `AUVOERECHNUNG_PHP_CLI_PATH` mit dem vollständigen Pfad konfigurieren (z. B. `/usr/bin/php8.2`). **Nicht** `PHP_BINARY` verwenden: im php-fpm-Kontext zeigt diese Konstante auf das fpm-Binary, nicht auf die CLI.
+> **Hinweis PHP CLI**: relevant, sobald der **Subprozess** genutzt wird, also im Standardmodus `auto` mit verfügbarem `exec()` und im Modus `subprocess`. Das Modul erkennt das richtige PHP-CLI-Binary automatisch. Auf Servern mit mehreren PHP-Versionen, oder wenn die Auto-Erkennung fehlschlägt, `AUVOERECHNUNG_PHP_CLI_PATH` mit dem vollständigen Pfad konfigurieren, mit Dateinamen (z. B. `/usr/bin/php8.2`, unter Windows `C:\laragon\bin\php\php-8.3.16\php.exe`). Wird nur ein Ordner eingetragen, ergänzt das Modul `php` bzw. `php.exe`. Unter Windows mit mod_php (Laragon, XAMPP, WAMP) sucht die Auto-Erkennung `php.exe` im Ordner der geladenen `php.ini` und neben dem Ordner der Erweiterungen. **Nicht** `PHP_BINARY` verwenden: im php-fpm-Kontext zeigt diese Konstante auf das fpm-Binary, nicht auf die CLI.
 
 > **Hinweis SEPA-Lastschrift (59)**: das Modul veröffentlicht die Gläubiger-ID (Dolibarr-Konstante `PRELEVEMENT_ICS`, BT-90), die Mandatsreferenz (Standard-Bankverbindung des Geschäftspartners, BT-89) und die IBAN des Zahlers (BT-91). Fehlende Daten werden per Warnung gemeldet.
 
@@ -564,6 +565,12 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 ## Changelog
 
 > Hinweis: Das Modul hieß früher LemonFacturX, AuvoZugferd und DoliZUGFeRD. In älteren Einträgen sind Klassen-, Konstanten-, Datei- und Repo-Namen an die heutigen Namen (`auvoerechnung`, `AUVOERECHNUNG_*`) angepasst.
+
+### 5.3.0 — (noch nicht veröffentlicht)
+
+- **Skonto nach ID der Zahlungsbedingung:** Die Einstellung hängt jetzt an der ID statt am Code der Zahlungsbedingung (neue Konstante `AUVOERECHNUNG_SKONTO_TERMS`). Wer im Wörterbuch „Zahlungsbedingungen“ den Code ändert, verliert das Skonto nicht mehr. Die bisherige Einstellung wird beim Öffnen der Einstellungsseite oder beim Reaktivieren des Moduls übernommen; bis dahin gilt sie unverändert weiter. Einträge zu gelöschten Zahlungsbedingungen fallen beim nächsten Speichern weg, die von deaktivierten bleiben erhalten.
+- **Schnittstelle für andere Module:** Hook `auvoerechnungSkontoChanged` (Kontext `auvoerechnungsetup`) nach Änderungen am Skonto; `auvoerechnung_get_skonto_terms()` ist als öffentliche Funktion dokumentiert. Danke für Anregung und Prototyp an einen Anwender.
+- **PHP-CLI unter Windows:** Die Auto-Erkennung findet `php.exe` jetzt auch mit mod_php (Laragon, XAMPP, WAMP), über den Ordner der geladenen `php.ini`. Ein manuell eingetragener Ordner wird um `php.exe` bzw. `php` ergänzt; der Hinweistext nennt Beispiele mit Dateinamen.
 
 ### 5.2.1 — Härtung, Endrechnung mit Anzahlungen, Abhängigkeiten (Oktober 2026)
 
