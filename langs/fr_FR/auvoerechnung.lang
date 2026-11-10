@@ -165,7 +165,7 @@ AuvoERechnungAboutLocation = Contact : r.vogel@auvo-design.de
 
 # v3.1 — passerelle mentions BR-FR-05 vers le pied de facture (FACTURE_FREE_TEXT)
 AuvoERechnungCopyNotesDone = %s mention(s) ajoutée(s) au pied de facture Dolibarr (« Mention complémentaire sur les factures »)
-AuvoERechnungDiagFreeTextMissing = Pied de facture Dolibarr vide (« Mention complémentaire sur les factures ») — les mentions BR-FR-05 sont bien dans le XML, mais n'apparaissent pas en clair sur le PDF imprimé. Recommandé, non bloquant : activez « Recopier les mentions en pied » dans l'onglet « France », rubrique « Mentions légales obligatoires (BR-FR-05) ».
+AuvoERechnungDiagFreeTextMissing = Pied de facture Dolibarr vide (« Mention complémentaire sur les factures ») — les mentions BR-FR-05 sont bien dans le XML, mais n'apparaissent pas en clair sur le PDF imprimé. Recommandé, non bloquant : activez « Recopier les mentions en pied de facture » dans l'onglet « France », rubrique « Mentions légales obligatoires (BR-FR-05) ».
 AuvoERechnungDiagFreeTextOk = Pied de facture Dolibarr renseigné (mentions visibles sur le PDF)
 
 # v3.4.0 — profil Chorus Pro (B2G) : 2e PDF + extrafields
