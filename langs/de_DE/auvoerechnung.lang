@@ -165,7 +165,7 @@ AuvoERechnungAboutLocation = Kontakt: r.vogel@auvo-design.de
 
 # v3.1 — BR-FR-05 mentions bridge to the invoice footer (FACTURE_FREE_TEXT)
 AuvoERechnungCopyNotesDone = %s Angabe(n) zur Dolibarr-Rechnungsfußzeile hinzugefügt („Ergänzender Hinweis auf Rechnungen")
-AuvoERechnungDiagFreeTextMissing = Dolibarr-Rechnungsfußzeile leer („Ergänzender Hinweis auf Rechnungen") — die BR-FR-05-Angaben stehen im XML, erscheinen aber nicht im Klartext auf der gedruckten PDF. Empfohlen, nicht blockierend: Aktivieren Sie „Angaben in die Rechnungsfußzeile kopieren" unter Pflichtangaben.
+AuvoERechnungDiagFreeTextMissing = Dolibarr-Rechnungsfußzeile leer („Ergänzender Hinweis auf Rechnungen") — die BR-FR-05-Angaben stehen im XML, erscheinen aber nicht im Klartext auf der gedruckten PDF. Empfohlen, nicht blockierend: Aktivieren Sie „Angaben in die Rechnungsfußzeile kopieren" im Reiter „Frankreich" unter „Französische Pflichtangaben (BR-FR-05)".
 AuvoERechnungDiagFreeTextOk = Dolibarr-Rechnungsfußzeile ausgefüllt (Angaben auf der PDF sichtbar)
 
 # v3.4.0 — Chorus Pro profile (B2G): 2nd PDF + extrafields

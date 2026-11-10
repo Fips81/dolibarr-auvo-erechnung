@@ -165,7 +165,7 @@ AuvoERechnungAboutLocation = Contact: r.vogel@auvo-design.de
 
 # v3.1 — BR-FR-05 mentions bridge to the invoice footer (FACTURE_FREE_TEXT)
 AuvoERechnungCopyNotesDone = %s mention(s) added to the Dolibarr invoice footer ("Complementary mention on invoices")
-AuvoERechnungDiagFreeTextMissing = Dolibarr invoice footer empty ("Complementary mention on invoices") — the BR-FR-05 mentions are in the XML, but do not appear in plain text on the printed PDF. Recommended, not blocking: enable "Copy the mentions into the invoice footer" in Legal notes.
+AuvoERechnungDiagFreeTextMissing = Dolibarr invoice footer empty ("Complementary mention on invoices") — the BR-FR-05 mentions are in the XML, but do not appear in plain text on the printed PDF. Recommended, not blocking: enable "Copy the mentions into the invoice footer" on the "France" tab under "Mandatory French legal mentions (BR-FR-05)".
 AuvoERechnungDiagFreeTextOk = Dolibarr invoice footer filled (mentions visible on the PDF)
 
 # v3.4.0 — Chorus Pro profile (B2G): 2nd PDF + extrafields
