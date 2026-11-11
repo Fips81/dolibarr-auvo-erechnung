@@ -566,11 +566,12 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 
 > Hinweis: Das Modul hieß früher LemonFacturX, AuvoZugferd und DoliZUGFeRD. In älteren Einträgen sind Klassen-, Konstanten-, Datei- und Repo-Namen an die heutigen Namen (`auvoerechnung`, `AUVOERECHNUNG_*`) angepasst.
 
-### 5.3.0 — (noch nicht veröffentlicht)
+### 5.3.0 — Skonto nach Zahlungsbedingung, Schnittstelle für andere Module, PHP-CLI unter Windows (November 2026)
 
 - **Skonto nach ID der Zahlungsbedingung:** Die Einstellung hängt jetzt an der ID statt am Code der Zahlungsbedingung (neue Konstante `AUVOERECHNUNG_SKONTO_TERMS`). Wer im Wörterbuch „Zahlungsbedingungen“ den Code ändert, verliert das Skonto nicht mehr. Die bisherige Einstellung wird beim Öffnen der Einstellungsseite oder beim Reaktivieren des Moduls übernommen; bis dahin gilt sie unverändert weiter. Einträge zu gelöschten Zahlungsbedingungen entfernt das Modul beim Öffnen der Einstellungsseite (Dolibarr erlaubt auch das Löschen benutzter Zahlungsbedingungen, und eine frei gewordene ID kann neu vergeben werden); die von deaktivierten bleiben erhalten.
 - **Schnittstelle für andere Module:** Hook `auvoerechnungSkontoChanged` (Kontext `auvoerechnungsetup`) nach Änderungen am Skonto; `auvoerechnung_get_skonto_terms()` ist als öffentliche Funktion dokumentiert. Danke für Anregung und Prototyp an einen Anwender.
 - **PHP-CLI unter Windows:** Die Auto-Erkennung findet `php.exe` jetzt auch mit mod_php (Laragon, XAMPP, WAMP), über den Ordner der geladenen `php.ini`. Ein manuell eingetragener Ordner wird um `php.exe` bzw. `php` ergänzt; der Hinweistext nennt Beispiele mit Dateinamen.
+- **Diagnose:** Der Hinweis zur leeren Rechnungsfußzeile nennt jetzt Reiter und Abschnitt der Einstellung („Frankreich“ → „Französische Pflichtangaben (BR-FR-05)“).
 
 ### 5.2.1 — Härtung, Endrechnung mit Anzahlungen, Abhängigkeiten (Oktober 2026)
 
