@@ -257,8 +257,8 @@ Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrech
 | BG-13 Delivery information | Kontakt der Rechnung mit der Rolle „Lieferung“ (Customer shipping): Name (BT-70) und Adresse (BG-15) |
 | BT-89/90/91 Direct debit | Mandatsreferenz (Standard-Bankverbindung des Geschäftspartners), Gläubiger-ID (`PRELEVEMENT_ICS`), IBAN des Zahlers — Zahlungsart 59 |
 | BG-24 Supporting documents | nur XRechnung, auf Wunsch: PDF der Rechnung und hochgeladene Dokumente der Rechnung (base64, TypeCode 916) |
-| BG-21 Document allowances | Dolibarr-Positionen mit negativem Betrag (feste Rabatte) |
-| BT-113 TotalPrepaidAmount | `$invoice->getSumDepositsUsed()` bei verrechneter Anzahlung |
+| BG-21 Document allowances | Dolibarr-Positionen mit negativem Betrag (feste Rabatte), außer eingefügten Anzahlungen |
+| BT-113 TotalPrepaidAmount | verrechnete Anzahlungen, brutto: als Rechnungszeile eingefügt (Standard in Dolibarr) oder als Zahlung (`getSumDepositsUsed()`) |
 | BT-120 Exemption reason | Text je nach Land des Verkäufers (Deutschland: § 19 UStG, § 4 Nr. 1a/1b UStG, Reverse Charge …; Frankreich: CGI) |
 | BT-121 VATEX | VATEX-FR-FRANCHISE / VATEX-EU-IC / VATEX-EU-AE / VATEX-EU-G |
 | BT-129 unitCode | Von `$line->fk_unit` auf UN/ECE Rec 20 abgebildet |
@@ -284,7 +284,7 @@ Bei XRechnung ist 386 (Anzahlung) zulässig, der KoSIT-Validator gibt dafür abe
 
 **Konvention für Gutschriften**: Dolibarr speichert negative Summen; EN16931 verlangt positive Beträge auf einer 381. Seit 3.0.0 werden alle Beträge einer Gutschrift invertiert (`DuePayableAmount` = positive Summe, ohne Nullkappung — BR-CO-16) und die Ursprungsrechnung wird in BG-3 referenziert (in FR verpflichtende Angabe). Eine Gutschrift ohne verknüpfte Ursprungsrechnung erzeugt eine Warnung.
 
-Eine Schlussrechnung, die eine Anzahlung verrechnet, schreibt `TotalPrepaidAmount` (BT-113), passt `DuePayableAmount` an und referenziert die Anzahlungsrechnung in BG-3.
+Eine Schlussrechnung, die eine Anzahlung verrechnet, schreibt `TotalPrepaidAmount` (BT-113), passt `DuePayableAmount` an und referenziert die Anzahlungsrechnung in BG-3. Das gilt für beide Wege in Dolibarr: die Anzahlung als negative Rechnungszeile (Standard) und als Zahlung (`FACTURE_DEPOSITS_ARE_JUST_PAYMENTS`). Im Standardweg zeigen Steuerbasis und Steuer im XML das volle Entgelt, die PDF dagegen den Restbetrag nach Abzug der Anzahlungszeile; der zu zahlende Betrag (BT-115) ist in beiden gleich.
 
 ### Umsatzsteuerkategorien (BT-151)
 
@@ -565,6 +565,12 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 ## Changelog
 
 > Hinweis: Das Modul hieß früher LemonFacturX, AuvoZugferd und DoliZUGFeRD. In älteren Einträgen sind Klassen-, Konstanten-, Datei- und Repo-Namen an die heutigen Namen (`auvoerechnung`, `AUVOERECHNUNG_*`) angepasst.
+
+### 5.3.1 — Endrechnung mit Anzahlungen (November 2026)
+
+- **Korrektur: Absturz bei Anzahlung als Zahlung** (Issue #1): War eine Anzahlung als Zahlung verrechnet (`FACTURE_DEPOSITS_ARE_JUST_PAYMENTS`), brach die Erzeugung von XRechnung und ZUGFeRD mit einem PHP-Fehler ab (`ArgumentCountError` in `translate.class.php`). Ursache: Die Aufstellung der Teilentgelte (BT-22, seit 5.2.1) übergab sechs Werte an `$langs->trans()`, Dolibarr nimmt nur vier an. Der Text wird jetzt im Modul gefüllt. Danke an den Melder für die genaue Analyse.
+- **Anzahlung als Rechnungszeile (Standardweg in Dolibarr):** Eine eingefügte Anzahlung (negative Zeile aus einer Anzahlungsrechnung) erscheint nicht mehr als Nachlass (BG-20), sondern wie beim Weg als Zahlung brutto in BT-113, mit Verweis auf die Anzahlungsrechnung (BG-3) und, bei Verkäufern in Deutschland, der Aufstellung der Teilentgelte in BT-22 (BMF-Schreiben vom 15.10.2026, Rn. 3). Steuerbasis und Steuer im XML zeigen damit das volle Entgelt; der zu zahlende Betrag bleibt gleich. Negative Zeilen aus Gutschriften bleiben Nachlässe. Hinweis aus Issue #1.
+- Tests: Nachbildung von Dolibarrs `trans()` mit höchstens vier Werten, damit solche Fehler auffallen.
 
 ### 5.3.0 — Skonto nach Zahlungsbedingung, Schnittstelle für andere Module, PHP-CLI unter Windows (November 2026)
 

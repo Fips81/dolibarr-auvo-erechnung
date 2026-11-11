@@ -65,6 +65,15 @@ manchen Plattformen empfohlene Schema „negative Positionen je Steuersatz“ is
 aus den Dolibarr-Daten nicht allgemein ableitbar). Das entspricht dem
 Verhalten der meisten aktuellen ZUGFeRD/Factur-X-Implementierungen.
 
+Das gilt für beide Wege, auf denen Dolibarr eine Anzahlung verrechnet: als
+negative Rechnungszeile (Standard) und als Zahlung
+(`FACTURE_DEPOSITS_ARE_JUST_PAYMENTS`). Eine negative Zeile gilt als
+Anzahlung, wenn sie auf einen Rabatt aus einer Anzahlungsrechnung verweist
+(`fk_remise_except`); sie erscheint dann nicht als Nachlass (BG-20), sondern
+brutto in BT-113. Negative Zeilen aus Gutschriften oder Überzahlungen bleiben
+Nachlässe. Im Standardweg weichen Steuerbasis und Steuer im XML deshalb von der
+PDF ab (volles Entgelt statt Restbetrag); der zu zahlende Betrag ist gleich.
+
 Bei Verkäufern in Deutschland steht zusätzlich eine Aufstellung der Teilentgelte
 (Anzahlungsrechnung, Datum, Entgelt, Steuersatz, Steuer, brutto) im Freitext
 BT-22. Das entspricht Rn. 3 des BMF-Schreibens vom 15.10.2026 und wird bis zum

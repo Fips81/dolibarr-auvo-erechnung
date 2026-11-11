@@ -2047,6 +2047,117 @@ $fin->sumDepositsUsed = 0.0;
 lfx_assert(strpos(lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($fin, $seller, $w)), '/rsm:CrossIndustryInvoice/rsm:ExchangedDocument/ram:IncludedNote/ram:Content'), 'Teilentgelte') === false, 'ohne Anzahlung keine Teilentgelt-Note');
 echo "U51 OK\n";
 
+// Issue #1: $langs->trans() von Dolibarr nimmt nur vier Werte an; die
+// Teilentgelt-Zeile hat sechs -> ArgumentCountError (fatal). Nachgebildet mit
+// einem $langs, das sich bei den Parametern wie Translate verhält.
+$currentTest = 'U52 Teilentgelt-Zeile mit Dolibarr-$langs (Issue #1)';
+class LfxDolibarrLikeLangs
+{
+	public $tab_translate = [];
+	public function __construct($file)
+	{
+		foreach (file($file) as $row) {
+			if (preg_match('/^([A-Za-z0-9_]+)\s*=\s*(.*)$/', rtrim($row, "\r\n"), $mm)) {
+				$this->tab_translate[$mm[1]] = $mm[2];
+			}
+		}
+	}
+	public function load($d) { return 1; }
+	public function loadLangs($a) { return 1; }
+	public function setDefaultLang($l) {}
+	// Signatur und sprintf()-Aufruf wie Translate::trans() (Dolibarr 19-24)
+	public function trans($key, $param1 = '', $param2 = '', $param3 = '', $param4 = '', $maxsize = 0)
+	{
+		if (!isset($this->tab_translate[$key])) {
+			return $key;
+		}
+		try {
+			return sprintf($this->tab_translate[$key], $param1, $param2, $param3, $param4);
+		} catch (Exception $e) {
+			return $this->tab_translate[$key];
+		}
+	}
+	public function transnoentitiesnoconv($key, $param1 = '', $param2 = '', $param3 = '', $param4 = '', $param5 = '')
+	{
+		if (!isset($this->tab_translate[$key])) {
+			return $key;
+		}
+		try {
+			return sprintf($this->tab_translate[$key], $param1, $param2, $param3, $param4, $param5);
+		} catch (Exception $e) {
+			return $this->tab_translate[$key];
+		}
+	}
+}
+$GLOBALS['langs'] = new LfxDolibarrLikeLangs(__DIR__.'/../langs/de_DE/auvoerechnung.lang');
+$threw = false;
+try {
+	$GLOBALS['langs']->trans('AuvoERechnungDepositNoteLine', 'A', 'B', 'C', 'D', 'E', 'F');
+} catch (\ArgumentCountError $e) {
+	$threw = true;
+}
+lfx_assert($threw, 'Nachbildung: trans() mit sechs Werten ist fatal wie in Dolibarr');
+$fin->sumDepositsUsed = 595.00;
+$GLOBALS['lfx_test_db_handlers'] = ['societe_remise_except re' => [(object) ['fid' => 70, 'ref' => 'AB2026-0001', 'datef' => '2026-03-02', 'amount_ht' => 500.0, 'amount_tva' => 95.0, 'amount_ttc' => 595.0, 'tva_tx' => 19.0]]];
+$noteFin = '';
+try {
+	$noteFin = auvoerechnung_build_deposit_note($fin);
+} catch (\Throwable $e) {
+	lfx_assert(false, 'build_deposit_note ohne Fehler: '.get_class($e).' '.$e->getMessage());
+}
+lfx_assert(strpos($noteFin, 'Anzahlungsrechnung AB2026-0001 vom 02.03.2026: Entgelt 500,00 EUR, Steuersatz 19 %, Steuer 95,00 EUR, brutto 595,00 EUR') !== false, 'Teilentgelt-Zeile vollständig übersetzt: '.$noteFin);
+lfx_assert_eq('X (1, 2)', auvoerechnung_trans_format('X', [1, 2]), 'unbekannter Schlüssel: Schlüssel und Werte');
+lfx_assert_eq('AuvoERechnungDepositNoteLine (a)', auvoerechnung_trans_format('AuvoERechnungDepositNoteLine', ['a']), 'zu wenige Werte: kein Fehler, Ersatztext');
+unset($GLOBALS['langs']);
+$GLOBALS['lfx_test_db_handlers'] = [];
+$fin->sumDepositsUsed = 0.0;
+echo "U52 OK\n";
+
+// Anzahlung im Standardweg von Dolibarr: negative Zeile mit fk_remise_except
+// aus einer Anzahlungsrechnung -> BT-113 + BG-3 + BT-22 statt Nachlass BG-20.
+$currentTest = 'U53 Anzahlung als Rechnungszeile: BT-113 statt Nachlass';
+$fin2 = clone $fin;
+$fin2->id = 78;
+$fin2->sumDepositsUsed = 0.0;
+$fin2->lines = [
+	lfx_make_line(1000.00, 19.0, 190.00, 1.0, 'Planung', 1),
+	lfx_make_line(-500.00, 19.0, -95.00, 1.0, 'Anzahlung (AB2026-0001)', 1, ['fk_remise_except' => 41]),
+];
+$fin2->total_ht = 500.00;
+$fin2->total_tva = 95.00;
+$fin2->total_ttc = 595.00;
+$GLOBALS['lfx_test_db_handlers'] = [
+	'societe_remise_except rx' => [(object) ['rowid' => 41, 'fid' => 70, 'ref' => 'AB2026-0001', 'datef' => '2026-03-02', 'amount_ht' => 500.0, 'amount_tva' => 95.0, 'amount_ttc' => 595.0, 'tva_tx' => 19.0]],
+	'FROM '.MAIN_DB_PREFIX.'facture WHERE rowid = 70' => [(object) ['ref' => 'AB2026-0001', 'datef' => '2026-03-02']],
+];
+lfx_assert_eq(595.0, auvoerechnung_get_prepaid_amount($fin2), 'Anzahlungszeile zählt brutto als vorausbezahlt');
+$w = [];
+$xmlFin2 = auvoerechnung_build_xml($fin2, $seller, $w);
+lfx_std_validate($xmlFin2, $xsdPath);
+$xp = lfx_xpath($xmlFin2);
+lfx_assert_eq('1000.00', lfx_xp_str($xp, '//ram:TaxBasisTotalAmount'), 'BT-109: volles Entgelt');
+lfx_assert_eq('190.00', lfx_xp_str($xp, '//ram:TaxTotalAmount'), 'BT-110: Steuer auf das volle Entgelt');
+lfx_assert_eq('1190.00', lfx_xp_str($xp, '//ram:GrandTotalAmount'), 'BT-112');
+lfx_assert_eq('595.00', lfx_xp_str($xp, '//ram:TotalPrepaidAmount'), 'BT-113: Anzahlung brutto');
+lfx_assert_eq('595.00', lfx_xp_str($xp, '//ram:DuePayableAmount'), 'BT-115 = Restbetrag wie in Dolibarr');
+lfx_assert_eq(0, (int) $xp->evaluate('count(//ram:ApplicableHeaderTradeSettlement/ram:SpecifiedTradeAllowanceCharge)'), 'kein Nachlass BG-20 für die Anzahlung');
+lfx_assert_eq('AB2026-0001', lfx_xp_str($xp, '//ram:InvoiceReferencedDocument/ram:IssuerAssignedID'), 'BG-3: Anzahlungsrechnung referenziert');
+lfx_assert(strpos(lfx_xp_str($xp, '/rsm:CrossIndustryInvoice/rsm:ExchangedDocument/ram:IncludedNote/ram:Content'), 'AB2026-0001') !== false, 'BT-22: Teilentgelte aufgeführt');
+lfx_assert(!lfx_contains($w, auvoerechnung_trans('AuvoERechnungWarnTotalsMismatch', '1.190,00', '595,00')) && !array_filter($w, function ($x) { return strpos($x, 'WarnTotalsMismatch') !== false || strpos($x, 'WarnRoundingAdjusted') !== false || strpos($x, 'WarnTaxMismatch') !== false; }), 'keine Abweichungswarnung: '.implode(' | ', $w));
+$ublFin2 = auvoerechnung_build_xrechnung($fin2, $seller, $w, [], 'ubl')['xml'];
+lfx_assert(strpos($ublFin2, '<cbc:PrepaidAmount currencyID="EUR">595.00</cbc:PrepaidAmount>') !== false && strpos($ublFin2, '<cbc:PayableAmount currencyID="EUR">595.00</cbc:PayableAmount>') !== false, 'UBL: PrepaidAmount und PayableAmount');
+// Negative Zeile aus einer Gutschrift (keine Anzahlung) bleibt Nachlass
+$fin2->lines[1]->fk_remise_except = 42;
+$bw = [];
+$prep = auvoerechnung_prepare_lines(auvoerechnung_filter_billable_lines($fin2->lines), 1, $fin2, $fin2->thirdparty, $seller, $bw);
+lfx_assert(count($prep['allowances']) === 1 && empty($prep['deposits']), 'Gutschrift-Zeile bleibt Nachlass BG-20');
+// Gutschrift-Rechnung (Typ 2) wird nie umgedeutet
+$fin2->lines[1]->fk_remise_except = 41;
+$fin2->type = 2;
+lfx_assert_eq([], auvoerechnung_get_deposit_lines($fin2), 'nur Standardrechnungen');
+$GLOBALS['lfx_test_db_handlers'] = [];
+echo "U53 OK\n";
+
 // ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";

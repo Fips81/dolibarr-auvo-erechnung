@@ -359,7 +359,11 @@ function auvoerechnung_compute_totals($invoice, $sign, $prepared, $breakdown, &$
 
 	// Cohérence avec les totaux Dolibarr (PDF visible) : un écart signale des
 	// données hors périmètre (taxes locales, incohérence de lignes).
+	// Acomptes imputés en ligne : déjà déduits du TTC Dolibarr, ajoutés ici.
 	$invoiceTtc = round($sign * (float) $invoice->total_ttc, 2);
+	foreach ($prepared['deposits'] ?? [] as $dep) {
+		$invoiceTtc = round($invoiceTtc + $dep['amount'] + $dep['tax'], 2);
+	}
 	if (abs($grandTotal - $invoiceTtc) > 0.005) {
 		$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnTotalsMismatch', auvoerechnung_format_amount($grandTotal), auvoerechnung_format_amount($invoiceTtc));
 	}

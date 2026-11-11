@@ -78,6 +78,41 @@ function auvoerechnung_trans_raw($key, ...$args)
 }
 
 /**
+ * Traduction sans entités HTML pour un texte à PLUS de quatre paramètres.
+ *
+ * Translate::trans() n'accepte que quatre valeurs (la cinquième tombe dans
+ * $maxsize) et transnoentitiesnoconv() cinq ; au-delà, sprintf() lève un
+ * ArgumentCountError (PHP 8) que Dolibarr n'intercepte pas — fatal pour la
+ * génération (issue #1). On lit donc le gabarit brut et on le remplit ici.
+ * Gabarit absent ou nombre de %s incohérent : repli sur la clé + valeurs.
+ *
+ * @param string $key  Clé de traduction
+ * @param array  $args Valeurs des %s, dans l'ordre
+ * @return string
+ */
+function auvoerechnung_trans_format($key, array $args)
+{
+	global $langs;
+	$args = array_map('strval', array_values($args));
+	$fallback = $args ? $key.' ('.implode(', ', $args).')' : $key;
+	if (!is_object($langs) || !method_exists($langs, 'load')) {
+		return $fallback;
+	}
+	$langs->load('auvoerechnung@auvoerechnung');
+	$tpl = $langs->tab_translate[$key] ?? '';
+	if (!is_string($tpl) || $tpl === '') {
+		return $fallback;
+	}
+	try {
+		return vsprintf($tpl, $args);
+	} catch (\ValueError $e) {
+		return $fallback;
+	} catch (\ArgumentCountError $e) {
+		return $fallback;
+	}
+}
+
+/**
  * Le vendeur est-il établi en France au sens du socle réforme ?
  *
  * Sert de garde unique à tout ce qui relève du droit français : mentions
@@ -244,7 +279,10 @@ function auvoerechnung_filter_billable_lines($lines)
  * cas hors convention), les lignes sont conservées telles quelles : le XML
  * violera BR-27 mais le contrôle interne des règles métier le signalera.
  *
- * @return array ['lines' => array, 'allowances' => array]
+ * Les acomptes imputés en ligne (cf. auvoerechnung_get_deposit_lines) sont
+ * mis à part dans 'deposits' : ils vont en BT-113, pas en remise BG-20.
+ *
+ * @return array ['lines' => array, 'allowances' => array, 'deposits' => array]
  */
 function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdparty, $mysoc, &$buildWarnings)
 {
@@ -290,8 +328,18 @@ function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdpart
 
 	$lines = [];
 	$allowances = [];
+	$deposits = [];
+	$depositLines = auvoerechnung_get_deposit_lines($invoice);
 	foreach ($billableLines as $line) {
 		$pl = $buildLine($line);
+		if ($depositLines && auvoerechnung_is_deposit_line($line, $depositLines)) {
+			// Acompte imputé : ni ligne ni remise, porté en BT-113
+			$deposits[] = [
+				'amount' => abs($pl['lineTotal']),
+				'tax'    => abs($pl['lineTax']),
+			];
+			continue;
+		}
 		if ($pl['lineTotal'] < 0) {
 			$allowances[] = [
 				'amount'       => abs($pl['lineTotal']),
@@ -306,15 +354,16 @@ function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdpart
 		$lines[] = $pl;
 	}
 
-	if (empty($lines) && !empty($allowances)) {
+	if (empty($lines) && (!empty($allowances) || !empty($deposits))) {
 		// Facture intégralement négative hors avoir : pas de conversion BG-21
 		// possible (il faut au moins une ligne). On ré-émet les lignes brutes.
 		$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnAllNegativeLines');
 		$lines = array_map($buildLine, $billableLines);
 		$allowances = [];
+		$deposits = [];
 	}
 
-	return ['lines' => $lines, 'allowances' => $allowances];
+	return ['lines' => $lines, 'allowances' => $allowances, 'deposits' => $deposits];
 }
 
 /**
@@ -800,6 +849,11 @@ function auvoerechnung_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$bui
 		$sumTax += $breakdown[$key]['tax'];
 	}
 	$invoiceTax = round($sign * (float) $invoice->total_tva, 2);
+	// Acomptes imputés en ligne : Dolibarr a déduit leur TVA du total facture,
+	// la ventilation (sans ces lignes) porte la TVA de l'entgelt complet.
+	foreach ($prepared['deposits'] ?? [] as $dep) {
+		$invoiceTax = round($invoiceTax + $dep['tax'], 2);
+	}
 	$delta = round($invoiceTax - $sumTax, 2);
 	if (abs($delta) >= 0.01) {
 		// Imputer l'écart d'arrondi sur le groupe taxé à la plus grande base
@@ -1242,10 +1296,93 @@ function auvoerechnung_resolve_document_type($invoice, &$buildWarnings = [])
  */
 function auvoerechnung_get_prepaid_amount($invoice)
 {
-	if (!method_exists($invoice, 'getSumDepositsUsed')) {
+	$prepaid = method_exists($invoice, 'getSumDepositsUsed') ? max(0.0, (float) $invoice->getSumDepositsUsed()) : 0.0;
+	return round($prepaid + auvoerechnung_get_deposit_lines_gross($invoice), 2);
+}
+
+/**
+ * Acomptes imputés comme LIGNE de la facture finale (chemin standard de
+ * Dolibarr : « Insérer la remise », ligne négative avec fk_remise_except).
+ *
+ * Par défaut Dolibarr ne traite pas une facture d'acompte comme un paiement
+ * (FACTURE_DEPOSITS_ARE_JUST_PAYMENTS, déconseillée) mais comme une ligne
+ * négative ; getSumDepositsUsed() vaut alors 0. Ces lignes ne sont pas une
+ * remise (BG-20) : elles sont sorties des lignes et des remises et portées,
+ * TTC, en BT-113, avec la facture d'acompte en BG-3 et les Teilentgelte en
+ * BT-22 (BMF 15.10.2026 Rn. 3), comme sur le chemin « paiement ».
+ *
+ * Seules les factures standard sont concernées, et seules les remises dont
+ * la source est une facture d'acompte (type 3) — un avoir ou un trop-perçu
+ * imputé en ligne reste une remise.
+ *
+ * @param object $invoice Facture Dolibarr
+ * @return array<int,object> Indexé par rowid de la remise : fid, ref, datef,
+ *                           amount_ht, amount_tva, amount_ttc, tva_tx
+ */
+function auvoerechnung_get_deposit_lines($invoice)
+{
+	$db = $invoice->db ?? null;
+	if (!is_object($db) || (int) ($invoice->type ?? 0) !== 0 || empty($invoice->lines)) {
+		return [];
+	}
+	$ids = [];
+	foreach ($invoice->lines as $line) {
+		if (!empty($line->fk_remise_except) && (float) $line->total_ht < 0) {
+			$ids[(int) $line->fk_remise_except] = true;
+		}
+	}
+	if (!$ids) {
+		return [];
+	}
+	$sql = "SELECT rx.rowid, f.rowid AS fid, f.ref, f.datef, rx.amount_ht, rx.amount_tva, rx.amount_ttc, rx.tva_tx"
+		." FROM ".MAIN_DB_PREFIX."societe_remise_except rx"
+		." INNER JOIN ".MAIN_DB_PREFIX."facture f ON f.rowid = rx.fk_facture_source"
+		." WHERE rx.rowid IN (".implode(',', array_keys($ids)).") AND f.type = 3"
+		." ORDER BY f.datef, f.rowid";
+	$res = $db->query($sql);
+	if (!$res) {
+		return [];
+	}
+	$out = [];
+	while ($obj = $db->fetch_object($res)) {
+		$out[(int) $obj->rowid] = $obj;
+	}
+	return $out;
+}
+
+/**
+ * Est-ce une ligne d'acompte imputé (cf. auvoerechnung_get_deposit_lines) ?
+ *
+ * @param object $line         Ligne de facture
+ * @param array  $depositLines Résultat de auvoerechnung_get_deposit_lines()
+ * @return bool
+ */
+function auvoerechnung_is_deposit_line($line, array $depositLines)
+{
+	return !empty($line->fk_remise_except) && (float) $line->total_ht < 0
+		&& isset($depositLines[(int) $line->fk_remise_except]);
+}
+
+/**
+ * Montant TTC des acomptes imputés en ligne, tel que Dolibarr l'a déduit des
+ * totaux de la facture (somme des lignes, en valeur absolue).
+ *
+ * @param object $invoice Facture Dolibarr
+ * @return float
+ */
+function auvoerechnung_get_deposit_lines_gross($invoice)
+{
+	$depositLines = auvoerechnung_get_deposit_lines($invoice);
+	if (!$depositLines) {
 		return 0.0;
 	}
-	return max(0.0, (float) $invoice->getSumDepositsUsed());
+	$gross = 0.0;
+	foreach ($invoice->lines as $line) {
+		if (auvoerechnung_is_deposit_line($line, $depositLines)) {
+			$gross += abs((float) $line->total_ht + (float) $line->total_tva);
+		}
+	}
+	return round($gross, 2);
 }
 
 /**
@@ -1293,6 +1430,13 @@ function auvoerechnung_get_preceding_invoices($invoice, $typeCode = '')
 		}
 	}
 
+	if (!$isCorrective) {
+		// Acomptes imputés en ligne (chemin standard de Dolibarr)
+		foreach (auvoerechnung_get_deposit_lines($invoice) as $dep) {
+			$sourceIds[] = (int) $dep->fid;
+		}
+	}
+
 	foreach (array_unique(array_filter($sourceIds)) as $fkSource) {
 		if (isset($seen[$fkSource])) {
 			continue;
@@ -1333,27 +1477,38 @@ function auvoerechnung_build_deposit_note($invoice)
 	if (!is_object($db) || empty($invoice->id) || auvoerechnung_get_prepaid_amount($invoice) <= 0) {
 		return '';
 	}
-	$sql = "SELECT f.ref, f.datef, re.amount_ht, re.amount_tva, re.amount_ttc, re.tva_tx"
+	// Chemin « paiement » (FACTURE_DEPOSITS_ARE_JUST_PAYMENTS) : fk_facture
+	$deposits = [];
+	$sql = "SELECT f.rowid AS fid, f.ref, f.datef, re.amount_ht, re.amount_tva, re.amount_ttc, re.tva_tx"
 		." FROM ".MAIN_DB_PREFIX."societe_remise_except re"
 		." INNER JOIN ".MAIN_DB_PREFIX."facture f ON f.rowid = re.fk_facture_source"
 		." WHERE re.fk_facture = ".((int) $invoice->id)." AND f.type = 3"
 		." ORDER BY f.datef, f.rowid";
 	$res = $db->query($sql);
-	if (!$res) {
-		return '';
+	if ($res) {
+		while ($obj = $db->fetch_object($res)) {
+			$deposits[] = $obj;
+		}
 	}
+	// Chemin standard : ligne négative (fk_facture_line)
+	foreach (auvoerechnung_get_deposit_lines($invoice) as $obj) {
+		$deposits[] = $obj;
+	}
+	usort($deposits, function ($a, $b) {
+		return [(string) ($a->datef ?? ''), (int) ($a->fid ?? 0)] <=> [(string) ($b->datef ?? ''), (int) ($b->fid ?? 0)];
+	});
 	$lines = [];
-	while ($obj = $db->fetch_object($res)) {
+	foreach ($deposits as $obj) {
 		$date = !empty($obj->datef) ? substr($obj->datef, 8, 2).'.'.substr($obj->datef, 5, 2).'.'.substr($obj->datef, 0, 4) : '';
-		$lines[] = auvoerechnung_trans(
-			'AuvoERechnungDepositNoteLine',
+		// Six valeurs : au-delà de quatre, $langs->trans() est fatal (issue #1)
+		$lines[] = auvoerechnung_trans_format('AuvoERechnungDepositNoteLine', [
 			$obj->ref,
 			$date,
 			number_format((float) $obj->amount_ht, 2, ',', '.'),
 			rtrim(rtrim(number_format((float) $obj->tva_tx, 2, ',', '.'), '0'), ','),
 			number_format((float) $obj->amount_tva, 2, ',', '.'),
-			number_format((float) $obj->amount_ttc, 2, ',', '.')
-		);
+			number_format((float) $obj->amount_ttc, 2, ',', '.'),
+		]);
 	}
 	if (!$lines) {
 		return '';
