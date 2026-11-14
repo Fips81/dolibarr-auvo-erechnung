@@ -208,11 +208,37 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 	}
 
 	// BG-25 : lignes
+	$docStart = $periodStart !== null ? date('Ymd', $periodStart) : '';
+	$docEnd = $periodEnd !== null ? date('Ymd', $periodEnd) : '';
+	$periodSkipped = ['order' => [], 'outside' => []];
 	$lines = [];
 	$lineNum = 0;
 	foreach ($prepared['lines'] as $pl) {
 		$lineNum++;
+		// BG-26 (BT-134/BT-135) : période propre à la ligne. Omise, avec un
+		// avertissement, si la fin précède le début (BR-30) ou si elle sort
+		// de la période de la facture (PEPPOL-EN16931-R110/R111, appliquées
+		// à XRechnung) — cas d'une période saisie à la main sur la facture.
+		$lineStart = !empty($pl['dateStart']) ? date('Ymd', $pl['dateStart']) : '';
+		$lineEnd = !empty($pl['dateEnd']) ? date('Ymd', $pl['dateEnd']) : '';
+		if ($lineStart !== '' && $lineEnd !== '' && $lineEnd < $lineStart) {
+			$periodSkipped['order'][] = $lineNum;
+			$lineStart = $lineEnd = '';
+		} elseif ($lineStart !== '' || $lineEnd !== '') {
+			$outside = false;
+			foreach ([$lineStart, $lineEnd] as $d) {
+				if ($d !== '' && (($docStart !== '' && $d < $docStart) || ($docEnd !== '' && $d > $docEnd))) {
+					$outside = true;
+				}
+			}
+			if ($outside) {
+				$periodSkipped['outside'][] = $lineNum;
+				$lineStart = $lineEnd = '';
+			}
+		}
 		$lines[] = [
+			'period_start' => $lineStart,                     // BT-134
+			'period_end'   => $lineEnd,                       // BT-135
 			'id'           => (string) $lineNum,
 			'name'         => $pl['name'],                    // BT-153
 			'description'  => $pl['itemDesc'],                // BT-154
@@ -226,6 +252,13 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 			'vat_rate'     => ($pl['taxCat']['code'] !== 'O') ? $pl['vatRate'] : null,
 			'net_amount'   => $pl['lineTotal'],
 		];
+	}
+
+	if ($periodSkipped['order']) {
+		$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnLinePeriodOrder', implode(', ', $periodSkipped['order']));
+	}
+	if ($periodSkipped['outside']) {
+		$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnLinePeriodOutside', implode(', ', $periodSkipped['outside']));
 	}
 
 	// BG-20 : remises document (issues des lignes à montant négatif)
@@ -625,6 +658,21 @@ function auvoerechnung_model_to_cii($m)
 			$xml .= '        <ram:RateApplicablePercent>'.$amt($l['vat_rate']).'</ram:RateApplicablePercent>'."\n";
 		}
 		$xml .= '      </ram:ApplicableTradeTax>'."\n";
+		if (($l['period_start'] ?? '') !== '' || ($l['period_end'] ?? '') !== '') {
+			// BG-26 : entre ApplicableTradeTax et la somme de ligne (ordre XSD)
+			$xml .= '      <ram:BillingSpecifiedPeriod>'."\n";
+			if ($l['period_start'] !== '') {
+				$xml .= '        <ram:StartDateTime>'."\n";
+				$xml .= '          <udt:DateTimeString format="102">'.$l['period_start'].'</udt:DateTimeString>'."\n";
+				$xml .= '        </ram:StartDateTime>'."\n";
+			}
+			if ($l['period_end'] !== '') {
+				$xml .= '        <ram:EndDateTime>'."\n";
+				$xml .= '          <udt:DateTimeString format="102">'.$l['period_end'].'</udt:DateTimeString>'."\n";
+				$xml .= '        </ram:EndDateTime>'."\n";
+			}
+			$xml .= '      </ram:BillingSpecifiedPeriod>'."\n";
+		}
 		$xml .= '      <ram:SpecifiedTradeSettlementLineMonetarySummation>'."\n";
 		$xml .= '        <ram:LineTotalAmount>'.$amt($l['net_amount']).'</ram:LineTotalAmount>'."\n";
 		$xml .= '      </ram:SpecifiedTradeSettlementLineMonetarySummation>'."\n";
@@ -1126,6 +1174,16 @@ function auvoerechnung_model_to_ubl($m)
 		$xml .= '    <cbc:ID>'.$e($l['id']).'</cbc:ID>'."\n";                                          // BT-126
 		$xml .= '    <cbc:'.$qtyTag.' unitCode="'.$e($l['unit_code']).'">'.auvoerechnung_format_qty($l['quantity']).'</cbc:'.$qtyTag.'>'."\n"; // BT-129/130
 		$xml .= '    <cbc:LineExtensionAmount'.$money($l['net_amount']).'</cbc:LineExtensionAmount>'."\n"; // BT-131
+		if (($l['period_start'] ?? '') !== '' || ($l['period_end'] ?? '') !== '') {
+			$xml .= '    <cac:InvoicePeriod>'."\n";                                                         // BG-26
+			if ($l['period_start'] !== '') {
+				$xml .= '      <cbc:StartDate>'.$date($l['period_start']).'</cbc:StartDate>'."\n";       // BT-134
+			}
+			if ($l['period_end'] !== '') {
+				$xml .= '      <cbc:EndDate>'.$date($l['period_end']).'</cbc:EndDate>'."\n";             // BT-135
+			}
+			$xml .= '    </cac:InvoicePeriod>'."\n";
+		}
 		$xml .= '    <cac:Item>'."\n";
 		if (($l['description'] ?? '') !== '') {
 			$xml .= '      <cbc:Description>'.$e($l['description']).'</cbc:Description>'."\n";             // BT-154

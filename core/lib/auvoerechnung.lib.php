@@ -323,6 +323,9 @@ function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdpart
 			'vatRate'   => (float) $line->tva_tx,
 			'taxCat'    => auvoerechnung_resolve_tax_category($line, $invoice, $thirdparty, $mysoc),
 			'unitCode'  => $unitCode,
+			// BG-26 : période de la ligne (services Dolibarr : date_start / date_end)
+			'dateStart' => !empty($line->date_start) ? (int) $line->date_start : null,
+			'dateEnd'   => !empty($line->date_end) ? (int) $line->date_end : null,
 		];
 	};
 

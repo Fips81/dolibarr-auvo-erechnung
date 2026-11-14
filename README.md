@@ -253,6 +253,7 @@ Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrech
 | BT-34/BT-49 Endpoint | französische Parteien: SIREN `schemeID="0225"`; XRechnung-Käufer mit Leitweg-ID: Leitweg-ID `schemeID="0204"`; sonst E-Mail `EM` |
 | BT-72 Delivery date | `$invoice->delivery_date`, sonst das Rechnungsdatum (immer ausgegeben) |
 | BT-73/74 (BG-14) Period | Felder „Leistungszeitraum von/bis“ an der Rechnung, sonst Min/Max der Leistungsdaten der Positionen |
+| BT-134/135 (BG-26) Line period | Leistungsdaten der Position (Beginn/Ende, `date_start`/`date_end`); weggelassen mit Warnung, wenn das Ende vor dem Beginn liegt (BR-30) oder der Zeitraum außerhalb des Rechnungszeitraums liegt (PEPPOL-EN16931-R110/R111) |
 | BT-80 ShipTo country | Käuferland (ausgegeben für Kategorie K, BR-IC-12) |
 | BG-13 Delivery information | Kontakt der Rechnung mit der Rolle „Lieferung“ (Customer shipping): Name (BT-70) und Adresse (BG-15) |
 | BT-89/90/91 Direct debit | Mandatsreferenz (Standard-Bankverbindung des Geschäftspartners), Gläubiger-ID (`PRELEVEMENT_ICS`), IBAN des Zahlers — Zahlungsart 59 |
@@ -565,6 +566,10 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 ## Changelog
 
 > Hinweis: Das Modul hieß früher LemonFacturX, AuvoZugferd und DoliZUGFeRD. In älteren Einträgen sind Klassen-, Konstanten-, Datei- und Repo-Namen an die heutigen Namen (`auvoerechnung`, `AUVOERECHNUNG_*`) angepasst.
+
+### 5.4.0 — (noch nicht veröffentlicht)
+
+- **Leistungszeitraum je Position (BG-26, BT-134/BT-135):** Sind an einer Position Beginn und/oder Ende der Leistung erfasst, stehen sie jetzt auch je Position im XML (ZUGFeRD und XRechnung, CII und UBL), nicht nur zusammengefasst als Zeitraum der Rechnung (BG-14). Liegt der Zeitraum einer Position außerhalb eines von Hand an der Rechnung eingetragenen Leistungszeitraums, wird er weggelassen und eine Warnung ausgegeben, weil die XRechnung sonst abgelehnt würde (PEPPOL-EN16931-R110/R111); ebenso bei Ende vor Beginn (BR-30). Anregung aus Issue #3.
 
 ### 5.3.1 — Endrechnung mit Anzahlungen (November 2026)
 

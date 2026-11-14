@@ -2158,6 +2158,73 @@ lfx_assert_eq([], auvoerechnung_get_deposit_lines($fin2), 'nur Standardrechnunge
 $GLOBALS['lfx_test_db_handlers'] = [];
 echo "U53 OK\n";
 
+// Issue #3: Leistungszeitraum je Position (BG-26, BT-134/BT-135)
+$currentTest = 'U54 Leistungszeitraum je Position (BG-26)';
+lfx_reset(['AUVOERECHNUNG_PAYMENT_MEANS' => '58', 'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann', 'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456'], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
+$per = new LfxFakeInvoice();
+$per->id = 90;
+$per->ref = 'RE2611-0090';
+$per->thirdparty = lfx_make_party(['name' => 'Bundesamt für Beispiele', 'country_code' => 'DE', 'zip' => '53113', 'town' => 'Bonn',
+	'address' => 'Amtsweg 1', 'email' => '', 'tva_intra' => '', 'array_options' => ['options_lfxleitwegid' => '991-33333TEST-33']]);
+$per->lines = [
+	lfx_make_line(300.00, 19.0, 57.00, 3.0, 'Wartung Oktober', 1, ['date_start' => mktime(0, 0, 0, 10, 1, 2026), 'date_end' => mktime(23, 59, 59, 10, 31, 2026)]),
+	lfx_make_line(200.00, 19.0, 38.00, 2.0, 'Wartung November', 1, ['date_start' => mktime(12, 0, 0, 11, 1, 2026), 'date_end' => mktime(0, 0, 0, 11, 30, 2026)]),
+	lfx_make_line(50.00, 19.0, 9.50, 1.0, 'Material', 0),
+];
+$per->total_ht = 550.00;
+$per->total_tva = 104.50;
+$per->total_ttc = 654.50;
+$lp = '//ram:IncludedSupplyChainTradeLineItem[%d]/ram:SpecifiedLineTradeSettlement/ram:BillingSpecifiedPeriod/ram:%s/udt:DateTimeString';
+$w = [];
+$xmlPer = auvoerechnung_build_xml($per, $seller, $w);
+lfx_std_validate($xmlPer, $xsdPath);
+$xp = lfx_xpath($xmlPer);
+lfx_assert_eq('20261001', lfx_xp_str($xp, sprintf($lp, 1, 'StartDateTime')), 'ZUGFeRD BT-134 Position 1');
+lfx_assert_eq('20261031', lfx_xp_str($xp, sprintf($lp, 1, 'EndDateTime')), 'ZUGFeRD BT-135 Position 1 (Uhrzeit ignoriert)');
+lfx_assert_eq('20261101', lfx_xp_str($xp, sprintf($lp, 2, 'StartDateTime')), 'ZUGFeRD BT-134 Position 2');
+lfx_assert_eq('20261130', lfx_xp_str($xp, sprintf($lp, 2, 'EndDateTime')), 'ZUGFeRD BT-135 Position 2');
+lfx_assert_eq(0, $xp->query('//ram:IncludedSupplyChainTradeLineItem[3]//ram:BillingSpecifiedPeriod')->length, 'Position ohne Daten: kein BG-26');
+lfx_assert_eq('20261001', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeSettlement/ram:BillingSpecifiedPeriod/ram:StartDateTime/udt:DateTimeString'), 'BT-73 unverändert');
+lfx_assert_eq('20261130', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeSettlement/ram:BillingSpecifiedPeriod/ram:EndDateTime/udt:DateTimeString'), 'BT-74 unverändert');
+$xr = auvoerechnung_build_xrechnung($per, $seller, $w, [], 'cii');
+lfx_std_validate($xr['xml'], $xsdPath);
+lfx_assert_eq('20261101', lfx_xp_str(lfx_xpath($xr['xml']), sprintf($lp, 2, 'StartDateTime')), 'XRechnung CII BT-134');
+lfx_dump('xr-12-zeitraum-position-cii', $xr['xml']);
+$res = auvoerechnung_build_xrechnung($per, $seller, $w, [], 'ubl');
+$xpu = lfx_ubl_check($res, 'zeitraum-position');
+lfx_assert_eq('2026-10-01', lfx_xp_str($xpu, '(//cac:InvoiceLine)[1]/cac:InvoicePeriod/cbc:StartDate'), 'UBL BT-134');
+lfx_assert_eq('2026-11-30', lfx_xp_str($xpu, '(//cac:InvoiceLine)[2]/cac:InvoicePeriod/cbc:EndDate'), 'UBL BT-135');
+lfx_assert_eq(0, $xpu->query('(//cac:InvoiceLine)[3]/cac:InvoicePeriod')->length, 'UBL: Position ohne Daten ohne BG-26');
+lfx_assert(!array_filter($w, function ($x) { return strpos($x, 'LinePeriod') !== false; }), 'keine Zeitraum-Warnung im Normalfall');
+
+// Zeitraum an der Rechnung von Hand, deckt Position 2 nicht ab
+$per->array_options = ['options_lfxperiodstart' => mktime(0, 0, 0, 10, 1, 2026), 'options_lfxperiodend' => mktime(0, 0, 0, 10, 31, 2026)];
+$w = [];
+$xr = auvoerechnung_build_xrechnung($per, $seller, $w, [], 'cii');
+lfx_std_validate($xr['xml'], $xsdPath);
+$xp = lfx_xpath($xr['xml']);
+lfx_assert_eq('20261001', lfx_xp_str($xp, sprintf($lp, 1, 'StartDateTime')), 'Position im Rechnungszeitraum bleibt');
+lfx_assert_eq(0, $xp->query('//ram:IncludedSupplyChainTradeLineItem[2]//ram:BillingSpecifiedPeriod')->length, 'Position außerhalb: BG-26 weggelassen (R110/R111)');
+lfx_assert(lfx_contains($w, auvoerechnung_trans('AuvoERechnungWarnLinePeriodOutside', '2')), 'Warnung nennt Position 2');
+lfx_dump('xr-13-zeitraum-position-ausserhalb', $xr['xml']);
+$per->array_options = [];
+
+// Ende vor Beginn (BR-30)
+$per->lines[0]->date_end = mktime(0, 0, 0, 9, 15, 2026);
+$w = [];
+$xp = lfx_xpath(auvoerechnung_build_xml($per, $seller, $w));
+lfx_assert_eq(0, $xp->query('//ram:IncludedSupplyChainTradeLineItem[1]//ram:BillingSpecifiedPeriod')->length, 'Ende vor Beginn: BG-26 weggelassen (BR-30)');
+lfx_assert(lfx_contains($w, auvoerechnung_trans('AuvoERechnungWarnLinePeriodOrder', '1')), 'Warnung nennt Position 1');
+// Nur Beginn erfasst: BG-26 mit BT-134 allein (BR-CO-20)
+$per->lines[0]->date_end = null;
+$w = [];
+$xmlOnly = auvoerechnung_build_xml($per, $seller, $w);
+lfx_std_validate($xmlOnly, $xsdPath);
+$xp = lfx_xpath($xmlOnly);
+lfx_assert_eq('20261001', lfx_xp_str($xp, sprintf($lp, 1, 'StartDateTime')), 'nur Beginn: BT-134');
+lfx_assert_eq(null, lfx_xp_str($xp, sprintf($lp, 1, 'EndDateTime')), 'nur Beginn: kein BT-135');
+echo "U54 OK\n";
+
 // ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";

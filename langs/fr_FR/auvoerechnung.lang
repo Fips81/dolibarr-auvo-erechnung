@@ -387,5 +387,7 @@ AuvoERechnungEfPeriodStart = Période de facturation du
 AuvoERechnungEfPeriodEnd = Période de facturation au
 AuvoERechnungEfNoEInvoice = Pas de facture électronique
 AuvoERechnungWarnPeriodOrder = Période de facturation : la fin précède le début (BR-29). Vérifiez les champs « Période de facturation du/au » de la facture.
+AuvoERechnungWarnLinePeriodOrder = Période de la/des ligne(s) %s : la fin précède le début (BR-30). La période de ligne a été omise.
+AuvoERechnungWarnLinePeriodOutside = La période de la/des ligne(s) %s sort de la période de facturation de la facture et a été omise (PEPPOL-EN16931-R110/R111). Vérifiez les champs « Période de facturation du/au » de la facture.
 AuvoERechnungDepositNoteHead = Déduction des acomptes déjà encaissés (§ 14 al. 5 UStG) :
 AuvoERechnungDepositNoteLine = Facture d'acompte %s du %s : HT %s EUR, taux de TVA %s %%, TVA %s EUR, TTC %s EUR
