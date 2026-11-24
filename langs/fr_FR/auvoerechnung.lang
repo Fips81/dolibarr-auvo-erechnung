@@ -86,6 +86,9 @@ AuvoERechnungMsgNoFacturX = Aucun XML Factur-X embarqué dans %s — utiliser «
 AuvoERechnungMsgVerifyOk = %s : XML Factur-X embarqué présent, conforme XSD EN16931 et règles métier contrôlées.
 AuvoERechnungMsgVerifyKo = %s : XML Factur-X embarqué présent mais non conforme :
 AuvoERechnungMsgRegenerateFailed = Échec de la régénération du PDF
+AuvoERechnungMsgHookNotCalled = Le PDF a été généré, mais sans Factur-X : le modèle PDF « %s » n'appelle pas le hook afterPDFCreation par lequel le module embarque le XML. Choisissez un modèle standard (p. ex. « sponge ») ou ajoutez le hook au modèle.
+AuvoERechnungMsgEinvoiceDisabled = Le PDF a été généré sans Factur-X car « Pas de facture électronique » est coché sur la facture.
+AuvoERechnungMsgPdfNotFound = Le PDF a été généré sans Factur-X : le fichier « %s » indiqué par le modèle PDF est introuvable.
 AuvoERechnungMsgSuccess = Facture électronique Factur-X EN16931 embarquée dans le PDF %s.
 AuvoERechnungMsgSuccessWithWarnings = Facture électronique Factur-X EN16931 embarquée dans le PDF %s. %s avertissement(s) non bloquant(s) à corriger pour une conformité totale :
 

@@ -86,6 +86,9 @@ AuvoERechnungMsgNoFacturX = Kein ZUGFeRD-XML in %s eingebettet — verwenden Sie
 AuvoERechnungMsgVerifyOk = %s: eingebettetes ZUGFeRD-XML gefunden, EN16931-XSD gültig und Geschäftsregeln geprüft.
 AuvoERechnungMsgVerifyKo = %s: eingebettetes ZUGFeRD-XML gefunden, aber nicht konform:
 AuvoERechnungMsgRegenerateFailed = PDF-Neuerzeugung fehlgeschlagen
+AuvoERechnungMsgHookNotCalled = Die PDF wurde erzeugt, aber ohne ZUGFeRD: Die PDF-Vorlage „%s“ ruft den Hook afterPDFCreation nicht auf, über den das Modul die XML einbettet. Bitte eine Standardvorlage (z. B. „sponge“) wählen oder die Vorlage um den Hook ergänzen.
+AuvoERechnungMsgEinvoiceDisabled = Die PDF wurde ohne ZUGFeRD erzeugt, weil an der Rechnung „Keine E-Rechnung“ angehakt ist.
+AuvoERechnungMsgPdfNotFound = Die PDF wurde ohne ZUGFeRD erzeugt: Die von der PDF-Vorlage gemeldete Datei „%s“ wurde nicht gefunden.
 AuvoERechnungMsgSuccess = ZUGFeRD-EN16931-E-Rechnung in PDF %s eingebettet.
 AuvoERechnungMsgSuccessWithWarnings = ZUGFeRD-EN16931-E-Rechnung in PDF %s eingebettet. %s nicht blockierende Warnung(en), die für volle Konformität zu beheben sind:
 

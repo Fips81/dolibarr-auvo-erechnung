@@ -2225,6 +2225,67 @@ lfx_assert_eq('20261001', lfx_xp_str($xp, sprintf($lp, 1, 'StartDateTime')), 'nu
 lfx_assert_eq(null, lfx_xp_str($xp, sprintf($lp, 1, 'EndDateTime')), 'nur Beginn: kein BT-135');
 echo "U54 OK\n";
 
+// Issue #4: „ZUGFeRD neu erzeugen“ ohne sichtbare Wirkung. Stille Ausstiege des
+// Hooks werden gemeldet; ein Modell ohne afterPDFCreation wird erkannt.
+// (Am Ende der Datei: definiert global Facture und setEventMessages.)
+$currentTest = 'U55 Rückmeldung nach „ZUGFeRD neu erzeugen“ (Issue #4)';
+if (!function_exists('setEventMessages')) {
+	function setEventMessages($m, $a, $t)
+	{
+		$GLOBALS['lfx_event_msgs'][] = $t.': '.$m;
+	}
+}
+if (!class_exists('Facture')) {
+	class Facture extends LfxFakeInvoice
+	{
+		const STATUS_DRAFT = 0;
+		public $status = 1;
+	}
+}
+class LfxKeyLangs
+{
+	public function trans($k, $a = '')
+	{
+		return $k.($a !== '' ? '('.$a.')' : '');
+	}
+	public function loadLangs($x) {}
+	public function load($x) {}
+}
+$GLOBALS['langs'] = new LfxKeyLangs();
+require_once __DIR__.'/../class/actions_auvoerechnung.class.php';
+$hook = new ActionsAuvoERechnung(null);
+$report = new ReflectionMethod($hook, 'reportRegenerateOutcome');
+$report->setAccessible(true);
+$act = '';
+$runReport = function () use ($hook, $report) {
+	$GLOBALS['lfx_event_msgs'] = [];
+	$report->invoke($hook, 'meinevorlage');
+	return implode(' | ', $GLOBALS['lfx_event_msgs']);
+};
+ActionsAuvoERechnung::$pdfHookOutcome = null;
+lfx_assert(strpos($runReport(), 'AuvoERechnungMsgHookNotCalled(meinevorlage)') !== false, 'Vorlage ohne Hook: Warnung nennt die Vorlage');
+$hinv = new Facture();
+$hinv->ref = 'HOOK1';
+$hinv->array_options = ['options_lfxnoeinvoice' => 1];
+ActionsAuvoERechnung::$pdfHookOutcome = null;
+$hook->afterPDFCreation(['object' => $hinv, 'file' => '/x.pdf'], $hinv, $act, null);
+lfx_assert_eq('disabled', ActionsAuvoERechnung::$pdfHookOutcome, 'Keine E-Rechnung erkannt');
+lfx_assert(strpos($runReport(), 'AuvoERechnungMsgEinvoiceDisabled') !== false, 'Keine E-Rechnung: Hinweis');
+$hinv->array_options = ['options_other' => 0];
+ActionsAuvoERechnung::$pdfHookOutcome = null;
+$hook->afterPDFCreation(['object' => $hinv, 'file' => '/nicht/vorhanden.pdf'], $hinv, $act, null);
+lfx_assert_eq('nofile', ActionsAuvoERechnung::$pdfHookOutcome, 'fehlende PDF erkannt');
+lfx_assert(strpos($runReport(), 'AuvoERechnungMsgPdfNotFound(/nicht/vorhanden.pdf)') !== false, 'fehlende PDF: Hinweis mit Pfad');
+ActionsAuvoERechnung::$pdfHookOutcome = null;
+$hook->afterODTCreation(['object' => $hinv, 'file' => ''], $hinv, $act, null);
+lfx_assert_eq('', $runReport(), 'ODT-Vorlage: keine falsche Warnung');
+ActionsAuvoERechnung::$pdfHookOutcome = null;
+$other = new stdClass();
+$hook->afterPDFCreation(['object' => $other, 'file' => '/x.pdf'], $other, $act, null);
+lfx_assert_eq(null, ActionsAuvoERechnung::$pdfHookOutcome, 'anderes Dokument zählt nicht als Rechnungs-Hook');
+unset($GLOBALS['langs']);
+echo "U55 OK\n";
+
 // ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";

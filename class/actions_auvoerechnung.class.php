@@ -30,9 +30,45 @@ class ActionsAuvoERechnung
 	/** @var string|null Fichier XML temporaire à nettoyer en sortie de hook */
 	private $xmlTmpFile = null;
 
+	/**
+	 * Issue du hook de génération pendant « ZUGFeRD neu erzeugen » : null tant
+	 * qu'aucun hook (afterPDFCreation / afterODTCreation) n'a été appelé pour
+	 * la facture, sinon 'done', 'draft', 'disabled', 'nofile'. Statique :
+	 * Dolibarr instancie la classe une fois par contexte (invoicecard pour
+	 * l'action, pdfgeneration/odtgeneration pour le hook).
+	 *
+	 * @var string|null
+	 */
+	public static $pdfHookOutcome = null;
+
+	/** @var string Fichier PDF reçu par le hook (diagnostic 'nofile') */
+	public static $pdfHookFile = '';
+
 	public function __construct($db)
 	{
 		$this->db = $db;
+	}
+
+	/**
+	 * Après « ZUGFeRD neu erzeugen » : message si aucun hook de génération n'a
+	 * été appelé (modèle PDF sans afterPDFCreation) ou s'il est sorti sans
+	 * rien faire. Succès et erreurs ont déjà leur propre message.
+	 *
+	 * @param string $model Modèle de document utilisé
+	 * @return void
+	 */
+	protected function reportRegenerateOutcome($model)
+	{
+		global $langs;
+		$outcome = self::$pdfHookOutcome;
+		if ($outcome === null) {
+			dol_syslog('AuVo E-Rechnung: document model "'.$model.'" did not call the afterPDFCreation hook', LOG_WARNING);
+			setEventMessages($langs->trans('AuvoERechnungMsgHookNotCalled', $model), null, 'warnings');
+		} elseif ($outcome === 'disabled') {
+			setEventMessages($langs->trans('AuvoERechnungMsgEinvoiceDisabled'), null, 'warnings');
+		} elseif ($outcome === 'nofile') {
+			setEventMessages($langs->trans('AuvoERechnungMsgPdfNotFound', self::$pdfHookFile), null, 'warnings');
+		}
 	}
 
 	/**
@@ -47,6 +83,9 @@ class ActionsAuvoERechnung
 		if (!is_object($invoice) || !($invoice instanceof Facture)) {
 			return 0;
 		}
+		dol_syslog('AuVo E-Rechnung: afterPDFCreation called for '.$invoice->ref.' ('.basename((string) ($parameters['file'] ?? '')).')', LOG_DEBUG);
+		self::$pdfHookOutcome = 'done';
+		self::$pdfHookFile = (string) ($parameters['file'] ?? '');
 
 		// Ne pas injecter de Factur-X sur un brouillon. Dolibarr régénère le PDF
 		// d'une facture en brouillon à chaque ajout/modif de ligne : on rejouerait
@@ -56,6 +95,8 @@ class ActionsAuvoERechnung
 		// le statut passe à VALIDATED AVANT le generateDocument(), donc l'injection
 		// a bien lieu à ce moment. (Contribution de @daGrumpf-bxp, PR #10.)
 		if ((int) ($invoice->status ?? $invoice->statut ?? 0) === Facture::STATUS_DRAFT) {
+			dol_syslog('AuVo E-Rechnung: '.$invoice->ref.' is a draft, no e-invoice embedded', LOG_DEBUG);
+			self::$pdfHookOutcome = 'draft';
 			return 0;
 		}
 
@@ -63,11 +104,14 @@ class ActionsAuvoERechnung
 		require_once dirname(__DIR__).'/core/lib/auvoerechnung.lib.php';
 		if (auvoerechnung_einvoice_disabled($invoice)) {
 			dol_syslog('AuVo E-Rechnung: e-invoice disabled on '.$invoice->ref.', document left unchanged', LOG_INFO);
+			self::$pdfHookOutcome = 'disabled';
 			return 0;
 		}
 
 		$file = $parameters['file'] ?? '';
 		if (empty($file) || !file_exists($file)) {
+			dol_syslog('AuVo E-Rechnung: PDF file not found for '.$invoice->ref.': "'.$file.'"', LOG_WARNING);
+			self::$pdfHookOutcome = 'nofile';
 			return 0;
 		}
 
@@ -242,6 +286,8 @@ class ActionsAuvoERechnung
 		if (!is_object($invoice) || !($invoice instanceof Facture)) {
 			return 0;
 		}
+		dol_syslog('AuVo E-Rechnung: afterODTCreation called for '.$invoice->ref, LOG_DEBUG);
+		self::$pdfHookOutcome = 'done';
 
 		// Ne jamais injecter sur un brouillon (même raison qu'afterPDFCreation :
 		// Dolibarr régénère le document à chaque modif de ligne d'une facture en
@@ -256,6 +302,7 @@ class ActionsAuvoERechnung
 		require_once dirname(__DIR__).'/core/lib/auvoerechnung.lib.php';
 		if (auvoerechnung_einvoice_disabled($invoice)) {
 			dol_syslog('AuVo E-Rechnung: e-invoice disabled on '.$invoice->ref.', document left unchanged', LOG_INFO);
+			self::$pdfHookOutcome = 'disabled';
 			return 0;
 		}
 
@@ -769,9 +816,15 @@ class ActionsAuvoERechnung
 			$hidedetails = getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_DETAILS');
 			$hidedesc = getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_DESC');
 			$hideref = getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_REF');
+			self::$pdfHookOutcome = null;
+			self::$pdfHookFile = '';
 			$res = $object->generateDocument($model, $outputlangs, $hidedetails, $hidedesc, $hideref);
 			if ($res <= 0) {
 				setEventMessages($langs->trans('AuvoERechnungMsgRegenerateFailed').' : '.$object->error, null, 'errors');
+			} else {
+				// Sorties silencieuses du hook rendues visibles (issue #4) : sans
+				// ce retour, « ZUGFeRD neu erzeugen » semblait ne rien faire.
+				$this->reportRegenerateOutcome($model);
 			}
 			// Les messages de succès/avertissement sont émis par afterPDFCreation
 			$action = '';

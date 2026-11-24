@@ -86,6 +86,9 @@ AuvoERechnungMsgNoFacturX = No Factur-X XML embedded in %s — use "Regenerate F
 AuvoERechnungMsgVerifyOk = %s: embedded Factur-X XML found, EN16931 XSD valid and business rules checked.
 AuvoERechnungMsgVerifyKo = %s: embedded Factur-X XML found but not compliant:
 AuvoERechnungMsgRegenerateFailed = PDF regeneration failed
+AuvoERechnungMsgHookNotCalled = The PDF was generated, but without Factur-X: the PDF template "%s" does not call the afterPDFCreation hook the module uses to embed the XML. Please choose a standard template (e.g. "sponge") or add the hook to the template.
+AuvoERechnungMsgEinvoiceDisabled = The PDF was generated without Factur-X because "No e-invoice" is checked on the invoice.
+AuvoERechnungMsgPdfNotFound = The PDF was generated without Factur-X: the file "%s" reported by the PDF template was not found.
 AuvoERechnungMsgSuccess = Factur-X EN16931 e-invoice embedded in PDF %s.
 AuvoERechnungMsgSuccessWithWarnings = Factur-X EN16931 e-invoice embedded in PDF %s. %s non blocking warning(s) to fix for full compliance:
 

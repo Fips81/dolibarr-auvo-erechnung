@@ -570,6 +570,7 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 ### 5.4.0 — (noch nicht veröffentlicht)
 
 - **Leistungszeitraum je Position (BG-26, BT-134/BT-135):** Sind an einer Position Beginn und/oder Ende der Leistung erfasst, stehen sie jetzt auch je Position im XML (ZUGFeRD und XRechnung, CII und UBL), nicht nur zusammengefasst als Zeitraum der Rechnung (BG-14). Liegt der Zeitraum einer Position außerhalb eines von Hand an der Rechnung eingetragenen Leistungszeitraums, wird er weggelassen und eine Warnung ausgegeben, weil die XRechnung sonst abgelehnt würde (PEPPOL-EN16931-R110/R111); ebenso bei Ende vor Beginn (BR-30). Anregung aus Issue #3.
+- **Rückmeldung nach „ZUGFeRD neu erzeugen“:** Bisher passierte scheinbar nichts, wenn die PDF ohne ZUGFeRD blieb, ohne dass ein Fehler auftrat. Jetzt erscheint ein Hinweis mit der Ursache: Die PDF-Vorlage ruft den Hook `afterPDFCreation` nicht auf (mit Name der Vorlage), an der Rechnung ist „Keine E-Rechnung“ angehakt, oder die von der Vorlage gemeldete PDF-Datei fehlt. Diese Fälle stehen auch im Dolibarr-Log (`AuVo E-Rechnung`). Anlass: Issue #4.
 
 ### 5.3.1 — Endrechnung mit Anzahlungen (November 2026)
 
