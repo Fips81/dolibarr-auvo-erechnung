@@ -8,12 +8,12 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * API REST AuVo E-Rechnung — exposée via l'API Dolibarr standard
- * (module API REST activé + clé API utilisateur).
+ * AuVo E-Rechnung REST API, exposed through Dolibarr's standard API
+ * (REST API module enabled and a user API key configured).
  *
- * Endpoints :
- *  GET /auvoerechnung/invoice/{id}/xml     XML Factur-X regénéré depuis la facture
- *  GET /auvoerechnung/invoice/{id}/status  Présence/validité du XML embarqué dans le PDF
+ * Endpoints:
+ *  GET /auvoerechnung/invoice/{id}/xml     Factur-X XML regenerated from the invoice
+ *  GET /auvoerechnung/invoice/{id}/status  Presence/validity of XML embedded in the PDF
  */
 
 use Luracast\Restler\RestException;
@@ -29,13 +29,12 @@ class AuvoerechnungApi extends DolibarrApi
 	}
 
 	/**
-	 * Génère et renvoie le XML Factur-X EN16931 d'une facture client.
+	 * Generates and returns the EN16931 Factur-X XML for a customer invoice.
 	 *
-	 * Le XML est reconstruit à la volée depuis les données de la facture
-	 * (même moteur que l'injection PDF), avec les avertissements de
-	 * conformité et les éventuelles violations de règles métier.
+	 * The XML is rebuilt on demand from the invoice data using the same engine
+	 * as PDF embedding, with compliance warnings and any business-rule violations.
 	 *
-	 * @param int $id ID de la facture
+ * @param int $id Invoice ID
 	 * @return array
 	 *
 	 * @url GET invoice/{id}/xml
@@ -69,18 +68,17 @@ class AuvoerechnungApi extends DolibarrApi
 	}
 
 	/**
-	 * Génère et renvoie la XRechnung (CIUS KoSIT, syntaxe CII) d'une facture.
+	 * Generates and returns the invoice's XRechnung (KoSIT CIUS, CII syntax).
 	 *
-	 * Lecture seule : le XML est reconstruit à la volée, aucun fichier n'est
-	 * écrit (le fichier {ref}-XRECHNUNG.xml naît à la génération du PDF ou via
-	 * le menu de la fiche facture). 'problems' liste les données manquantes
-	 * (contrôle amont) ; 'violations' les règles EN16931/BR-DE non respectées.
-	 * 'xml' est null tant que des données manquent.
-	 * Les pièces jointes BG-24 (base64, potentiellement volumineuses) ne sont
-	 * incluses que sur demande (?with_attachments=1).
+	 * Read-only: the XML is rebuilt on demand and no file is written (the
+	 * {ref}-XRECHNUNG.xml file is created during PDF generation or from the
+	 * invoice card menu). 'problems' lists missing data (preflight checks);
+	 * 'violations' lists EN16931/BR-DE rules that are not met. 'xml' is null
+	 * while required data is missing. BG-24 attachments (base64, potentially
+	 * large) are included only when requested (?with_attachments=1).
 	 *
-	 * @param int $id ID de la facture
-	 * @param int $with_attachments 1 pour inclure les pièces jointes BG-24 dans le XML {@from query}
+ * @param int $id Invoice ID
+	 * @param int $with_attachments 1 to include BG-24 attachments in the XML {@from query}
 	 * @return array
 	 *
 	 * @url GET invoice/{id}/xrechnung
@@ -126,9 +124,9 @@ class AuvoerechnungApi extends DolibarrApi
 	}
 
 	/**
-	 * Statut Factur-X du PDF de la facture : XML embarqué présent et conforme ?
+	 * Factur-X status for the invoice PDF: is embedded XML present and valid?
 	 *
-	 * @param int $id ID de la facture
+ * @param int $id Invoice ID
 	 * @return array
 	 *
 	 * @url GET invoice/{id}/status
@@ -167,10 +165,11 @@ class AuvoerechnungApi extends DolibarrApi
 	}
 
 	/**
-	 * Charge la facture et vérifie les droits de lecture de l'utilisateur API.
+	 * Loads the invoice and checks the API user's read permissions.
 	 *
 	 * @param int $id
-	 * @return object Facture chargée (type générique : éviter le model swagger de la classe core Facture, qui fait planter la génération de /explorer/swagger.json)
+	 * @return object Loaded invoice (generic type avoids the core Facture Swagger model,
+	 *                which breaks generation of /explorer/swagger.json)
 	 * @throws RestException
 	 */
 	protected function loadInvoice($id)

@@ -27,27 +27,27 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/account.class.php';
 require_once dol_buildpath('/auvoerechnung/core/lib/auvoerechnung.lib.php');
 
-// Sécurité
+// Security.
 if (!$user->admin) {
 	accessforbidden();
 }
 
 $langs->loadLangs(["admin", "auvoerechnung@auvoerechnung"]);
 
-// Auto-correctif : sous Dolibarr 23 les extrafields Chorus pouvaient être créés
-// avec printable!=0 et polluaient la note du PDF (cf auvoerechnung_fix_chorus_*).
-// On corrige à l'ouverture de la config — pas besoin de réactiver le module.
+// Repair for Dolibarr 23, where Chorus extrafields could be created
+// with printable!=0 and polluted the PDF note (see auvoerechnung_fix_chorus_*).
+// Apply the fix when opening the settings page; the module need not be re-enabled.
 auvoerechnung_fix_chorus_extrafields_display($db);
 
 $action = GETPOST('action', 'aZ09');
 
-// Skonto : reprise de l'ancien format indexé par code (5.2.x), sans attendre
-// une réactivation du module.
+// Skonto: migrate the legacy code-indexed format (5.2.x) without waiting for
+// the module to be re-enabled.
 auvoerechnung_migrate_skonto_keys($db);
 
-// Conditions de règlement (dictionnaire c_payment_term), indexées par id, pour
-// la configuration des paliers Skonto. Seules les actives sont affichées ; les
-// inactives gardent leurs paliers (factures existantes).
+// Payment terms (c_payment_term dictionary), indexed by ID, for configuring
+// Skonto tiers. Only active payment terms are shown; tiers for inactive terms
+// are retained for existing invoices.
 $paymentTerms = [];
 $paymentTermsInactive = [];
 $resql = $db->query("SELECT rowid, code, libelle, libelle_facture, type_cdr, nbjour, active FROM ".MAIN_DB_PREFIX."c_payment_term WHERE entity IN (".getEntity('c_payment_term').") ORDER BY sortorder, rowid");
@@ -61,9 +61,9 @@ if ($resql) {
 	}
 }
 
-// Skonto des conditions supprimées du dictionnaire : retiré dès l'ouverture de
-// la page (pas seulement au prochain enregistrement). Uniquement si la lecture
-// du dictionnaire a réussi, sinon tout serait considéré comme orphelin.
+// Remove Skonto settings for terms deleted from the dictionary as soon as the
+// page opens (not only on the next save). Do this only when the dictionary
+// lookup succeeds; otherwise every setting would appear orphaned.
 if ($resql) {
 	$skontoStored = json_decode(getDolGlobalString('AUVOERECHNUNG_SKONTO_TERMS', ''), true);
 	if (is_array($skontoStored) && !empty($skontoStored)) {
@@ -76,18 +76,18 @@ if ($resql) {
 	}
 }
 
-// Les valeurs par défaut des mentions légales BR-FR sont définies dans la lib
-// (AUVOERECHNUNG_DEFAULT_NOTE_*) pour rester synchronisées avec le builder XML.
+// Default BR-FR legal notices are defined in the library
+// (AUVOERECHNUNG_DEFAULT_NOTE_*) to stay in sync with the XML builder.
 
-// Sauvegarde des paramètres
+// Save settings.
 if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-	// CSRF : vérifier le token courant (pas newToken() qui génère un futur token)
+	// CSRF: check the current token, not newToken(), which generates a future token.
 	if (GETPOST('token', 'alpha') !== currentToken()) {
 		accessforbidden('Bad value for CSRF token');
 	}
 	$error = 0;
 
-	// Mode d'injection : on n'accepte que les 3 valeurs connues (défaut auto).
+	// Injection mode: accept only the three known values (default: auto).
 	$injMode = strtolower(trim(GETPOST('AUVOERECHNUNG_INJECTION_MODE', 'alpha')));
 	if (!in_array($injMode, ['auto', 'inprocess', 'subprocess'], true)) {
 		$injMode = 'auto';
@@ -119,10 +119,9 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		['AUVOERECHNUNG_NOTES_IN_FOOTER', GETPOSTINT('AUVOERECHNUNG_NOTES_IN_FOOTER'), 'int'],
 		['AUVOERECHNUNG_NOTES_OVERWRITE', GETPOSTINT('AUVOERECHNUNG_NOTES_OVERWRITE'), 'int'],
 	];
-	// Paliers Skonto par condition de règlement (2 maximum), stockés en JSON
-	// indexé par id. Une ligne incomplète ou hors bornes est ignorée avec un
-	// avertissement. Les paliers des conditions inactives sont conservés (ceux
-	// des conditions supprimées ont été retirés à l'ouverture de la page).
+	// Skonto tiers per payment term (up to 2), stored as JSON indexed by ID.
+	// Incomplete or out-of-range entries are ignored with a warning. Keep tiers
+	// for inactive terms; tiers for deleted terms were removed when the page opened.
 	$skonto = [];
 	$saveSkonto = GETPOSTISSET('save_skonto');
 	$skontoPrevious = json_decode(getDolGlobalString('AUVOERECHNUNG_SKONTO_TERMS', ''), true);
@@ -152,15 +151,14 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		$updates[] = ['AUVOERECHNUNG_SKONTO_TERMS', empty($skonto) ? '' : json_encode($skonto), 'chaine', true];
 	}
 
-	// Le bloc PA (suffixe d'endpoint BT-34) n'est affiché que pour un vendeur
-	// FR : ne pas écraser la valeur enregistrée quand le champ est absent du POST.
+	// Show the PA block (BT-34 endpoint suffix) only for French sellers. Do not
+	// overwrite the saved value when the field is absent from the POST request.
 	if (GETPOSTISSET('AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER')) {
 		$updates[] = ['AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER', trim(GETPOST('AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER', 'alphanohtml')), 'chaine'];
 	}
 	foreach ($updates as $u) {
-		// Onglets : seuls les champs de l'onglet envoyé sont dans le POST ;
-		// les autres réglages ne doivent pas être remis à zéro ($u[3] : valeur
-		// calculée à partir de plusieurs champs, envoyée par son onglet).
+		// Tabs submit only the fields from the active tab. Do not reset other
+		// settings ($u[3] is derived from multiple fields and submitted by its tab).
 		if (empty($u[3]) && !GETPOSTISSET($u[0])) {
 			continue;
 		}
@@ -169,19 +167,18 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		}
 	}
 
-	// Toggle « recopier les mentions en pied » à Oui → on pousse nos mentions
-	// dans la « Mention complémentaire » de la facture (INVOICE_FREE_TEXT, celle
-	// que le PDF imprime). Champ vide = on met nos mentions ; sinon on AJOUTE à
-	// la suite, sauf si l'option « écraser » est active (alors on remplace).
+	// When "Copy notices to footer" is enabled, copy them to the invoice's
+	// additional note (INVOICE_FREE_TEXT, printed on the PDF). Fill an empty field;
+	// otherwise append the notices unless the overwrite option is enabled.
 	$footerAdded = 0;
 	if (!$error && GETPOSTISSET('AUVOERECHNUNG_NOTES_IN_FOOTER') && GETPOSTINT('AUVOERECHNUNG_NOTES_IN_FOOTER')) {
 		$footerAdded = auvoerechnung_append_notes_to_footer($db, GETPOSTINT('AUVOERECHNUNG_NOTES_OVERWRITE') === 1);
 	}
 
-	// Police du PDF (constante globale Dolibarr MAIN_PDF_FORCE_FONT). On la pose
-	// en visible=1 pour qu'elle reste gérable (Config > Divers ET ce menu). Vide
-	// = on retire le forçage (police par défaut Dolibarr). On valide la valeur
-	// contre la liste réelle des polices pour ne rien poser d'invalide.
+	// PDF font (global Dolibarr constant MAIN_PDF_FORCE_FONT). Set it
+	// Set visible=1 so the font remains manageable in both Setup > Other and this
+	// menu. An empty value removes the override (Dolibarr default font). Validate
+	// against the actual font list to avoid saving an invalid value.
 	if (!$error && GETPOSTISSET('MAIN_PDF_FORCE_FONT')) {
 		$pdfFont = GETPOST('MAIN_PDF_FORCE_FONT', 'alpha');
 		$availableFonts = auvoerechnung_list_pdf_fonts();
@@ -190,8 +187,8 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		}
 	}
 
-	// Autres modules (hook auvoerechnungSkontoChanged) : seulement si les
-	// paliers ont réellement changé.
+	// Notify other modules (auvoerechnungSkontoChanged hook) only when the
+	// tiers have actually changed.
 	if (!$error && $saveSkonto && $skonto != $skontoPrevious) {
 		auvoerechnung_notify_skonto_changed($skonto, $skontoPrevious);
 	}
@@ -207,8 +204,8 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 	}
 }
 
-// Correction en un clic : pose MAIN_PDF_FORCE_FONT = pdfahelvetica (PDF/A-3).
-// Réglage global Dolibarr (toutes les éditions PDF), pas seulement le module.
+// One-click fix: set MAIN_PDF_FORCE_FONT = pdfahelvetica (PDF/A-3).
+// Global Dolibarr setting (all PDF generation, not just this module).
 if ($action == 'setforcefont') {
 	if (GETPOST('token', 'alpha') !== currentToken()) {
 		accessforbidden('Bad value for CSRF token');
@@ -220,9 +217,9 @@ if ($action == 'setforcefont') {
 	}
 }
 
-// Testrechnung : XML ZUGFeRD et XRechnung à partir des données réelles de
-// la société et d'un client fictif, contrôlés (XSD + règles), sans rien
-// enregistrer. Permet de vérifier la configuration avant la première facture.
+// Test invoice: build ZUGFeRD and XRechnung XML from the actual company data
+// and a fictional customer, validate it (XSD + rules), and save nothing. This
+// lets administrators check the configuration before the first invoice.
 $testResults = null;
 if ($action == 'testinvoice') {
 	if (GETPOST('token', 'alpha') !== currentToken()) {
@@ -233,7 +230,8 @@ if ($action == 'testinvoice') {
 	$testInvoice = new Facture($db);
 	$testBuyer = new Societe($db);
 	auvoerechnung_sample_invoice($testInvoice, $testBuyer, $mysoc);
-	// Comme une vraie facture : contact XRechnung de repli = créateur (ici l'utilisateur connecté)
+	// As for a real invoice, use the creator as the fallback XRechnung contact
+	// (here, the logged-in user).
 	$testInvoice->fk_user_author = $user->id;
 	$testResults = [];
 	foreach (['zugferd', 'xrechnung', 'xrechnung_ubl'] as $label) {
@@ -258,13 +256,13 @@ if ($action == 'testinvoice') {
 	}
 }
 
-// Affichage
+// Display
 llxHeader('', $langs->trans("AuvoERechnungSetup"));
 
 $linkback = '<a href="'.DOL_URL_ROOT.'/admin/modules.php?restore_lastsearch_values=1">'.$langs->trans("BackToModuleList").'</a>';
 print load_fiche_titre($langs->trans("AuvoERechnungSetup"), $linkback, 'title_setup');
 
-// Bandeau "Nouvelle version disponible" si le check GitHub remonte une version > locale
+// Show a "New version available" banner if GitHub reports a version newer than the local one.
 require_once dirname(__DIR__).'/core/modules/modAuvoERechnung.class.php';
 $modDesc = new modAuvoERechnung($db);
 $updateInfo = auvoerechnung_check_latest_release($db, $modDesc->version);
@@ -276,7 +274,7 @@ if ($updateInfo !== null) {
 	print '</div>';
 }
 
-// Onglets : Übersicht (diagnostic + facture de test) et un onglet par thème.
+// Tabs: overview (diagnostics + test invoice) and one tab per topic.
 $tab = GETPOST('tab', 'aZ09');
 $tabs = [
 	'overview'  => 'AuvoERechnungTabOverview',
@@ -326,7 +324,7 @@ if ($tab === 'general') {
 	}
 	print '</select></td></tr>';
 
-	// BT-8 : exigibilité de la TVA (Soll-/Ist-Versteuerung)
+	// BT-8: VAT accounting basis (cash/accrual accounting).
 	$vatDue = getDolGlobalString('AUVOERECHNUNG_VAT_DUE_DATE', 'auto');
 	print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungVatDueDate").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungVatDueDateHint").'</span></td><td>';
 	print '<select name="AUVOERECHNUNG_VAT_DUE_DATE" class="flat">';
@@ -334,7 +332,7 @@ if ($tab === 'general') {
 		print '<option value="'.$val.'"'.($vatDue === (string) $val ? ' selected' : '').'>'.$langs->trans($key).'</option>';
 	}
 	print '</select></td></tr>';
-	// ---- Bloc 4 : Validation & conformité ----
+	// ---- Section 4: Validation and compliance ----
 	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("AuvoERechnungSecValidation").'</td></tr>';
 	print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungBrCheck").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungBrCheckHint").'</span></td><td>';
 	$brCheck = getDolGlobalInt('AUVOERECHNUNG_BR_CHECK', 1);
@@ -355,8 +353,8 @@ if ($tab === 'general') {
 	print '<option value="1"'.($strict == 1 ? ' selected' : '').'>'.$langs->trans("AuvoERechnungStrictModeStrict").'</option>';
 	print '</select></td></tr>';
 
-	// Police du PDF (MAIN_PDF_FORCE_FONT) : liste les polices du Dolibarr, marquées
-	// conformes Factur-X (embarquées ✓) ou non (base-14 ⚠). Conformes en premier.
+	// PDF font (MAIN_PDF_FORCE_FONT): list Dolibarr fonts, marking Factur-X
+	// compliant embedded fonts (✓) and non-compliant base-14 fonts (⚠). Compliant first.
 	print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungPdfFont").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungPdfFontHint").'</span></td><td>';
 	$curFont = getDolGlobalString('MAIN_PDF_FORCE_FONT', '');
 	$pdfFonts = auvoerechnung_list_pdf_fonts();
@@ -384,8 +382,8 @@ if ($tab === 'general') {
 	print '<table class="noborder centpercent">';
 	print '<tr class="liste_titre"><td>'.$langs->trans("Parameter").'</td><td>'.$langs->trans("Value").'</td></tr>';
 
-	// ---- Bloc 2b : XRechnung (Allemagne, CIUS KoSIT) ----
-	// Contact vendeur BG-6 (obligatoire en XRechnung) et version de la spécification.
+	// ---- Bloc 2b : XRechnung (Germany, CIUS KoSIT) ----
+	// Seller contact (BG-6, required for XRechnung) and specification version.
 	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("AuvoERechnungSecXRechnung").'</td></tr>';
 	print '<tr class="oddeven"><td colspan="2"><span class="opacitymedium small">'.$langs->trans("AuvoERechnungXrInfo").'</span></td></tr>';
 	foreach ([
@@ -401,18 +399,18 @@ if ($tab === 'general') {
 	}
 	print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungXrVersion").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungXrVersionHint").'</span></td><td>';
 	print '<input type="text" name="AUVOERECHNUNG_XRECHNUNG_VERSION" class="flat width75" value="'.dol_escape_htmltag(getDolGlobalString('AUVOERECHNUNG_XRECHNUNG_VERSION', '3.0')).'"></td></tr>';
-	// Syntaxe de la XRechnung par défaut (CII ou UBL), modifiable par client
+	// Default XRechnung syntax (CII or UBL), overridable per customer.
 	$xrSyntax = getDolGlobalString('AUVOERECHNUNG_XRECHNUNG_SYNTAX', 'cii') === 'ubl' ? 'ubl' : 'cii';
 	print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungXrSyntax").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungXrSyntaxHint").'</span></td><td>';
 	print '<select name="AUVOERECHNUNG_XRECHNUNG_SYNTAX" class="flat">';
 	print '<option value="cii"'.($xrSyntax === 'cii' ? ' selected' : '').'>CII (UN/CEFACT)</option>';
 	print '<option value="ubl"'.($xrSyntax === 'ubl' ? ' selected' : '').'>UBL 2.1 (OASIS)</option>';
 	print '</select></td></tr>';
-	// Adresse e-mail individuelle du compte OZG-RE (canal e-mail de la plateforme
-	// du Bund) : active l'entrée « XRechnung an OZG-RE senden » de la fiche facture.
+	// Individual email address for the OZG-RE account (the platform's email
+	// channel). The federal account address enables "Send XRechnung to OZG-RE" on the invoice card.
 	print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungOzgReEmail").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungOzgReEmailHint").'</span></td><td>';
 	print '<input type="text" name="AUVOERECHNUNG_OZGRE_EMAIL" class="flat minwidth300" value="'.dol_escape_htmltag(getDolGlobalString('AUVOERECHNUNG_OZGRE_EMAIL', '')).'"></td></tr>';
-	// Oui/Non : pièces jointes BG-24 et pièce jointe automatique au formulaire e-mail
+	// Yes/No: BG-24 attachments and automatic attachment in the email form.
 	foreach ([
 		'AUVOERECHNUNG_XR_EMBED_PDF'   => ['AuvoERechnungXrEmbedPdf', 0],
 		'AUVOERECHNUNG_XR_EMBED_FILES' => ['AuvoERechnungXrEmbedFiles', 0],
@@ -437,10 +435,10 @@ if ($tab === 'general') {
 	print '<table class="noborder centpercent">';
 	print '<tr class="liste_titre"><td>'.$langs->trans("Parameter").'</td><td>'.$langs->trans("Value").'</td></tr>';
 
-	// ---- Bloc 2c : Skonto (escompte) par condition de règlement ----
-	// Émis en BT-20 au format KoSIT #SKONTO#TAGE=n#PROZENT=n.nn# (BR-DE-18), dans
-	// la XRechnung comme dans le ZUGFeRD. Le libellé de la condition n'est
-	// qu'une suggestion (placeholder) : rien n'est appliqué sans saisie.
+	// ---- Section 2c: Skonto (cash discount) by payment term ----
+	// Emitted in BT-20 using KoSIT syntax #SKONTO#TAGE=n#PROZENT=n.nn# (BR-DE-18)
+	// in both XRechnung and ZUGFeRD. The payment-term label is only a suggestion
+	// (placeholder); nothing is applied unless entered here.
 	print '<input type="hidden" name="save_skonto" value="1">';
 	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("AuvoERechnungSecSkonto").'</td></tr>';
 	print '<tr class="oddeven"><td colspan="2"><span class="opacitymedium small">'.$langs->trans("AuvoERechnungSkontoInfo").'</span></td></tr>';
@@ -484,10 +482,10 @@ if ($tab === 'general') {
 	print '<table class="noborder centpercent">';
 	print '<tr class="liste_titre"><td>'.$langs->trans("Parameter").'</td><td>'.$langs->trans("Value").'</td></tr>';
 
-	// ---- Bloc 2 : Mentions légales ----
+	// ---- Section 2: Legal notices ----
 	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("AuvoERechnungLegalNotes").'</td></tr>';
-	// Les défauts PMD/PMT/AAB sont des mentions du droit français : pour un vendeur
-	// établi hors de France les champs restent vides tant qu'il n'a pas saisi les
+	// PMD/PMT/AAB defaults are required by French law. For sellers outside France,
+	// leave these fields empty until they enter their own notices.
 	// siennes (cf. auvoerechnung_resolve_legal_notes).
 	$legalNotes = auvoerechnung_resolve_legal_notes(auvoerechnung_seller_is_fr($mysoc));
 	if (!auvoerechnung_seller_is_fr($mysoc)) {
@@ -514,7 +512,7 @@ if ($tab === 'general') {
 	print '<option value="1"'.($notesOverwrite ? ' selected' : '').'>'.$langs->trans("Yes").' ('.$langs->trans("AuvoERechnungNotesReplace").')</option>';
 	print '</select></td></tr>';
 
-	// ---- Bloc 3 : Secteur public (Chorus Pro) ----
+	// ---- Section 3: Public sector (Chorus Pro) ----
 	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("AuvoERechnungSecPublic").'</td></tr>';
 	print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungChorusEnabled").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungChorusEnabledHint").'</span></td><td>';
 	$chorusEnabled = getDolGlobalInt('AUVOERECHNUNG_CHORUS_ENABLED', 0);
@@ -523,12 +521,12 @@ if ($tab === 'general') {
 	print '<option value="1"'.($chorusEnabled ? ' selected' : '').'>'.$langs->trans("Yes").'</option>';
 	print '</select></td></tr>';
 
-	// ---- Bloc 6 : Adressage Plateforme Agréée (PA) ----
-	// Suffixe d'endpoint VENDEUR (BT-34). Certaines PA exigent que l'adresse
-	// électronique du vendeur ne soit pas le SIREN nu mais un endpoint suffixé
-	// (ex Hubtimize : "<SIREN>_Status"). Vide = SIREN nu. L'adresse acheteur
-	// (BT-49) reste toujours le SIREN nu (la PA destinataire route).
-	// Propre à la réforme française : masqué pour un vendeur établi hors de France.
+	// ---- Section 6: Approved Platform (PA) addressing ----
+	// Seller endpoint suffix (BT-34). Some platforms require a suffixed
+	// electronic endpoint instead of the bare SIREN.
+	// (e.g. Hubtimize: "<SIREN>_Status"). Empty means the bare SIREN. The buyer address
+	// (BT-49) always remains the bare SIREN (the recipient platform routes it).
+	// Specific to the French reform; hidden for sellers established outside France.
 	if (auvoerechnung_seller_is_fr($mysoc)) {
 		print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("AuvoERechnungSecPA").'</td></tr>';
 		print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungEndpointSuffixSeller").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungEndpointSuffixSellerHint").'</span></td><td>';
@@ -546,12 +544,12 @@ if ($tab === 'general') {
 	print '<table class="noborder centpercent">';
 	print '<tr class="liste_titre"><td>'.$langs->trans("Parameter").'</td><td>'.$langs->trans("Value").'</td></tr>';
 
-	// ---- Bloc 5 : Technique (avancé) ----
+	// ---- Section 5: Advanced technical settings ----
 	print '<tr class="liste_titre"><td colspan="2">'.$langs->trans("AuvoERechnungSecTech").'</td></tr>';
 
-	// Mode d'injection du XML dans le PDF. In-process (sans exec) par défaut :
-	// fonctionne sur les hébergements mutualisés où exec() est désactivé. Le
-	// sous-process (historique) reste disponible en repli/forçage.
+	// XML-to-PDF injection mode. In-process (no exec) is the default and works
+	// on shared hosts where exec() is disabled. The historical subprocess mode
+	// remains available as a fallback or explicit choice.
 	$injModeCur = strtolower(trim(getDolGlobalString('AUVOERECHNUNG_INJECTION_MODE', 'auto')));
 	if (!in_array($injModeCur, ['auto', 'inprocess', 'subprocess'], true)) {
 		$injModeCur = 'auto';
@@ -565,8 +563,8 @@ if ($tab === 'general') {
 
 	print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungPhpCliPath").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungPhpCliPathHint").'</span></td><td>';
 	print '<input type="text" name="AUVOERECHNUNG_PHP_CLI_PATH" class="flat minwidth300" value="'.dol_escape_htmltag(getDolGlobalString('AUVOERECHNUNG_PHP_CLI_PATH', '')).'" placeholder="'.$langs->trans("AuvoERechnungPhpCliAutoPlaceholder").'"></td></tr>';
-	// veraPDF : outil EXTERNE optionnel, non embarqué et non installé par défaut.
-	// Vide = pas de post-validation (le contrôle XSD + règles BR internes reste actif).
+	// veraPDF is an optional external tool; it is not bundled or installed by
+	// default. Empty means no post-validation (XSD and internal BR checks still run).
 	print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungVeraPdfPath").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungVeraPdfPathHint").'</span></td><td>';
 	print '<input type="text" name="AUVOERECHNUNG_VERAPDF_PATH" class="flat minwidth300" value="'.dol_escape_htmltag(getDolGlobalString('AUVOERECHNUNG_VERAPDF_PATH', '')).'" placeholder="'.$langs->trans("AuvoERechnungVeraPdfPlaceholder").'"></td></tr>';
 
@@ -620,9 +618,9 @@ if ($tab === 'general') {
 	$diagOk = [];
 
 	/**
-	 * Ajoute une ligne au diag : OK si la valeur est non vide, sinon en erreur.
-	 * Le suffixe (références BR-FR-xx) est ajouté au libellé d'erreur uniquement.
-	 * $fixUrl pointe vers la page Dolibarr permettant de corriger ce point précis.
+	 * Add a diagnostic row: OK if the value is not empty, otherwise show an error.
+	 * The suffix (BR-FR-xx references) is added only to the error label.
+	 * $fixUrl points to the Dolibarr page where this specific issue can be fixed.
 	 */
 	$diagCheck = function ($transKey, $value, $okFormatted = null, $errorSuffix = '', $fixUrl = '/admin/company.php') use ($langs, &$diagOk, &$diagErrors) {
 		$label = $langs->trans($transKey);
@@ -650,14 +648,14 @@ if ($tab === 'general') {
 	$hasAddr = !empty($mysoc->address) && !empty($mysoc->zip) && !empty($mysoc->town);
 	$diagCheck('AuvoERechnungDiagSellerAddress', $hasAddr ? '1' : '', dol_escape_htmltag($mysoc->zip).' '.dol_escape_htmltag($mysoc->town));
 
-	// TVA intra : en franchise en base (293 B CGI, auto-entrepreneurs), l'absence de
-	// numéro est normale — le SIREN est publié comme identifiant fiscal (schemeID="FC")
-	// par le générateur. On n'affiche donc pas d'erreur, cohérent avec check_mandatory().
+	// Intra-community VAT ID: under the small-business exemption (Art. 293 B CGI),
+	// it is normal to have no VAT number here: the generator publishes the SIREN
+	// as the tax ID (schemeID="FC"). Do not show an error, matching check_mandatory().
 	$isFranchise = isset($mysoc->tva_assuj) && (int) $mysoc->tva_assuj === 0;
 	$vatRaw = trim((string) ($mysoc->tva_intra ?? ''));
 	if ($vatRaw !== '' && !auvoerechnung_is_vat_id($vatRaw)) {
-		// Saisie sans préfixe pays (ex. Steuernummer dans le champ TVA intra) :
-		// non publiée en BT-31 (BR-CO-09).
+		// Value entered without a country prefix (e.g. Steuernummer in the VAT
+		// number field): it is not published as BT-31 (BR-CO-09).
 		$diagErrors[] = ['msg' => $langs->trans("AuvoERechnungWarnSellerVATInvalid", $vatRaw), 'fix' => '/admin/company.php'];
 	} elseif ($isFranchise && empty($mysoc->tva_intra)) {
 		$diagOk[] = $langs->trans("AuvoERechnungDiagSellerVAT").' : '.$langs->trans("AuvoERechnungDiagSellerVATFranchise");
@@ -665,9 +663,9 @@ if ($tab === 'general') {
 		$diagCheck('AuvoERechnungDiagSellerVAT', $mysoc->tva_intra);
 	}
 
-	// Identifiants légaux : SIREN/SIRET pour un vendeur FR (réforme française),
-	// Steuernummer pour un vendeur DE. Ailleurs, la TVA intra contrôlée plus haut
-	// suffit (BR-CO-26) : rien de plus à afficher.
+	// Legal IDs: SIREN/SIRET for French sellers (French reform), Steuernummer
+	// for German sellers. Elsewhere, the VAT ID checked above is sufficient
+	// (BR-CO-26); no additional diagnostic is needed.
 	$diagSellerIsFR = auvoerechnung_seller_is_fr($mysoc);
 	$diagSellerCountry = strtoupper((string) ($mysoc->country_code ?? ''));
 	if ($diagSellerIsFR) {
@@ -678,8 +676,8 @@ if ($tab === 'general') {
 			$diagOk[] = $langs->trans("AuvoERechnungDiagSellerSIRET").' : SIREN '.dol_escape_htmltag($siren).' (SIRET '.dol_escape_htmltag($mysoc->idprof2).')';
 		}
 	} elseif ($diagSellerCountry === 'DE') {
-		// § 14 Abs. 4 Nr. 2 UStG / BR-CO-26 : Steuernummer OU USt-IdNr. Sans
-		// USt-IdNr. (typiquement Kleinunternehmer), la Steuernummer devient obligatoire.
+		// § 14 Abs. 4 Nr. 2 UStG / BR-CO-26: Steuernummer OR USt-IdNr. Without a
+		// USt-IdNr. (typically for a Kleinunternehmer), the Steuernummer is required.
 		$steuernummer = auvoerechnung_party_steuernummer($mysoc);
 		if ($steuernummer !== '') {
 			$diagOk[] = $langs->trans("AuvoERechnungDiagSellerSteuernummer").' : '.dol_escape_htmltag($steuernummer);
@@ -692,7 +690,7 @@ if ($tab === 'general') {
 
 	$diagCheck('AuvoERechnungDiagSellerEmail', $mysoc->email, null, $diagSellerIsFR ? '(BR-FR-13 / BT-34)' : '(BT-34)');
 
-	// Banque : lien "Corriger" vers la liste des comptes (compta/bank/list.php), pas la fiche société.
+	// Bank: "Fix" links to the bank-account list (compta/bank/list.php), not the company card.
 	$bankFixUrl = '/compta/bank/list.php?mainmenu=bank';
 	$bankId = getDolGlobalInt('AUVOERECHNUNG_BANK_ACCOUNT');
 	if ($bankId <= 0) {
@@ -707,7 +705,7 @@ if ($tab === 'general') {
 		}
 	}
 
-	// PDF/A-3 : police embarquée forcée (sinon veraPDF échoue sur les polices base-14)
+	// PDF/A-3: force an embedded font (veraPDF rejects base-14 fonts).
 	$forceFont = getDolGlobalString('MAIN_PDF_FORCE_FONT', '');
 	if ($forceFont === '') {
 		$diagErrors[] = [
@@ -725,13 +723,12 @@ if ($tab === 'general') {
 		$diagOk[] = $langs->trans("AuvoERechnungDiagForceFontOk").' : '.dol_escape_htmltag($forceFont);
 	}
 
-	// Pied de facture : mentions visibles sur le PDF. Recommandé mais NON
-	// bloquant — le XML embarqué reste conforme BR-FR-05 dans tous les cas. On
-	// l'affiche en avertissement (orange) et PUREMENT informatif : le diagnostic
-	// constate, c'est le toggle « recopier les mentions en pied » du bloc Mentions
-	// légales qui règle (comme les autres items, pas de contrôle dans le diag).
-	// On lit la BONNE constante (INVOICE_FREE_TEXT depuis Dolibarr 17, celle que
-	// le PDF imprime) — pas l'ancienne FACTURE_FREE_TEXT qui n'était plus lue.
+	// Invoice footer: notices visible on the PDF. Recommended but non-blocking;
+	// the embedded XML remains compliant with BR-FR-05 either way. Add the notices
+	// When empty, it is shown as an informational warning (orange). This reflects
+	// the "copy notices to footer" toggle configured above; diagnostics do not
+	// enforce this optional setting. Read the CORRECT constant (INVOICE_FREE_TEXT
+	// since Dolibarr 17, which the PDF prints), not the obsolete FACTURE_FREE_TEXT.
 	$freeTextDiag = getDolGlobalString(auvoerechnung_invoice_freetext_const(), '');
 	if (trim($freeTextDiag) === '') {
 		$diagWarnings[] = ['msg' => $langs->trans("AuvoERechnungDiagFreeTextMissing")];
@@ -739,20 +736,20 @@ if ($tab === 'general') {
 		$diagOk[] = $langs->trans("AuvoERechnungDiagFreeTextOk");
 	}
 
-	// Diagnostic d'injection, dépendant du mode choisi. L'injection in-process n'a
-	// lieu qu'en mode 'inprocess' (forcé) ou en mode 'auto' sur un serveur SANS
-	// exec() → là, exec()/PHP CLI ne sont pas requis (mutualisés durcis). Sinon
-	// (mode 'auto' avec exec, ou mode 'subprocess'), c'est le sous-process — process
-	// PHP isolé, le chemin le plus sûr — qui injecte : exec() + PHP CLI valide requis.
+	// Injection diagnostics depend on the selected mode. In-process injection is
+	// used only in forced 'inprocess' mode or in 'auto' mode when exec() is
+	// unavailable (hardened shared hosting, no exec()/PHP CLI required). Otherwise
+	// (mode 'auto' with exec, or 'subprocess' mode), the subprocess is used: an
+	// isolated PHP process, the safest path, requiring exec() and a valid PHP CLI.
 	$diagInjMode = strtolower(trim(getDolGlobalString('AUVOERECHNUNG_INJECTION_MODE', 'auto')));
 	if (!in_array($diagInjMode, ['auto', 'inprocess', 'subprocess'], true)) {
 		$diagInjMode = 'auto';
 	}
 	$execAvailable = function_exists('exec');
-	// tcpdi actif (défaut Dolibarr) = un « class FPDF extends TCPDF » est chargé à
-	// chaque génération PDF (pdf_getInstance) → incompatible avec l'injection
-	// in-process. MAIN_DISABLE_TCPDI=1 désactive ce moteur (et la fusion PDF de
-	// Dolibarr) mais débloque l'in-process.
+	// When tcpdi is active (Dolibarr default), a "class FPDF extends TCPDF" is
+	// loaded for every PDF generation (pdf_getInstance), which conflicts with
+	// in-process injection. MAIN_DISABLE_TCPDI=1 disables this engine (and
+	// Dolibarr PDF merging) but allows in-process injection.
 	$tcpdiActive = !getDolGlobalString('MAIN_DISABLE_TCPDI');
 
 	if ($diagInjMode === 'inprocess') {
@@ -771,38 +768,38 @@ if ($tab === 'general') {
 		if ($execAvailable) {
 			$diagOk[] = $langs->trans("AuvoERechnungDiagInjAuto");
 		} elseif ($tcpdiActive) {
-			// auto sans exec → in-process, mais tcpdi actif → échec garanti : on guide.
+			// Auto without exec uses in-process; active tcpdi guarantees failure, so guide the user.
 			$diagErrors[] = ['msg' => $langs->trans("AuvoERechnungDiagTcpdiConflict"), 'fix' => '/admin/const.php'];
 		} else {
 			$diagOk[] = $langs->trans("AuvoERechnungDiagInjAutoNoExec");
 		}
 	}
 
-	// Binaire PHP CLI : pertinent uniquement quand le sous-process peut servir
-	// (mode subprocess, ou mode auto avec exec dispo). Sinon, sans objet.
+	// PHP CLI binary: relevant only when the subprocess may be used
+	// (subprocess mode, or auto mode with exec available). Otherwise, not applicable.
 	if ($execAvailable && $diagInjMode !== 'inprocess') {
 		$phpCliManual = trim(getDolGlobalString('AUVOERECHNUNG_PHP_CLI_PATH', ''));
-		// 'php' nu = pas une vraie surcharge (cohérent avec auvoerechnung_resolve_php_cli) → auto.
+		// A bare 'php' is not a real override (matches auvoerechnung_resolve_php_cli); auto-detect instead.
 		$phpCliIsAuto = ($phpCliManual === '' || $phpCliManual === 'php');
 		$phpCliResolved = auvoerechnung_resolve_php_cli($db);
 		$phpCliLabel = $phpCliResolved.($phpCliIsAuto ? ' ('.$langs->trans("AuvoERechnungDiagPhpCliAuto").')' : '');
 		if (auvoerechnung_php_cli_is_valid($phpCliResolved)) {
 			$diagOk[] = $langs->trans("AuvoERechnungDiagPhpCliOk").' : '.dol_escape_htmltag($phpCliLabel);
 		} else {
-			// Mode subprocess OU auto-avec-exec : le sous-process est le chemin
-			// d'injection effectif → un CLI invalide est bloquant.
+		// Subprocess mode OR auto-with-exec: the subprocess is the active
+		// injection path, so an invalid CLI binary is a blocker.
 			$diagErrors[] = ['msg' => $langs->trans("AuvoERechnungDiagPhpCliNotFound", dol_escape_htmltag($phpCliResolved)), 'fix' => '/custom/auvoerechnung/admin/setup.php?tab=advanced'];
 		}
 	}
 
-	// Multidevise : avertissement informatif (les factures en devise étrangère sont ignorées)
+	// Multi-currency: informational warning (invoices in foreign currencies are skipped).
 	if (isModEnabled('multicurrency')) {
 		$diagOk[] = $langs->trans("AuvoERechnungDiagMulticurrencyNote");
 	}
 
-	// XRechnung : données du vendeur requises par la CIUS KoSIT (vendeur allemand).
-	// Les données propres à chaque facture (Leitweg-ID, réf. client, adresse du
-	// client) sont contrôlées à la génération.
+	// XRechnung: seller data required by the KoSIT CIUS (German sellers).
+	// Invoice-specific data (Leitweg-ID, customer reference, customer address)
+	// is checked during generation.
 	if (strtoupper((string) ($mysoc->country_code ?? '')) === 'DE') {
 		$xrPrefix = $langs->trans("AuvoERechnungSecXRechnung").' — ';
 		$xrName = trim(getDolGlobalString('AUVOERECHNUNG_CONTACT_NAME', ''));
@@ -849,9 +846,9 @@ if ($tab === 'general') {
 		print '<tr class="oddeven"><td><span style="color: red;">&#10008;</span> <strong>'.$err['msg'].'</strong></td>';
 		print '<td><a href="'.DOL_URL_ROOT.$err['fix'].'">'.$fixLabel.'</a></td></tr>';
 	}
-	// Avertissements : recommandés, non bloquants → pastille orange, pas de croix
-	// rouge. Purement informatifs (constat), le réglage se fait dans les options ;
-	// un lien éventuel n'est affiché que s'il est explicitement fourni.
+	// Warnings are recommendations, not blockers: show an orange marker, not a
+	// red cross. They are informational; settings are adjusted in options. Show
+	// a link only when one is explicitly provided.
 	foreach ($diagWarnings as $warn) {
 		print '<tr class="oddeven"><td><span style="color: #e67e22;">&#9888;</span> '.$warn['msg'].'</td><td>';
 		if (!empty($warn['fix'])) {
@@ -862,15 +859,15 @@ if ($tab === 'general') {
 	}
 
 	if (empty($diagErrors)) {
-		// Pas de blocage : message vert. S'il reste des avertissements (recommandés),
-		// on le dit autrement pour ne pas laisser croire que tout est parfait.
+		// No blockers: show a green message. If recommendations remain,
+		// phrase it differently so the user does not think everything is fine.
 		$allOkKey = empty($diagWarnings) ? "AuvoERechnungDiagAllOk" : "AuvoERechnungDiagNoBlocker";
 		print '<tr class="oddeven"><td colspan="2"><span style="color: green;"><strong>'.$langs->trans($allOkKey).'</strong></span></td></tr>';
 	}
 
 	print '</table>';
 
-	// === Bloc "À propos" ===
+	// === "About" section ===
 	print '<div style="margin:30px 0;padding:20px 25px;border:1px solid #e0e0e0;border-left:4px solid #FFD21F;border-radius:6px;background:linear-gradient(135deg,#fffef7 0%,#fafafa 100%);">';
 	print '<h3 style="margin:0 0 10px 0;color:#333;">'.$langs->trans("AuvoERechnungAboutTitle").'</h3>';
 	print '<p style="margin:0;color:#555;">'.$langs->trans("AuvoERechnungAboutIntro").' '.$langs->trans("AuvoERechnungAboutLocation").'</p>';

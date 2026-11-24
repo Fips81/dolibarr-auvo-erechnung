@@ -8,14 +8,14 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Export par lot des XML Factur-X embarqués dans les PDF des factures
- * clients validées (audit, archivage, dépôt manuel sur une plateforme).
+ * Batch export of Factur-X XML embedded in PDFs of validated customer invoices
+ * (for audits, archiving, or manual submission to a platform).
  *
  * Usage : php scripts/export_facturx_batch.php <dossier_destination> [annee]
  *
- * Pour chaque facture validée (de l'année si précisée), extrait le XML
- * Factur-X du PDF principal vers <destination>/<ref>.xml et affiche un
- * rapport (OK / NO_PDF / NO_XML).
+ * For each validated invoice (limited to the specified year, if provided),
+ * extracts Factur-X XML from the main PDF to <destination>/<ref>.xml and prints
+ * a report (OK / NO_PDF / NO_XML).
  */
 
 if (PHP_SAPI !== 'cli') {
@@ -35,7 +35,7 @@ if (!is_dir($destDir) && !mkdir($destDir, 0750, true)) {
 	exit(2);
 }
 
-// Localisation de master.inc.php : 2 niveaux au-dessus du module, ou chemins standards
+// Locate master.inc.php: two levels above the module or in standard paths.
 $candidates = [
 	__DIR__.'/../../../master.inc.php',
 	'/var/www/dolibarr/htdocs/master.inc.php',
@@ -59,7 +59,7 @@ require_once __DIR__.'/../core/lib/auvoerechnung.lib.php';
 $sql = "SELECT rowid, ref, datef, entity, last_main_doc FROM ".MAIN_DB_PREFIX."facture"
 	." WHERE fk_statut >= 1 AND entity IN (".getEntity('invoice').")";
 if ($year > 0) {
-	// Borne par dates plutôt que YEAR() : portable MySQL/MariaDB/PostgreSQL
+	// Use date bounds instead of YEAR() for MySQL/MariaDB/PostgreSQL portability.
 	$sql .= " AND datef >= '".((int) $year)."-01-01' AND datef <= '".((int) $year)."-12-31'";
 }
 $sql .= " ORDER BY datef ASC, rowid ASC";
@@ -77,8 +77,8 @@ echo "Ziel: $destDir".($year > 0 ? " | Jahr: $year" : '')."\n\n";
 
 while ($obj = $db->fetch_object($res)) {
 	$ref = $obj->ref;
-	// Entité de la facture (et non l'entité courante) : en multicompany avec
-	// partage, le PDF vit dans le répertoire documents de SON entité.
+	// Use the invoice's entity, not the current entity: with shared multicompany
+	// access, the PDF is stored in that entity's documents directory.
 	$pdfPath = auvoerechnung_invoice_pdf_path($ref, (int) $obj->entity, (string) ($obj->last_main_doc ?? ''));
 
 	if ($pdfPath === null) {

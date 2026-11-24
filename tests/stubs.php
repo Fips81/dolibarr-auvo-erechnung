@@ -1,8 +1,8 @@
 <?php
 /*
- * Stubs Dolibarr minimaux pour exécuter la lib AuVo E-Rechnung hors Dolibarr
- * (tests unitaires standalone + CI). Chaque stub n'est défini que si la
- * fonction/classe Dolibarr réelle n'existe pas.
+ * Minimal Dolibarr stubs for running the AuVo E-Rechnung library without
+ * Dolibarr (standalone unit tests + CI). Each stub is defined only when the
+ * corresponding real Dolibarr function/class does not exist.
  */
 
 if (PHP_SAPI !== 'cli') {
@@ -70,8 +70,8 @@ if (!function_exists('getEntity')) {
 }
 
 /**
- * Base de données factice : associe un fragment de SQL à des lignes de
- * résultat. $GLOBALS['lfx_test_db_handlers'] = ['fragment SQL' => [obj, ...]].
+ * Mock database: maps an SQL fragment to result rows.
+ * $GLOBALS['lfx_test_db_handlers'] = ['SQL fragment' => [obj, ...]].
  */
 class LfxFakeDbResult
 {
@@ -111,7 +111,7 @@ class LfxFakeDb
 }
 
 /**
- * Facture factice : uniquement les propriétés lues par la lib.
+ * Mock invoice: only the properties read by the library.
  */
 class LfxFakeInvoice
 {
@@ -154,7 +154,7 @@ class LfxFakeInvoice
 }
 
 /**
- * Crée une ligne de facture factice.
+ * Create a mock invoice line.
  */
 function lfx_make_line($totalHt, $vatRate, $totalTva, $qty = 1.0, $desc = 'Prestation', $productType = 0, $extra = [])
 {
@@ -176,7 +176,7 @@ function lfx_make_line($totalHt, $vatRate, $totalTva, $qty = 1.0, $desc = 'Prest
 }
 
 /**
- * Crée un tiers/société factice.
+ * Create a mock customer/company.
  */
 function lfx_make_party($overrides = [])
 {

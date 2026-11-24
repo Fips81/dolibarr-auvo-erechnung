@@ -7,43 +7,43 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Modèle de données sémantique d'une facture EN16931 (BT-/BG-) et sa
- * sérialisation CII (ZUGFeRD/Factur-X, XRechnung CII).
+ * Semantic data model for an EN16931 invoice (BT-/BG-) and its CII
+ * serialization (ZUGFeRD/Factur-X, XRechnung CII).
  *
- * auvoerechnung_build_model() rassemble TOUTES les décisions métier (profil,
- * catégories TVA, identifiants, arrondis, réconciliations) dans un tableau
- * indépendant de la syntaxe ; les sérialiseurs (CII ici, UBL ensuite) ne font
- * qu'écrire ce modèle. Montants en float non formatés, dates au format
- * AAAAMMJJ, chaînes vides ou null pour les éléments à omettre.
+ * auvoerechnung_build_model() gathers all business decisions (profile, tax
+ * categories, identifiers, rounding, and reconciliation) in a syntax-neutral
+ * array. Serializers (CII here, UBL below) only write this model. Amounts are
+ * unformatted floats, dates use YYYYMMDD, and empty strings or null indicate
+ * values to omit.
  */
 
 /**
- * Construit le modèle sémantique EN16931 d'une facture Dolibarr.
+ * Builds the EN16931 semantic model for a Dolibarr invoice.
  *
- * @param object $invoice        Facture Dolibarr (lignes et tiers chargés)
- * @param object $mysoc          Société émettrice
- * @param array  $buildWarnings  (sortie) avertissements non bloquants
+ * @param object $invoice        Dolibarr invoice (lines and third party loaded)
+ * @param object $mysoc          Issuing company
+ * @param array  $buildWarnings  (output) non-blocking warnings
  * @param array  $options        'profile' => 'pdp'|'choruspro'|'xrechnung',
- *                               Chorus : 'cadre', 'service_code', 'engagement', 'marche' ;
- *                               'attachments' => pièces BG-24 (cf. auvoerechnung_collect_attachments)
- * @return array Modèle (clés document, seller, buyer, delivery, payment, lines,
+ *                               Chorus: 'cadre', 'service_code', 'engagement', 'marche';
+ *                               'attachments' => BG-24 attachments (see auvoerechnung_collect_attachments)
+ * @return array Model (keys: document, seller, buyer, delivery, payment, lines,
  *               allowances, vat_breakdown, totals, preceding_invoices, attachments)
  */
 function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $options = [])
 {
 	global $conf;
 
-	// Profil de génération. 'pdp' (défaut) = norme EN16931/PDP (SIREN en BT-30).
-	// 'choruspro' = profil B2G Chorus Pro (SIRET en BT-30 + champs BT-10/12/13).
-	// 'xrechnung' = CIUS XRechnung (KoSIT) : BT-23/BT-24 propres, contact vendeur
-	// (BG-6), adresses électroniques obligatoires, Leitweg-ID en BT-49 (0204).
+	// Generation profile. 'pdp' (default) = EN16931/PDP standard (SIREN in BT-30).
+	// 'choruspro' = Chorus Pro B2G profile (SIRET in BT-30 and BT-10/12/13 fields).
+	// 'xrechnung' = KoSIT XRechnung CIUS: its own BT-23/BT-24, seller contact
+	// (BG-6), required electronic addresses, and Leitweg-ID in BT-49 (0204).
 	$profile = (isset($options['profile']) && in_array($options['profile'], ['choruspro', 'xrechnung'], true)) ? $options['profile'] : 'pdp';
 	$isXRechnung = ($profile === 'xrechnung');
 	$legalIdMode = ($profile === 'choruspro') ? 'siret' : 'siren';
 
-	// Tout le bloc « socle réforme française » (BT-23, note BAR, mentions
-	// légales) est conditionné à un vendeur établi en France : hors de France
-	// le document reste un Factur-X/ZUGFeRD EN16931 pur.
+	// The French reform baseline (BT-23, BAR note, legal notices) applies only
+	// when the seller is established in France. Elsewhere, the document remains
+	// standard EN16931 Factur-X/ZUGFeRD.
 	$sellerIsFR = auvoerechnung_seller_is_fr($mysoc);
 
 	$typeCode = auvoerechnung_resolve_document_type($invoice, $buildWarnings);
@@ -58,37 +58,37 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 	$bank = auvoerechnung_get_bank_account($invoice->db, $invoice);
 	$paymentMeans = getDolGlobalString('AUVOERECHNUNG_PAYMENT_MEANS', '30');
 
-	// Lignes utiles : on filtre une seule fois les lignes sans montant
-	// (descriptions, titres, sous-totaux) pour les réutiliser ci-dessous.
+	// Filter lines without an amount (descriptions, headings, subtotals) once
+	// and reuse the billable lines below.
 	$billableLines = auvoerechnung_filter_billable_lines($invoice->lines);
 
-	// Sépare lignes facturables et remises pied de facture (BG-21) : une ligne
-	// à total négatif (remise fixe Dolibarr) devient une remise document pour
-	// respecter BR-27 (prix net de ligne jamais négatif).
+	// Separate billable lines from document-level allowances (BG-21): a line
+	// with a negative total (Dolibarr fixed discount) becomes a document
+	// allowance to satisfy BR-27 (line net price must not be negative).
 	$prepared = auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $buyer, $mysoc, $buildWarnings);
 
-	// Ventilation TVA par (catégorie, taux), réconciliée avec les totaux facture
+	// VAT breakdown by (category, rate), reconciled with the invoice totals.
 	$breakdown = auvoerechnung_get_tax_breakdown($prepared, $invoice, $sign, $buildWarnings);
 
-	// BR-61 : un moyen de paiement 30/58 (virement) exige un IBAN. Sans compte
-	// bancaire configuré, on omet le moyen de paiement plutôt que d'émettre un
-	// XML rejeté par les validateurs Schematron.
+	// BR-61: payment means 30/58 (bank transfer) requires an IBAN. If no bank
+	// account is configured, omit the payment means instead of emitting XML
+	// rejected by Schematron validators.
 	$emitPaymentMeans = true;
 	if (in_array($paymentMeans, ['30', '58'], true) && empty($bank['iban'])) {
 		$emitPaymentMeans = false;
 		$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnPaymentMeansOmitted', $paymentMeans);
 	}
 
-	// Prélèvement SEPA (59) : ICS créancier (BT-90), RUM mandat (BT-89), IBAN débiteur (BT-91)
+	// SEPA direct debit (59): creditor ICS (BT-90), mandate RUM (BT-89), debtor IBAN (BT-91).
 	$directDebit = ($paymentMeans === '59') ? auvoerechnung_get_direct_debit_info($invoice->db, $buyer, $buildWarnings) : null;
 
-	// BT-23 : cadre de facturation, obligatoire pour la réforme FR (BR-FR-08).
-	//  - profil Chorus B2G : cadre AIFE choisi PAR FACTURE dans l'onglet Chorus
-	//    (24 valeurs A1..A25, A1 par défaut) — chemin historique inchangé ;
-	//  - profil PDP/B2B : valeur du socle XP Z12-012 dérivée des lignes et des
-	//    acomptes imputés (cas nominal : dépôt de la facture par le fournisseur).
-	// Vendeur hors France : BT-23 est optionnel en EN16931 (0..1) et les codes
-	// B1/S1/M1 sont propres à XP Z12-012 → on n'émet rien.
+	// BT-23: invoice process, required by the French reform (BR-FR-08).
+	//  - Chorus B2G profile: AIFE process selected per invoice in the Chorus tab
+	//    (24 values A1..A25, A1 default); the historical path is unchanged.
+	//  - PDP/B2B profile: XP Z12-012 baseline value derived from lines and applied
+	//    deposits (normal case: invoice submitted by the supplier).
+	// Non-French seller: BT-23 is optional under EN16931 (0..1), and the codes
+	// B1/S1/M1 are specific to XP Z12-012, so they are not emitted.
 	if ($isXRechnung) {
 		// XRechnung : BT-23 obligatoire (PEPPOL-EN16931-R001), valeur Peppol BIS Billing.
 		$bt23 = AUVOERECHNUNG_XRECHNUNG_BUSINESS_PROCESS;
@@ -100,17 +100,16 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 				: '');
 	}
 
-	// BG-1 : mentions légales BR-FR-05 (PMD, PMT, AAB) surchargeables par
-	// constantes, plus la note BAR (qualification du traitement attendu,
-	// BR-FR-07/20) sur le profil PDP d'un vendeur français uniquement — le
-	// B2G Chorus a son propre marquage, et le code qualifie le flux de la
-	// réforme FR, sans objet pour un vendeur étranger. Chaque code sujet n'est
-	// émis qu'une fois (BR-FR-06, BR-FR-31). Une note vide violerait
-	// PEPPOL-EN16931-R008 (vendeur étranger sans mention configurée).
+	// BG-1: BR-FR-05 legal notices (PMD, PMT, AAB) can be overridden by constants.
+	// Add the BAR note (expected processing, BR-FR-07/20) only for French sellers
+	// using the PDP profile. Chorus B2G has its own marker, and this code applies
+	// to the French reform flow, not foreign sellers. Emit each subject code once
+	// (BR-FR-06, BR-FR-31). An empty note would violate PEPPOL-EN16931-R008 when
+	// no notice is configured for a foreign seller.
 	$noteTexts = auvoerechnung_resolve_legal_notes($sellerIsFR);
 	$barCode = ($profile === 'choruspro' || !$sellerIsFR) ? '' : auvoerechnung_resolve_bar_code($buyer);
 	if ($barCode !== '') {
-		// BR-FR-20 : le contenu (BT-22) est le code brut, sans texte libre autour
+		// BR-FR-20: the content (BT-22) is the raw code, with no surrounding free text.
 		$noteTexts['BAR'] = $barCode;
 	}
 	$notes = [];
@@ -121,7 +120,7 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 	}
 
 	// BT-22 : Teilentgelte einer Endrechnung (BMF 15.10.2026 Rn. 3, UStAE 14.8).
-	// Verkäufer in Frankreich: eigene BR-FR-Mentions, keine zusätzliche Note.
+	// French sellers use their own BR-FR notices; do not add another note.
 	if (!$sellerIsFR && $typeCode === '380') {
 		$depositNote = auvoerechnung_build_deposit_note($invoice);
 		if ($depositNote !== '') {
@@ -129,10 +128,10 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 		}
 	}
 
-	// BT-10 : référence acheteur. Pour un acheteur secteur public allemand, la
-	// Leitweg-ID (routage ZRE/OZG-RE) doit être la SEULE valeur en BT-10 — elle
-	// prime donc sur le code service Chorus et sur ref_client. Hors Allemagne,
-	// comportement inchangé : code service Chorus (profil choruspro) sinon ref_client.
+	// BT-10: buyer reference. For a German public-sector buyer, the Leitweg-ID
+	// (ZRE/OZG-RE routing) must be the only value in BT-10, taking precedence over
+	// the Chorus service code and ref_client. Outside Germany, behavior is unchanged:
+	// use the Chorus service code for choruspro, otherwise ref_client.
 	$buyerCountry = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : auvoerechnung_default_country());
 	$leitwegId = ($buyerCountry === 'DE') ? auvoerechnung_invoice_leitwegid($invoice) : '';
 	if ($leitwegId !== '') {
@@ -143,13 +142,13 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 		$buyerRef = !empty($invoice->ref_client) ? $invoice->ref_client : '';
 	}
 
-	// XRechnung : contact vendeur (BG-6, BR-DE-2/5/6/7) et adresse électronique
-	// de l'acheteur public = Leitweg-ID sous le schéma 0204 (identifiant Peppol
-	// des destinataires de l'OZG-RE), à défaut son email.
+	// XRechnung: seller contact (BG-6, BR-DE-2/5/6/7). For public-sector buyers,
+	// use the Leitweg-ID as the electronic address with scheme 0204 (Peppol ID for
+	// OZG-RE recipients); otherwise use the buyer's email.
 	$sellerExtra = $isXRechnung ? ['contact' => auvoerechnung_get_seller_contact($invoice, $mysoc)] : [];
-	// BT-29 : n° de fournisseur attribué par l'acheteur (« Lieferantennummer »,
-	// exigée par § 5 E-RechV si l'administration l'a communiquée), saisi sur la
-	// fiche du CLIENT. Émis pour tous les profils.
+	// BT-29: supplier number assigned by the buyer ("Lieferantennummer", required
+	// by § 5 E-RechV if provided by the administration), entered on the CUSTOMER
+	// card. Emitted for every profile.
 	$supplierNo = auvoerechnung_party_supplier_number($buyer);
 	if ($supplierNo !== '') {
 		$sellerExtra['seller_id'] = $supplierNo;
@@ -158,23 +157,23 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 	$seller = auvoerechnung_build_party_model('Seller', $mysoc, $mysoc->email ?? '', $legalIdMode, $sellerExtra);
 	$buyerModel = auvoerechnung_build_party_model('Buyer', $buyer, auvoerechnung_get_buyer_email($buyer, $invoice->db), $legalIdMode, $buyerExtra);
 
-	// BT-13 : n° d'engagement juridique (Chorus) sinon n° de commande de
-	// l'acheteur porté par la commande liée (sa réf. client).
+	// BT-13: legal commitment number (Chorus), otherwise the buyer's order number
+	// from the linked order (its customer reference).
 	$orderRef = ($profile === 'choruspro' && !empty($options['engagement']))
 		? $options['engagement']
 		: auvoerechnung_get_linked_order_ref($invoice);
-	// Acheteur avec Leitweg-ID : BT-10 est occupé par la Leitweg-ID ; la réf.
-	// client de la facture (« Ihr Zeichen », n° de commande de l'administration
-	// exigé par § 5 E-RechV s'il a été communiqué) passe alors en BT-13.
+	// For a buyer with a Leitweg-ID, BT-10 is occupied by that ID. Move the
+	// invoice's customer reference ("Ihr Zeichen", the administration's order
+	// number required by § 5 E-RechV when provided) to BT-13.
 	if ($orderRef === '' && $leitwegId !== '' && !empty($invoice->ref_client)) {
 		$orderRef = $invoice->ref_client;
 	}
 
-	// BT-80 / BT-72. Pour les livraisons intracommunautaires (catégorie K),
-	// BR-IC-11 exige une date de livraison et BR-IC-12 un pays de livraison
-	// (BT-80, repli : pays de l'acheteur). La date de livraison est TOUJOURS
-	// émise (vraie date si renseignée, sinon date d'émission) : ça satisfait
-	// BR-IC-11 et garantit un bloc livraison non vide (PEPPOL-EN16931-R008).
+	// BT-80/BT-72. For intra-community supplies (category K), BR-IC-11 requires a
+	// delivery date and BR-IC-12 a delivery country (BT-80, falling back to the
+	// buyer's country). Always emit a delivery date (the actual date if available,
+	// otherwise the issue date) to satisfy BR-IC-11 and keep the delivery block
+	// non-empty (PEPPOL-EN16931-R008).
 	$hasK = false;
 	foreach ($breakdown as $b) {
 		if ($b['categoryCode'] === 'K') {
@@ -183,9 +182,9 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 	}
 	$deliveryDateTs = !empty($invoice->delivery_date) ? $invoice->delivery_date : ($invoice->date_livraison ?? null);
 
-	// BG-14 : période de facturation (min des date_start / max des date_end des
-	// lignes), remplacée par la période saisie sur la facture (extrafields
-	// lfxperiodstart / lfxperiodend) quand elle est renseignée.
+	// BG-14: invoice period (earliest line date_start / latest date_end), replaced
+	// by the period entered on the invoice (lfxperiodstart / lfxperiodend
+	// extrafields) when either value is provided.
 	$periodStart = null;
 	$periodEnd = null;
 	foreach ($billableLines as $line) {
@@ -201,7 +200,7 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 	if ($ownStart !== null || $ownEnd !== null) {
 		$periodStart = $ownStart;
 		$periodEnd = $ownEnd;
-		// BR-29 : la fin ne peut précéder le début
+		// BR-29: the end date cannot precede the start date.
 		if ($ownStart !== null && $ownEnd !== null && $ownEnd < $ownStart) {
 			$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnPeriodOrder');
 		}
@@ -222,13 +221,13 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 			'quantity'     => $pl['qty'],
 			'unit_code'    => $pl['unitCode'],
 			'vat_category' => $pl['taxCat']['code'],
-			// BR-O-04 : pas de taux pour la catégorie O (hors champ)
+			// BR-O-04: category O (outside scope) must not have a rate.
 			'vat_rate'     => ($pl['taxCat']['code'] !== 'O') ? $pl['vatRate'] : null,
 			'net_amount'   => $pl['lineTotal'],
 		];
 	}
 
-	// BG-20 : remises document (issues des lignes à montant négatif)
+	// BG-20: document-level allowances (converted from negative-amount lines).
 	$allowances = [];
 	foreach ($prepared['allowances'] as $al) {
 		$allowances[] = [
@@ -239,9 +238,9 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 		];
 	}
 
-	// BG-23 : ventilation TVA. Motif d'exonération (BT-120) pour toute
-	// catégorie non standard quand un motif est disponible ; code VATEX
-	// (BT-121) attendu par la réforme FR ; pas de taux pour O (BR-O-05).
+	// BG-23: VAT breakdown. Include an exemption reason (BT-120) for non-standard
+	// categories when available; include the VATEX code (BT-121) required by the
+	// French reform. Category O has no rate (BR-O-05).
 	$vatBreakdown = [];
 	foreach ($breakdown as $b) {
 		$vatBreakdown[] = [
@@ -259,15 +258,15 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 		'document' => [
 			'id'                 => (string) $invoice->ref,                     // BT-1
 			'issue_date'         => $issueDate,                                // BT-2
-			// XRechnung (BR-DE-17) n'admet pas 386 : la facture d'acompte y est
-			// une « Partial invoice » (326), comme le préconise la KoSIT pour les
-			// Abschlagsrechnungen. ZUGFeRD/Factur-X garde 386.
+			// XRechnung (BR-DE-17) does not allow 386: use "Partial invoice" (326)
+			// for advance invoices, as KoSIT recommends for Abschlagsrechnungen.
+			// ZUGFeRD/Factur-X continues to use 386.
 			'type_code'          => ($isXRechnung && $typeCode === '386') ? '326' : $typeCode, // BT-3
 			'is_credit_note'     => $isCreditNote,
 			'currency'           => $currency,                                 // BT-5
-			// BT-8 : exigibilité TVA (5 = débits / Soll, 72 = encaissements / Ist) :
-			// réglage du module, sinon régime TVA de Dolibarr pour un vendeur
-			// français ; émise sur la catégorie S.
+			// BT-8: VAT due date code (5 = accrual/Soll, 72 = cash/Ist): use the
+			// module setting, or Dolibarr's VAT mode for a French seller. Emit on
+			// category S.
 			'vat_due_date_code'  => auvoerechnung_resolve_vat_due_date_code($mysoc),
 			'buyer_reference'    => (string) $buyerRef,                        // BT-10
 			'contract_reference' => ($profile === 'choruspro' && !empty($options['marche'])) ? (string) $options['marche'] : '', // BT-12
@@ -281,7 +280,7 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 		'seller'   => $seller,
 		'buyer'    => $buyerModel,
 		'delivery' => [
-			// BG-13 : lieu de livraison (contact « livraison » de la facture)
+			// BG-13: delivery location (invoice's "delivery" contact).
 			'ship_to'         => auvoerechnung_get_ship_to($invoice),
 			'ship_to_country' => $hasK ? (!empty($buyer->country_code) ? $buyer->country_code : auvoerechnung_default_country()) : '', // BT-80
 			'date'            => !empty($deliveryDateTs) ? date('Ymd', $deliveryDateTs) : $issueDate,      // BT-72
@@ -293,7 +292,7 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 			'debtor_iban' => ($emitPaymentMeans && $directDebit !== null) ? $directDebit['debtor_iban'] : '', // BT-91
 			'creditor_id' => ($directDebit !== null) ? $directDebit['ics'] : '',                      // BT-90
 			'mandate_id'  => ($directDebit !== null) ? $directDebit['rum'] : '',                      // BT-89
-			// BT-20 : conditions de paiement avec les lignes Skonto (BR-DE-18)
+			// BT-20: payment terms with Skonto lines (BR-DE-18).
 			'terms'       => auvoerechnung_build_payment_terms_description($invoice, $isCreditNote),
 			'due_date'    => $dueDate,                                                                // BT-9
 		],
@@ -301,17 +300,17 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 		'allowances'         => $allowances,
 		'vat_breakdown'      => $vatBreakdown,
 		'totals'             => auvoerechnung_compute_totals($invoice, $sign, $prepared, $breakdown, $buildWarnings),
-		// BG-3 : facture d'origine d'un avoir / d'une rectificative, factures
-		// d'acompte imputées sur une facture finale. Rectificative (384) : seule
-		// la facture remplacée est référencée (BR-FR-CO-04).
+		// BG-3: source invoice for a credit note/corrective invoice, and invoices
+		// applied to a final invoice. Corrective invoice (384): reference only the
+		// replaced invoice (BR-FR-CO-04).
 		'preceding_invoices' => auvoerechnung_get_preceding_invoices($invoice, $typeCode),
-		// BG-24 : pièces jointes (PDF de la facture, justificatifs)
+		// BG-24: attachments (invoice PDF and supporting documents).
 		'attachments'        => array_values((array) ($options['attachments'] ?? [])),
 	];
 
-	// Avoir (381, BR-FR-CO-05) ou rectificative (384, BR-FR-CO-04) sans facture
-	// d'origine : la référence BT-25 exigée ne peut pas être émise. Warning
-	// actionnable ici ; le validateur interne porte la violation bloquante.
+	// Credit note (381, BR-FR-CO-05) or corrective invoice (384, BR-FR-CO-04) without an invoice
+	// source invoice: the required BT-25 reference cannot be emitted. Add a warning.
+	// actionable here; the internal validator handles the blocking violation.
 	if (empty($invoice->fk_facture_source)) {
 		if ($isCreditNote) {
 			$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnCreditNoteNoSource');
@@ -324,10 +323,10 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 }
 
 /**
- * Totaux du document (BG-22), calculés de bas en haut à partir des valeurs
- * émises (lignes arrondies, remises, ventilation TVA réconciliée) pour
- * garantir les règles de calcul BR-CO-10/11/13/14/15/16. Un écart avec le
- * total_ttc Dolibarr (taxes locales par ex.) est signalé en avertissement.
+ * Document totals (BG-22), calculated bottom-up from the emitted values (rounded
+ * lines, allowances, reconciled VAT breakdown) to satisfy calculation rules
+ * BR-CO-10/11/13/14/15/16. Differences from Dolibarr total_ttc (e.g. local taxes)
+ * are reported as warnings.
  *
  * @return array{line_total:float,allowance_total:float,tax_basis:float,tax_total:float,grand_total:float,prepaid:float,due_payable:float}
  */
@@ -357,9 +356,10 @@ function auvoerechnung_compute_totals($invoice, $sign, $prepared, $breakdown, &$
 	$totalPrepaid = auvoerechnung_get_prepaid_amount($invoice);
 	$duePayable   = round($grandTotal - $totalPrepaid, 2); // BR-CO-16, sans écrêtage
 
-	// Cohérence avec les totaux Dolibarr (PDF visible) : un écart signale des
-	// données hors périmètre (taxes locales, incohérence de lignes).
-	// Acomptes imputés en ligne : déjà déduits du TTC Dolibarr, ajoutés ici.
+	// Compare with Dolibarr totals (visible PDF); a difference indicates data
+	// outside the supported scope (local taxes or inconsistent lines).
+	// Deposits applied as lines are already deducted from Dolibarr's total_ttc,
+	// so add them back here.
 	$invoiceTtc = round($sign * (float) $invoice->total_ttc, 2);
 	foreach ($prepared['deposits'] ?? [] as $dep) {
 		$invoiceTtc = round($invoiceTtc + $dep['amount'] + $dep['tax'], 2);
@@ -380,25 +380,24 @@ function auvoerechnung_compute_totals($invoice, $sign, $prepared, $breakdown, &$
 }
 
 /**
- * Modèle d'une partie (vendeur BG-4 ou acheteur BG-7).
+ * Party model (seller BG-4 or buyer BG-7).
  *
- * SIREN/SIRET : identifiants français uniquement. Pour un tiers étranger,
- * idprof2 contient un identifiant local (HRB allemand, CRN...) qui ne doit
- * surtout pas être publié sous un scheme SIREN/SIRET (0002/0009/0225) —
- * l'adresse électronique retombe alors sur l'email (EM).
+ * SIREN/SIRET are French identifiers only. For a foreign third party, idprof2
+ * contains a local ID (German HRB, CRN, etc.) that must not be published under
+ * a SIREN/SIRET scheme (0002/0009/0225); use the email address (EM) instead.
  * EN16931 : deux champs DISTINCTS, chacun son identifiant (ISO 6523) :
- *  - BT-29/BT-46 = SIRET (14 chiffres), schemeID 0009 → l'établissement ;
- *  - BT-30/BT-47 = SIREN (9 chiffres), schemeID 0002 → l'entité légale.
- * Source SIREN = idprof1 (à défaut dérivé du SIRET) ; source SIRET = idprof2.
+ *  - BT-29/BT-46 = SIRET (14 digits), schemeID 0009 -> establishment;
+ *  - BT-30/BT-47 = SIREN (9 digits), schemeID 0002 -> legal entity.
+ * SIREN source = idprof1 (or derived from SIRET); SIRET source = idprof2.
  *
- * @param string $role         'Seller' ou 'Buyer'
- * @param object $party        Société émettrice (mysoc) ou Societe acheteur
- * @param string $email        Email de repli pour l'adresse électronique (BT-34 / BT-49)
- * @param string $legalIdMode  'siren' (défaut) ou 'siret' (Chorus Pro)
+ * @param string $role         'Seller' or 'Buyer'
+ * @param object $party        Issuing company (mysoc) or buyer Societe
+ * @param string $email        Fallback email for electronic address (BT-34/BT-49)
+ * @param string $legalIdMode  'siren' (default) or 'siret' (Chorus Pro)
  * @param array  $extra        'contact'  => ['name' =>, 'phone' =>, 'email' =>] (BG-6) ;
- *                             'endpoint' => [schemeID, valeur] remplaçant l'adresse
- *                                           électronique calculée (ex. 0204 + Leitweg-ID) ;
- *                             'seller_id' => BT-29 (n° de fournisseur chez l'acheteur)
+ *                             'endpoint' => [schemeID, value] replacing the
+ *                                           calculated electronic address (e.g. 0204 + Leitweg-ID);
+ *                             'seller_id' => BT-29 (seller's supplier number at the buyer)
  * @return array{role:string,name:string,id:string,global_id:?array,legal_id:?array,contact:?array,address:array,endpoint:?array,vat_id:string,tax_id:string}
  */
 function auvoerechnung_build_party_model($role, $party, $email, $legalIdMode = 'siren', $extra = [])
@@ -410,20 +409,20 @@ function auvoerechnung_build_party_model($role, $party, $email, $legalIdMode = '
 	$siretDigits = $isFR ? preg_replace('/[^0-9]/', '', $party->idprof2 ?? '') : '';
 	$siret14 = (strlen($siretDigits) === 14) ? $siretDigits : '';
 
-	// Deux profils selon la destination (cf. réforme FR : deux réseaux distincts).
-	//  - 'siren' (défaut, PDP/B2B) : SIRET en BT-29 (GlobalID/0009) + SIREN en BT-30
-	//    (0002). Conforme norme EN16931 / règle BR-FR-10.
-	//  - 'siret' (Chorus Pro/B2G) : SIRET-14 en BT-30 (0009), qui est la clé de
-	//    routage de l'annuaire Chorus Pro (il ne lit QUE ce champ).
+	// Two profiles by destination (the French reform uses two separate networks).
+	//  - 'siren' (default, PDP/B2B): SIRET in BT-29 (GlobalID/0009) + SIREN in BT-30
+	//    (0002). Compliant with EN16931 and BR-FR-10.
+	//  - 'siret' (Chorus Pro/B2G): 14-digit SIRET in BT-30 (0009), the routing key
+	//    Chorus Pro directory routing (it reads ONLY this field).
 	$chorus = ($legalIdMode === 'siret');
 
-	// Vendeur allemand : BR-CO-26 exige BT-29, BT-30 ou BT-31 — la Steuernummer
-	// (BT-32) n'y compte PAS. Registre du commerce (idprof3, ProfId3DE
-	// « Handelsregister-Nummer ») → BT-30 ; sans USt-IdNr ni registre (cas typique
-	// du Kleinunternehmer), la Steuernummer est aussi portée en BT-29 (Seller
-	// identifier, sans schéma) pour que le vendeur reste identifiable.
-	// Un n° de fournisseur communiqué par l'acheteur (extra 'seller_id') est le
-	// vrai BT-29 et satisfait à lui seul BR-CO-26 : il remplace alors ce repli.
+	// German seller: BR-CO-26 requires BT-29, BT-30, or BT-31; the Steuernummer
+	// (BT-32) does NOT count here. Commercial register (idprof3, ProfId3DE
+	// "Handelsregister-Nummer") → BT-30; without USt-IdNr or registry number (typical
+	// For German sellers without a VAT ID (e.g. Kleinunternehmer), also put the
+	// Steuernummer in BT-29 (Seller identifier, without a scheme) to identify them.
+	// A supplier number provided by the buyer (extra 'seller_id') is the actual
+	// BT-29 and satisfies BR-CO-26 by itself, replacing this fallback.
 	$sellerId = ($role === 'Seller') ? trim((string) ($extra['seller_id'] ?? '')) : '';
 	$deRegister = '';
 	if ($role === 'Seller' && strtoupper($country) === 'DE') {
@@ -433,11 +432,11 @@ function auvoerechnung_build_party_model($role, $party, $email, $legalIdMode = '
 		}
 	}
 
-	// BT-29/BT-46 avec schéma ISO 6523 (0009 = SIRET), hors profil Chorus
+	// BT-29/BT-46 with ISO 6523 scheme (0009 = SIRET), except in Chorus profile.
 	$globalId = (!$chorus && !empty($siret14)) ? ['scheme' => '0009', 'id' => $siret14] : null;
 
-	// BT-30/BT-47 : SIRET (Chorus), sinon SIREN, sinon registre du commerce
-	// allemand (sans schemeID : aucun code ISO 6523 pour ce registre).
+	// BT-30/BT-47: SIRET (Chorus), otherwise SIREN, otherwise commercial register
+	// German case; no schemeID is emitted because this registry has no ISO 6523 code.
 	$legalId = null;
 	if ($chorus && !empty($siret14)) {
 		$legalId = ['scheme' => '0009', 'id' => $siret14];
@@ -447,7 +446,7 @@ function auvoerechnung_build_party_model($role, $party, $email, $legalIdMode = '
 		$legalId = ['scheme' => '', 'id' => $deRegister];
 	}
 
-	// BG-6 / BG-9 : contact, éléments vides omis (PEPPOL-EN16931-R008)
+	// BG-6/BG-9: contact; omit empty elements (PEPPOL-EN16931-R008).
 	$contact = null;
 	if (!empty($extra['contact'])) {
 		$c = $extra['contact'];
@@ -460,7 +459,7 @@ function auvoerechnung_build_party_model($role, $party, $email, $legalIdMode = '
 		}
 	}
 
-	// BT-34 (vendeur) / BT-49 (acheteur) : adresse électronique de routage.
+	// BT-34 (seller)/BT-49 (buyer): electronic routing address.
 	if (!empty($extra['endpoint'][0]) && ($extra['endpoint'][1] ?? '') !== '') {
 		$endpoint = ['scheme' => (string) $extra['endpoint'][0], 'id' => (string) $extra['endpoint'][1]];
 	} else {
@@ -468,10 +467,10 @@ function auvoerechnung_build_party_model($role, $party, $email, $legalIdMode = '
 	}
 
 	// BT-32 : identifiant fiscal (schemeID FC) quand il n'y a pas de n° de TVA.
-	// BR-CO-26 / BR-E-09 : le vendeur doit publier BT-31 OU BT-32. Sans TVA intra
-	// (franchise en base 293 B CGI typiquement), le SIREN ; pour un vendeur
-	// allemand sans USt-IdNr (Kleinunternehmer, § 19 UStG), sa Steuernummer —
-	// pendant exact du SIREN, que ZUGFeRD/XRechnung attendent dans ce cas.
+	// BR-CO-26 / BR-E-09: the seller must publish BT-31 OR BT-32. Without an
+	// intra-community VAT ID (typically a small-business exemption under Art. 293 B CGI),
+	// use the SIREN. For a German seller without a USt-IdNr (Kleinunternehmer, § 19 UStG),
+	// use the Steuernummer, the direct equivalent of the SIREN expected by ZUGFeRD/XRechnung.
 	$taxId = '';
 	if (empty($vat) && $role === 'Seller') {
 		if (!empty($siren)) {
@@ -501,35 +500,34 @@ function auvoerechnung_build_party_model($role, $party, $email, $legalIdMode = '
 }
 
 /**
- * Adresse électronique de routage calculée (BT-34 vendeur / BT-49 acheteur).
+ * Calculated electronic routing address (BT-34 seller / BT-49 buyer).
  *
- * Le réseau des Plateformes Agréées (réforme française) route les factures par
- * SIREN : l'adresse porte le SIREN avec schemeID="0225" (annuaire PPF,
- * XP Z12-012). Sans SIREN (tiers étranger hors périmètre), repli sur l'email
- * (schemeID="EM"). Null si aucune adresse n'est disponible, pour ne pas
- * émettre de bloc vide.
+ * The Approved Platform network (French reform) routes invoices using the
+ * SIREN: the electronic address uses the SIREN with schemeID="0225" (PPF directory,
+ * SIREN (XP Z12-012). Without a SIREN (foreign third party outside scope), fall
+ * back to email rather than emitting an empty block (schemeID="EM"). Return
+ * null if no address is available.
  *
- * Suffixe VENDEUR : certaines PA exigent que l'adresse électronique du vendeur
- * (BT-34) ne soit PAS le SIREN nu mais un endpoint suffixé — p.ex. Hubtimize/
- * Esalink attend "<SIREN>_Status" (adresse de retour des statuts de cycle de vie),
- * tel que paramétré à l'enregistrement de l'entité sur la PA. Configurable via
- * AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER (vide par défaut). Appliqué AU vendeur
- * uniquement : l'adresse acheteur (BT-49) reste le SIREN nu, la PA destinataire
- * se chargeant du routage.
+ * SELLER suffix: some approved platforms require the seller's electronic
+ * address (BT-34) to be a suffixed endpoint rather than the bare SIREN, e.g. Hubtimize/
+ * Esalink expects "<SIREN>_Status" (return address for lifecycle status updates),
+ * as configured when registering the entity with the platform. Set this with
+ * AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER (empty by default). Apply this to the
+ * seller only: the buyer address (BT-49) remains the bare SIREN, and the
+ * recipient platform handles routing.
  *
- * @param string $siren SIREN 9 chiffres (vide si absent)
- * @param string $email Email de repli
- * @param string $role  'Seller' (BT-34, suffixe appliqué) ou 'Buyer' (BT-49, nu)
+ * @param string $siren 9-digit SIREN (empty if absent)
+ * @param string $email Fallback email address
+ * @param string $role  'Seller' (BT-34, suffix applied) or 'Buyer' (BT-49, bare)
  * @return array{scheme:string,id:string}|null
  */
 function auvoerechnung_resolve_endpoint($siren, $email, $role = 'Seller')
 {
 	if (!empty($siren)) {
 		$suffix = ($role === 'Seller') ? trim(getDolGlobalString('AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER', '')) : '';
-		// BR-FR-23 : une adresse électronique en 0225 n'admet que les
-		// alphanumériques, le tiret, le tiret bas et le point — tout autre
-		// caractère du suffixe configuré est retiré (sanitisation défensive ;
-		// un avertissement est émis par auvoerechnung_check_mandatory).
+		// BR-FR-23: an electronic address using 0225 permits only alphanumerics,
+		// hyphen, underscore, and period. Remove other characters from the configured
+		// suffix as a defensive measure; auvoerechnung_check_mandatory emits a warning.
 		if ($suffix !== '') {
 			$suffix = preg_replace('/[^A-Za-z0-9._-]/', '', $suffix);
 		}
@@ -542,10 +540,10 @@ function auvoerechnung_resolve_endpoint($siren, $email, $role = 'Seller')
 }
 
 /**
- * Sérialise le modèle en CrossIndustryInvoice (CII D16B, profil EN16931),
- * dans l'ordre imposé par le XSD Factur-X / ZUGFeRD.
+ * Serializes the model as a CrossIndustryInvoice (CII D16B, EN16931 profile),
+ * following the order required by the Factur-X/ZUGFeRD XSD.
  *
- * @param array $m Modèle (cf. auvoerechnung_build_model)
+ * @param array $m Model (see auvoerechnung_build_model)
  * @return string XML
  */
 function auvoerechnung_model_to_cii($m)
@@ -610,7 +608,7 @@ function auvoerechnung_model_to_cii($m)
 		$xml .= '    </ram:SpecifiedTradeProduct>'."\n";
 		$xml .= '    <ram:SpecifiedLineTradeAgreement>'."\n";
 		$xml .= '      <ram:NetPriceProductTradePrice>'."\n";
-		// BT-146 : 4 décimales pour limiter l'écart qty x prix vs total de ligne
+		// BT-146: use 4 decimals to reduce the difference between quantity x price and line total.
 		$xml .= '        <ram:ChargeAmount>'.auvoerechnung_format_unit_price($l['net_price']).'</ram:ChargeAmount>'."\n";
 		$xml .= '      </ram:NetPriceProductTradePrice>'."\n";
 		$xml .= '    </ram:SpecifiedLineTradeAgreement>'."\n";
@@ -649,7 +647,7 @@ function auvoerechnung_model_to_cii($m)
 		$xml .= '      <ram:IssuerAssignedID>'.$e($doc['contract_reference']).'</ram:IssuerAssignedID>'."\n";
 		$xml .= '    </ram:ContractReferencedDocument>'."\n";
 	}
-	// BG-24 : pièces jointes encodées en base64 (TypeCode 916)
+	// BG-24: attachments encoded in base64 (TypeCode 916).
 	foreach ($m['attachments'] as $att) {
 		$xml .= '    <ram:AdditionalReferencedDocument>'."\n";
 		$xml .= '      <ram:IssuerAssignedID>'.$e($att['id']).'</ram:IssuerAssignedID>'."\n";
@@ -665,7 +663,7 @@ function auvoerechnung_model_to_cii($m)
 	// === ApplicableHeaderTradeDelivery (BT-80, BT-72) ===
 	$xml .= '  <ram:ApplicableHeaderTradeDelivery>'."\n";
 	if (!empty($m['delivery']['ship_to'])) {
-		// BG-13 : BT-70 nom, BG-15 adresse (BT-80 : pays du lieu de livraison)
+		// BG-13: BT-70 name, BG-15 address (BT-80: delivery location country).
 		$st = $m['delivery']['ship_to'];
 		$xml .= '    <ram:ShipToTradeParty>'."\n";
 		if ($st['name'] !== '') {
@@ -738,7 +736,7 @@ function auvoerechnung_model_to_cii($m)
 		if ($vb['exemption_code'] !== '') {
 			$xml .= '      <ram:ExemptionReasonCode>'.$e($vb['exemption_code']).'</ram:ExemptionReasonCode>'."\n";
 		}
-		// BT-8 : porté par la catégorie taxée (S) en CII
+		// BT-8: carried by the taxable category (S) in CII.
 		if ($doc['vat_due_date_code'] !== '' && $vb['category'] === 'S') {
 			$xml .= '      <ram:DueDateTypeCode>'.$e($doc['vat_due_date_code']).'</ram:DueDateTypeCode>'."\n";
 		}
@@ -748,7 +746,7 @@ function auvoerechnung_model_to_cii($m)
 		$xml .= '    </ram:ApplicableTradeTax>'."\n";
 	}
 
-	// BG-14 : période de facturation
+	// BG-14: invoice period.
 	if ($doc['period_start'] !== '' || $doc['period_end'] !== '') {
 		$xml .= '    <ram:BillingSpecifiedPeriod>'."\n";
 		if ($doc['period_start'] !== '') {
@@ -809,7 +807,7 @@ function auvoerechnung_model_to_cii($m)
 	$xml .= '      <ram:DuePayableAmount>'.$amt($t['due_payable']).'</ram:DuePayableAmount>'."\n";
 	$xml .= '    </ram:SpecifiedTradeSettlementHeaderMonetarySummation>'."\n";
 
-	// BG-3 : factures antérieures
+	// BG-3: preceding invoices.
 	foreach ($m['preceding_invoices'] as $prev) {
 		$xml .= '    <ram:InvoiceReferencedDocument>'."\n";
 		$xml .= '      <ram:IssuerAssignedID>'.$e($prev['ref']).'</ram:IssuerAssignedID>'."\n";
@@ -829,14 +827,14 @@ function auvoerechnung_model_to_cii($m)
 }
 
 /**
- * Bloc CII d'une partie (SellerTradeParty / BuyerTradeParty), dans l'ordre de
- * la séquence XSD du TradePartyType : ID, GlobalID, Name,
+ * CII block for a party (SellerTradeParty / BuyerTradeParty), in the order required by
+ * the XSD TradePartyType sequence: ID, GlobalID, Name,
  * SpecifiedLegalOrganization, DefinedTradeContact, PostalTradeAddress,
  * URIUniversalCommunication, SpecifiedTaxRegistration.
  *
- * L'identifiant qualifié par un schéma ISO 6523 (BT-29/BT-46) va dans
- * ram:GlobalID, PAS dans ram:ID : EN16931 ne lit le schemeID que sur GlobalID
- * — sur ram:ID il est « not used in the given context » et fait échouer la
+ * The identifier qualified by an ISO 6523 scheme (BT-29/BT-46) belongs in
+ * ram:GlobalID, NOT ram:ID: EN16931 reads schemeID only from GlobalID.
+ * ram:GlobalID; in ram:ID it is "not used in the given context" and fails
  * validation Schematron (FNFE-MPE).
  *
  * @param array $p Partie (cf. auvoerechnung_build_party_model)
@@ -906,23 +904,23 @@ function auvoerechnung_cii_party($p)
 }
 
 /**
- * Sérialise le modèle en UBL 2.1 (Invoice, ou CreditNote pour un avoir 381),
- * selon la syntaxe UBL de la norme EN 16931-3-2 et l'ordre des XSD OASIS.
+ * Serializes the model as UBL 2.1 (Invoice, or CreditNote for a type 381 credit
+ * note) according to EN 16931-3-2 and the element order in the OASIS XSDs.
  *
- * Particularités par rapport à CII :
+ * Differences from CII:
  *  - avoir : document CreditNote / CreditNoteLine / CreditedQuantity, et la
- *    date d'échéance (BT-9) passe dans PaymentMeans/PaymentDueDate ;
- *  - BT-8 : InvoicePeriod/DescriptionCode, liste UNTDID 2005 (3 = date de
- *    facture, 35 = livraison, 432 = paiement) au lieu des codes 2475 de CII ;
- *  - BG-1 : le code sujet (BT-21) n'a pas d'élément propre, convention
- *    « #CODE#texte » dans cbc:Note ;
- *  - BT-90 : identifiant créancier SEPA en PartyIdentification du vendeur
- *    (schemeID SEPA) ; mandat BT-89 et IBAN débiteur BT-91 dans
+ *    due date (BT-9) goes in PaymentMeans/PaymentDueDate;
+ *  - BT-8: InvoicePeriod/DescriptionCode, UNTDID 2005 list (3 = invoice date,
+ *    35 = delivery, 432 = payment) rather than CII's 2475 codes;
+ *  - BG-1: the subject code (BT-21) has no dedicated element; use the convention
+ *    "#CODE#text" in cbc:Note;
+ *  - BT-90: SEPA creditor ID in the seller's PartyIdentification (schemeID SEPA);
+ *    mandate BT-89 and debtor IBAN BT-91 in
  *    PaymentMeans/PaymentMandate ;
- *  - tous les montants portent currencyID ; éléments vides omis
+ *  - all amounts have currencyID; omit empty elements
  *    (PEPPOL-EN16931-R008).
  *
- * @param array $m Modèle (cf. auvoerechnung_build_model)
+ * @param array $m Model (see auvoerechnung_build_model)
  * @return string XML
  */
 function auvoerechnung_model_to_ubl($m)
@@ -960,7 +958,7 @@ function auvoerechnung_model_to_ubl($m)
 	if ($doc['buyer_reference'] !== '') {
 		$xml .= '  <cbc:BuyerReference>'.$e($doc['buyer_reference']).'</cbc:BuyerReference>'."\n"; // BT-10
 	}
-	// BG-14 + BT-8 (émis comme en CII : seulement s'il y a une catégorie S)
+	// BG-14 + BT-8 (same as CII: emit only if category S is present).
 	$hasS = in_array('S', array_column($m['vat_breakdown'], 'category'), true);
 	$bt8 = ($hasS && $doc['vat_due_date_code'] !== '') ? (['5' => '3', '29' => '35', '72' => '432'][$doc['vat_due_date_code']] ?? '') : '';
 	if ($doc['period_start'] !== '' || $doc['period_end'] !== '' || $bt8 !== '') {
@@ -1150,8 +1148,8 @@ function auvoerechnung_model_to_ubl($m)
 }
 
 /**
- * Catégorie de TVA UBL (TaxCategory / ClassifiedTaxCategory) : code, taux
- * (absent pour O), code et motif d'exonération, schéma VAT.
+ * UBL VAT category (TaxCategory/ClassifiedTaxCategory): code, rate (omitted
+ * for O), exemption code and reason, and VAT scheme.
  */
 function auvoerechnung_ubl_tax_category($tag, $category, $rate, $exemptionCode, $exemptionReason, $indent)
 {
@@ -1175,12 +1173,12 @@ function auvoerechnung_ubl_tax_category($tag, $category, $rate, $exemptionCode, 
 }
 
 /**
- * Bloc cac:Party UBL d'une partie, dans l'ordre du XSD (EndpointID,
+ * UBL cac:Party block for a party, in XSD order (EndpointID,
  * PartyIdentification, PostalAddress, PartyTaxScheme, PartyLegalEntity,
  * Contact).
  *
  * @param array  $p           Partie (cf. auvoerechnung_build_party_model)
- * @param string $creditorId  BT-90 (vendeur, prélèvement SEPA)
+ * @param string $creditorId  BT-90 (seller, SEPA direct debit)
  * @return string XML
  */
 function auvoerechnung_ubl_party($p, $creditorId = '')
@@ -1220,7 +1218,7 @@ function auvoerechnung_ubl_party($p, $creditorId = '')
 	$xml .= '          <cbc:IdentificationCode>'.$e($a['country']).'</cbc:IdentificationCode>'."\n"; // BT-40/55
 	$xml .= '        </cac:Country>'."\n";
 	$xml .= '      </cac:PostalAddress>'."\n";
-	// BT-31/48 (schéma VAT) ou BT-32 (identifiant fiscal, schéma FC)
+	// BT-31/48 (VAT scheme) or BT-32 (tax ID, FC scheme).
 	foreach ([[$p['vat_id'], 'VAT'], [$p['vat_id'] === '' ? $p['tax_id'] : '', 'FC']] as [$taxId, $scheme]) {
 		if ($taxId !== '') {
 			$xml .= '      <cac:PartyTaxScheme>'."\n";
