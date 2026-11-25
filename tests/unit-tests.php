@@ -566,7 +566,7 @@ $inv->total_ht = -75.00;
 $inv->total_tva = -15.00;
 $inv->total_ttc = -90.00;
 $w = [];
-$xml = auvoerechnung_build_xml($inv, $mysoc, $w); // 380 entièrement négatif : lignes ré-émises brutes
+$xml = auvoerechnung_build_xml($inv, $mysoc, $w); // 380 entirely negative: lines re-emitted as-is
 $violations = auvoerechnung_validate_business_rules($xml);
 lfx_assert(!empty($violations), 'violations détectées sur facture entièrement négative');
 $hasBr27 = false;
@@ -586,7 +586,7 @@ $mysocFranchise2 = lfx_make_party(['name' => 'EX-MICRO', 'idprof2' => '909458306
 $inv = new LfxFakeInvoice();
 $inv->ref = 'FA2606-0017';
 $inv->thirdparty = lfx_make_party();
-$inv->lines = [lfx_make_line(1000.00, 20.0, 200.00)]; // ancienne facture régénérée après passage en franchise
+$inv->lines = [lfx_make_line(1000.00, 20.0, 200.00)]; // old invoice regenerated after switching to VAT exemption
 $inv->total_ht = 1000.00;
 $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
@@ -641,7 +641,7 @@ echo "U18 OK\n";
 $currentTest = 'U22 BR-FR-01/02 identifiant de facture (BT-1)';
 lfx_reset();
 $inv = new LfxFakeInvoice();
-$inv->ref = 'FA2606-0001-AVEC-UNE-REFERENCE-BEAUCOUP-TROP-LONGUE'; // 51 caractères
+$inv->ref = 'FA2606-0001-AVEC-UNE-REFERENCE-BEAUCOUP-TROP-LONGUE'; // 51 characters
 $inv->thirdparty = lfx_make_party();
 $inv->lines = [lfx_make_line(100.00, 20.0, 20.00)];
 $inv->total_ht = 100.00;
@@ -653,7 +653,7 @@ lfx_assert(lfx_contains($violations, 'BR-FR-01'), 'BR-FR-01 détectée (BT-1 > 3
 lfx_assert(!lfx_contains($violations, 'BR-FR-02'), 'pas de BR-FR-02 (charset valide)');
 lfx_assert(lfx_contains(auvoerechnung_check_mandatory($inv, $mysoc), 'AuvoERechnungWarnRefTooLong'), 'warning amont BT-1 trop long (check_mandatory)');
 
-$inv->ref = 'FA 2606 (BIS)'; // espace et parenthèses interdits
+$inv->ref = 'FA 2606 (BIS)'; // space and parentheses not allowed
 $w = [];
 $violations = auvoerechnung_validate_business_rules(auvoerechnung_build_xml($inv, $mysoc, $w));
 lfx_assert(lfx_contains($violations, 'BR-FR-02'), 'BR-FR-02 détectée (espace/parenthèses dans BT-1)');
@@ -699,7 +699,7 @@ $currentTest = 'U24 BR-FR-CO-04/CO-05 avoir et rectificative sans facture d\'ori
 lfx_reset();
 $inv = new LfxFakeInvoice();
 $inv->ref = 'AV2606-0002';
-$inv->type = 2; // TYPE_CREDIT_NOTE, sans fk_facture_source
+$inv->type = 2; // TYPE_CREDIT_NOTE, without fk_facture_source
 $inv->thirdparty = lfx_make_party();
 $inv->lines = [lfx_make_line(-500.00, 20.0, -100.00)];
 $inv->total_ht = -500.00;
@@ -712,7 +712,7 @@ lfx_assert(lfx_contains($w, 'AuvoERechnungWarnCreditNoteNoSource'), 'warning avo
 
 $inv2 = new LfxFakeInvoice();
 $inv2->ref = 'FA2606-0021';
-$inv2->type = 1; // TYPE_REPLACEMENT, sans fk_facture_source
+$inv2->type = 1; // TYPE_REPLACEMENT, without fk_facture_source
 $inv2->thirdparty = lfx_make_party();
 $inv2->lines = [lfx_make_line(500.00, 20.0, 100.00)];
 $inv2->total_ht = 500.00;
@@ -735,13 +735,13 @@ $inv = new LfxFakeInvoice();
 $inv->id = 11;
 $inv->ref = 'FA2606-0027';
 $inv->type = 1; // TYPE_REPLACEMENT → 384
-$inv->fk_facture_source = 42; // facture remplacée
+$inv->fk_facture_source = 42; // replaced invoice
 $inv->thirdparty = lfx_make_party();
 $inv->lines = [lfx_make_line(1000.00, 20.0, 200.00)];
 $inv->total_ht = 1000.00;
 $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
-$inv->sumDepositsUsed = 240.00; // acompte consommé via remise exceptionnelle
+$inv->sumDepositsUsed = 240.00; // deposit consumed via an exceptional discount
 $w = [];
 $xml = auvoerechnung_build_xml($inv, $mysoc, $w);
 $violations = lfx_std_validate($xml, $xsdPath);
@@ -880,12 +880,12 @@ lfx_reset();
 $inv = new LfxFakeInvoice();
 $inv->ref = 'FA2606-0026';
 $inv->thirdparty = lfx_make_party();
-$inv->lines = [lfx_make_line(100.00, 19.0, 19.00)]; // 19 % : pas un taux français
+$inv->lines = [lfx_make_line(100.00, 19.0, 19.00)]; // 19 %: not a French rate
 $inv->total_ht = 100.00;
 $inv->total_tva = 19.00;
 $inv->total_ttc = 119.00;
 lfx_assert(lfx_contains(auvoerechnung_check_mandatory($inv, $mysoc), 'AuvoERechnungWarnVatRateNotFR'), 'warning BR-FR-16 sur un taux à 19 %');
-$inv->lines = [lfx_make_line(100.00, 8.5, 8.50)]; // 8,5 % : taux DOM légitime
+$inv->lines = [lfx_make_line(100.00, 8.5, 8.50)]; // 8.5 %: legitimate overseas (DOM) rate
 $inv->total_tva = 8.50;
 $inv->total_ttc = 108.50;
 lfx_assert(!lfx_contains(auvoerechnung_check_mandatory($inv, $mysoc), 'AuvoERechnungWarnVatRateNotFR'), 'pas de warning sur le taux DOM 8,5 %');
@@ -899,8 +899,8 @@ $currentTest = 'U30 vendeur non français : règles BR-FR non opposables';
 lfx_reset();
 $mysocDE = lfx_make_party(['name' => 'ACME GMBH', 'country_code' => 'DE', 'idprof1' => '', 'idprof2' => '', 'tva_intra' => 'DE129273398', 'zip' => '10115', 'town' => 'Berlin']);
 $inv = new LfxFakeInvoice();
-$inv->ref = 'RE 2026 0042'; // espaces : violerait BR-FR-02 pour un vendeur FR
-$inv->type = 1; // rectificative sans facture d'origine : violerait BR-FR-CO-04
+$inv->ref = 'RE 2026 0042'; // spaces: would violate BR-FR-02 for a FR seller
+$inv->type = 1; // corrective invoice without original invoice: would violate BR-FR-CO-04
 $inv->thirdparty = lfx_make_party();
 $inv->lines = [lfx_make_line(100.00, 20.0, 20.00)];
 $inv->total_ht = 100.00;
@@ -1946,7 +1946,7 @@ echo "U48 OK\n";
 $currentTest = 'U49 unités UN/ECE par code Dolibarr, unité inconnue, accès chorus_tab';
 $GLOBALS['db'] = new LfxFakeDb();
 $units = [
-	91 => ['MO', 'm', 'MON'],   // mois (libellé court « m » : ne doit PAS donner MIN)
+	91 => ['MO', 'm', 'MON'],   // month (short label "m": must NOT become MIN)
 	92 => ['MI', 'mn', 'MIN'],
 	93 => ['W', 'w', 'WEE'],
 	94 => ['Y', 'y', 'ANN'],
@@ -1958,8 +1958,8 @@ $units = [
 	100 => ['SET', 'set', 'SET'],
 	101 => ['MG', 'mg', 'MGM'],
 	102 => ['CM3', 'cm3', 'CMQ'],
-	103 => ['ZZ', 'pcs', 'C62'],   // unité utilisateur reconnue par son libellé
-	104 => ['ZH', 'h', 'HUR'],     // unité utilisateur « h »
+	103 => ['ZZ', 'pcs', 'C62'],   // user-defined unit recognised by its label
+	104 => ['ZH', 'h', 'HUR'],     // user-defined unit "h"
 ];
 foreach ($units as $id => [$code, $short, $expected]) {
 	lfx_reset([], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001'], [
@@ -2158,7 +2158,7 @@ lfx_assert_eq([], auvoerechnung_get_deposit_lines($fin2), 'nur Standardrechnunge
 $GLOBALS['lfx_test_db_handlers'] = [];
 echo "U53 OK\n";
 
-// Issue #3: Leistungszeitraum je Position (BG-26, BT-134/BT-135)
+// Issue #3: billing period per line (BG-26, BT-134/BT-135)
 $currentTest = 'U54 Leistungszeitraum je Position (BG-26)';
 lfx_reset(['AUVOERECHNUNG_PAYMENT_MEANS' => '58', 'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann', 'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456'], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
 $per = new LfxFakeInvoice();
@@ -2197,7 +2197,7 @@ lfx_assert_eq('2026-11-30', lfx_xp_str($xpu, '(//cac:InvoiceLine)[2]/cac:Invoice
 lfx_assert_eq(0, $xpu->query('(//cac:InvoiceLine)[3]/cac:InvoicePeriod')->length, 'UBL: Position ohne Daten ohne BG-26');
 lfx_assert(!array_filter($w, function ($x) { return strpos($x, 'LinePeriod') !== false; }), 'keine Zeitraum-Warnung im Normalfall');
 
-// Zeitraum an der Rechnung von Hand, deckt Position 2 nicht ab
+// Invoice period entered by hand, does not cover line 2
 $per->array_options = ['options_lfxperiodstart' => mktime(0, 0, 0, 10, 1, 2026), 'options_lfxperiodend' => mktime(0, 0, 0, 10, 31, 2026)];
 $w = [];
 $xr = auvoerechnung_build_xrechnung($per, $seller, $w, [], 'cii');
@@ -2209,13 +2209,13 @@ lfx_assert(lfx_contains($w, auvoerechnung_trans('AuvoERechnungWarnLinePeriodOuts
 lfx_dump('xr-13-zeitraum-position-ausserhalb', $xr['xml']);
 $per->array_options = [];
 
-// Ende vor Beginn (BR-30)
+// End before start (BR-30)
 $per->lines[0]->date_end = mktime(0, 0, 0, 9, 15, 2026);
 $w = [];
 $xp = lfx_xpath(auvoerechnung_build_xml($per, $seller, $w));
 lfx_assert_eq(0, $xp->query('//ram:IncludedSupplyChainTradeLineItem[1]//ram:BillingSpecifiedPeriod')->length, 'Ende vor Beginn: BG-26 weggelassen (BR-30)');
 lfx_assert(lfx_contains($w, auvoerechnung_trans('AuvoERechnungWarnLinePeriodOrder', '1')), 'Warnung nennt Position 1');
-// Nur Beginn erfasst: BG-26 mit BT-134 allein (BR-CO-20)
+// Only start entered: BG-26 with BT-134 alone (BR-CO-20)
 $per->lines[0]->date_end = null;
 $w = [];
 $xmlOnly = auvoerechnung_build_xml($per, $seller, $w);
@@ -2225,9 +2225,9 @@ lfx_assert_eq('20261001', lfx_xp_str($xp, sprintf($lp, 1, 'StartDateTime')), 'nu
 lfx_assert_eq(null, lfx_xp_str($xp, sprintf($lp, 1, 'EndDateTime')), 'nur Beginn: kein BT-135');
 echo "U54 OK\n";
 
-// Issue #4: „ZUGFeRD neu erzeugen“ ohne sichtbare Wirkung. Stille Ausstiege des
-// Hooks werden gemeldet; ein Modell ohne afterPDFCreation wird erkannt.
-// (Am Ende der Datei: definiert global Facture und setEventMessages.)
+// Issue #4: "ZUGFeRD neu erzeugen" with no visible effect. Silent hook exits
+// are reported; a model without afterPDFCreation is detected.
+// (At the end of the file: defines Facture and setEventMessages globally.)
 $currentTest = 'U55 Rückmeldung nach „ZUGFeRD neu erzeugen“ (Issue #4)';
 if (!function_exists('setEventMessages')) {
 	function setEventMessages($m, $a, $t)

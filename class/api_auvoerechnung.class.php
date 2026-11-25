@@ -34,7 +34,7 @@ class AuvoerechnungApi extends DolibarrApi
 	 * The XML is rebuilt on demand from the invoice data using the same engine
 	 * as PDF embedding, with compliance warnings and any business-rule violations.
 	 *
- * @param int $id Invoice ID
+	 * @param int $id Invoice ID
 	 * @return array
 	 *
 	 * @url GET invoice/{id}/xml
@@ -77,7 +77,7 @@ class AuvoerechnungApi extends DolibarrApi
 	 * while required data is missing. BG-24 attachments (base64, potentially
 	 * large) are included only when requested (?with_attachments=1).
 	 *
- * @param int $id Invoice ID
+	 * @param int $id Invoice ID
 	 * @param int $with_attachments 1 to include BG-24 attachments in the XML {@from query}
 	 * @return array
 	 *
@@ -126,7 +126,7 @@ class AuvoerechnungApi extends DolibarrApi
 	/**
 	 * Factur-X status for the invoice PDF: is embedded XML present and valid?
 	 *
- * @param int $id Invoice ID
+	 * @param int $id Invoice ID
 	 * @return array
 	 *
 	 * @url GET invoice/{id}/status

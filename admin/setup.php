@@ -8,7 +8,7 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Page de configuration du module AuVo E-Rechnung
+ * Setup page of the AuVo E-Rechnung module
  */
 
 // Charger l'environnement Dolibarr
@@ -580,7 +580,7 @@ if ($tab === 'general') {
 	print $langs->trans("AuvoERechnungInfo");
 	print '</div>';
 
-	// === Diagnostic des infos obligatoires ===
+	// === Diagnostics of mandatory information ===
 	print '<br>';
 	print load_fiche_titre($langs->trans("AuvoERechnungTestTitle"), '', '');
 	print '<div class="opacitymedium" style="margin-bottom:8px;">'.$langs->trans("AuvoERechnungTestInfo").'</div>';
@@ -614,7 +614,7 @@ if ($tab === 'general') {
 	print load_fiche_titre($langs->trans("AuvoERechnungDiagTitle"), '', '');
 
 	$diagErrors = [];
-	$diagWarnings = []; // points recommandés mais NON bloquants (orange, pas rouge)
+	$diagWarnings = []; // recommended but NON-blocking items (orange, not red)
 	$diagOk = [];
 
 	/**
@@ -786,8 +786,8 @@ if ($tab === 'general') {
 		if (auvoerechnung_php_cli_is_valid($phpCliResolved)) {
 			$diagOk[] = $langs->trans("AuvoERechnungDiagPhpCliOk").' : '.dol_escape_htmltag($phpCliLabel);
 		} else {
-		// Subprocess mode OR auto-with-exec: the subprocess is the active
-		// injection path, so an invalid CLI binary is a blocker.
+			// Subprocess mode OR auto-with-exec: the subprocess is the active
+			// injection path, so an invalid CLI binary is a blocker.
 			$diagErrors[] = ['msg' => $langs->trans("AuvoERechnungDiagPhpCliNotFound", dol_escape_htmltag($phpCliResolved)), 'fix' => '/custom/auvoerechnung/admin/setup.php?tab=advanced'];
 		}
 	}

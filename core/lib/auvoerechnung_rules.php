@@ -66,8 +66,8 @@ function auvoerechnung_validate_xsd($xml, $modulePath)
 		return auvoerechnung_rule_msg('', 'AuvoERechnungXsdMalformed', $firstError('-'));
 	}
 
-		// Select syntax from the root element: UBL 2.1 (Invoice/CreditNote,
-		// bundled OASIS XSD) or CII (Factur-X EN16931 XSD).
+	// Select syntax from the root element: UBL 2.1 (Invoice/CreditNote,
+	// bundled OASIS XSD) or CII (Factur-X EN16931 XSD).
 	$rootNs = $dom->documentElement ? (string) $dom->documentElement->namespaceURI : '';
 	if (preg_match('/^urn:oasis:names:specification:ubl:schema:xsd:(Invoice|CreditNote)-2$/', $rootNs, $mUbl)) {
 		$xsdPath = $modulePath.'/vendor/oasis/ubl-2.1/xsd/maindoc/UBL-'.$mUbl[1].'-2.1.xsd';
@@ -473,7 +473,7 @@ function auvoerechnung_validate_business_rules($xml)
 				$violations[] = auvoerechnung_rule_msg($r[0], 'AuvoERechnungRule'.str_replace('-', '', substr($r[0], 3)));
 			}
 		}
-	// BR-DE-1: payment instructions (BG-16).
+		// BR-DE-1: payment instructions (BG-16).
 		$pmNodes = $xp->query('//ram:SpecifiedTradeSettlementPaymentMeans');
 		if ($pmNodes->length === 0) {
 			$violations[] = auvoerechnung_rule_msg('BR-DE-1', 'AuvoERechnungRuleDE1');

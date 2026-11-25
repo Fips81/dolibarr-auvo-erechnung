@@ -322,7 +322,7 @@ function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdpart
 			'vatRate'   => (float) $line->tva_tx,
 			'taxCat'    => auvoerechnung_resolve_tax_category($line, $invoice, $thirdparty, $mysoc),
 			'unitCode'  => $unitCode,
-			// BG-26 : période de la ligne (services Dolibarr : date_start / date_end)
+			// BG-26: line period (Dolibarr services: date_start / date_end)
 			'dateStart' => !empty($line->date_start) ? (int) $line->date_start : null,
 			'dateEnd'   => !empty($line->date_end) ? (int) $line->date_end : null,
 		];
@@ -1116,7 +1116,7 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
  *
  * @param object      $line    Dolibarr invoice line
  * @param string|null $unknown Receives the label of an unmatched unit
- * @return string Code UN/ECE (ex: HUR, DAY, MTR, KGM, C62...)
+ * @return string UN/ECE code (e.g. HUR, DAY, MTR, KGM, C62...)
  */
 function auvoerechnung_map_unit_code($line, &$unknown = null)
 {
@@ -1272,11 +1272,11 @@ function auvoerechnung_resolve_document_type($invoice, &$buildWarnings = [])
 
 	switch ($type) {
 		case 1: // Facture::TYPE_REPLACEMENT
-			return '384'; // Corrected invoice + BG-3 vers la facture remplacée
+			return '384'; // Corrected invoice + BG-3 referencing the replaced invoice
 		case 2: // Facture::TYPE_CREDIT_NOTE
 			return '381';
 		case 3: // Facture::TYPE_DEPOSIT
-			return '386'; // EN16931 : prepayment / advance invoice
+			return '386'; // EN16931: prepayment / advance invoice
 		case 5: // Facture::TYPE_SITUATION
 			$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnSituationInvoice');
 			return '380';
@@ -1458,11 +1458,11 @@ function auvoerechnung_get_preceding_invoices($invoice, $typeCode = '')
 /**
  * BT-22 text for a final invoice with applied deposits (§ 14(5) UStG).
  *
- * BMF-Schreiben vom 15.10.2026 (Rn. 3) : Bis 30.06.2030 wird beanstandungsfrei
- * hingenommen, wenn die Teilentgelte als Summe in BT-113 abgezogen werden und
- * die Angaben nach UStAE 14.8 Abs. 7/8 (Entgelt, Steuersatz, Steuer je
- * advance payment) may be stated as free text in BT-22. Empty when no deposit
- * (including a deposit invoice) was applied or when the source data is unavailable.
+ * BMF letter of 15.10.2026 (para. 3): until 30.06.2030 it is accepted if the
+ * partial payments are deducted as a total in BT-113 and the details required
+ * by UStAE 14.8 (7)/(8) (net amount, tax rate, tax per advance payment) are
+ * stated as free text in BT-22. Empty when no deposit (including a deposit
+ * invoice) was applied or when the source data is unavailable.
  *
  * @param object $invoice Dolibarr invoice
  * @return string Text (one line per deposit) or an empty string
@@ -2143,7 +2143,7 @@ function auvoerechnung_xrechnung_cius_id()
 
 /**
  * Seller's supplier number at this customer (BT-29), customer extrafield
- * « Unsere Lieferantennummer beim Kunden » (lfxsupplierno).
+ * "Unsere Lieferantennummer beim Kunden" (lfxsupplierno).
  *
  * @param object $party  Buyer
  * @return string
@@ -2857,7 +2857,7 @@ function auvoerechnung_format_unit_price($price)
  * avoid retrying a slow network request every time the admin page is opened.
  *
  * @param object $db               Handle DB Dolibarr
- * @param string $currentVersion   Version actuelle du module (ex: "1.1.0")
+ * @param string $currentVersion   Current module version (e.g. "1.1.0")
  * @return array|null              ['version' => 'x.y.z', 'url' => 'https://...']
  *                                 if a newer version exists, otherwise null
  */

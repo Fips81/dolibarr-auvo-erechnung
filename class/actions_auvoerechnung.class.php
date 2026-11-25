@@ -31,17 +31,17 @@ class ActionsAuvoERechnung
 	private $xmlTmpFile = null;
 
 	/**
-	 * Issue du hook de génération pendant « ZUGFeRD neu erzeugen » : null tant
-	 * qu'aucun hook (afterPDFCreation / afterODTCreation) n'a été appelé pour
-	 * la facture, sinon 'done', 'draft', 'disabled', 'nofile'. Statique :
-	 * Dolibarr instancie la classe une fois par contexte (invoicecard pour
-	 * l'action, pdfgeneration/odtgeneration pour le hook).
+	 * Outcome of the generation hook during "ZUGFeRD neu erzeugen": null as
+	 * long as no hook (afterPDFCreation / afterODTCreation) has been called for
+	 * the invoice, otherwise 'done', 'draft', 'disabled' or 'nofile'. Static
+	 * because Dolibarr instantiates the class once per context (invoicecard for
+	 * the action, pdfgeneration/odtgeneration for the hook).
 	 *
 	 * @var string|null
 	 */
 	public static $pdfHookOutcome = null;
 
-	/** @var string Fichier PDF reçu par le hook (diagnostic 'nofile') */
+	/** @var string PDF file received by the hook (for the 'nofile' diagnostic) */
 	public static $pdfHookFile = '';
 
 	public function __construct($db)
@@ -50,11 +50,11 @@ class ActionsAuvoERechnung
 	}
 
 	/**
-	 * Après « ZUGFeRD neu erzeugen » : message si aucun hook de génération n'a
-	 * été appelé (modèle PDF sans afterPDFCreation) ou s'il est sorti sans
-	 * rien faire. Succès et erreurs ont déjà leur propre message.
+	 * After "ZUGFeRD neu erzeugen": shows a message if no generation hook was
+	 * called (PDF model without afterPDFCreation) or if it exited without doing
+	 * anything. Success and errors already have their own message.
 	 *
-	 * @param string $model Modèle de document utilisé
+	 * @param string $model Document model used
 	 * @return void
 	 */
 	protected function reportRegenerateOutcome($model)
@@ -819,8 +819,8 @@ class ActionsAuvoERechnung
 			if ($res <= 0) {
 				setEventMessages($langs->trans('AuvoERechnungMsgRegenerateFailed').' : '.$object->error, null, 'errors');
 			} else {
-				// Sorties silencieuses du hook rendues visibles (issue #4) : sans
-				// ce retour, « ZUGFeRD neu erzeugen » semblait ne rien faire.
+				// Make silent hook exits visible (issue #4): without this
+				// feedback, "ZUGFeRD neu erzeugen" seemed to do nothing.
 				$this->reportRegenerateOutcome($model);
 			}
 			// Success and warning messages are emitted by afterPDFCreation.

@@ -344,10 +344,10 @@ class modAuvoERechnung extends DolibarrModules
 		);
 		foreach ($defs as $d) {
 			if (!empty($extrafields->attributes['facture']['label'][$d[0]])) {
-				continue; // déjà présent
+				continue; // already present
 			}
-			$size  = is_array($d[3]) ? '' : $d[3];   // taille (chaîne) pour varchar
-			$param = is_array($d[3]) ? $d[3] : '';   // tableau d'options pour select
+			$size  = is_array($d[3]) ? '' : $d[3];   // size (string) for varchar
+			$param = is_array($d[3]) ? $d[3] : '';   // option array for select
 			// Signature : (attrname, label, type, pos, size, elementtype, unique,
 			// required, default, param, alwayseditable, perms, list, ...). list='0'
 			// Hide from the standard display: edit these fields ONLY in the
@@ -392,7 +392,7 @@ class modAuvoERechnung extends DolibarrModules
 		$extrafields = new ExtraFields($this->db);
 		$extrafields->fetch_name_optionals_label('societe');
 		if (!empty($extrafields->attributes['societe']['label']['lfxleitwegid'])) {
-			return; // déjà présent
+			return; // already present
 		}
 		// Same signature as createChorusExtraFields(): (attrname, label, type,
 		// pos, size, elementtype, unique, required, default, param, alwayseditable,
@@ -450,7 +450,7 @@ class modAuvoERechnung extends DolibarrModules
 		$extrafields = new ExtraFields($this->db);
 		$extrafields->fetch_name_optionals_label('societe');
 		if (!empty($extrafields->attributes['societe']['label']['lfxsupplierno'])) {
-			return; // déjà présent
+			return; // already present
 		}
 		$extrafields->addExtraField(
 			'lfxsupplierno', 'AuvoERechnungEfSupplierNo', 'varchar', 202, '100', 'societe',
@@ -482,7 +482,7 @@ class modAuvoERechnung extends DolibarrModules
 		);
 		foreach ($defs as $d) {
 			if (!empty($extrafields->attributes['facture']['label'][$d[0]])) {
-				continue; // déjà présent
+				continue; // already present
 			}
 			$extrafields->addExtraField(
 				$d[0], $d[1], $d[2], $d[3], $d[4], 'facture',

@@ -206,7 +206,7 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 		}
 	}
 
-	// BG-25 : lignes
+	// BG-25: lines
 	$docStart = $periodStart !== null ? date('Ymd', $periodStart) : '';
 	$docEnd = $periodEnd !== null ? date('Ymd', $periodEnd) : '';
 	$periodSkipped = ['order' => [], 'outside' => []];
@@ -214,10 +214,10 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 	$lineNum = 0;
 	foreach ($prepared['lines'] as $pl) {
 		$lineNum++;
-		// BG-26 (BT-134/BT-135) : période propre à la ligne. Omise, avec un
-		// avertissement, si la fin précède le début (BR-30) ou si elle sort
-		// de la période de la facture (PEPPOL-EN16931-R110/R111, appliquées
-		// à XRechnung) — cas d'une période saisie à la main sur la facture.
+		// BG-26 (BT-134/BT-135): the line's own period. Omitted with a
+		// warning if the end precedes the start (BR-30) or if it lies outside
+		// the invoice period (PEPPOL-EN16931-R110/R111, applied to XRechnung),
+		// which happens when the invoice period was entered by hand.
 		$lineStart = !empty($pl['dateStart']) ? date('Ymd', $pl['dateStart']) : '';
 		$lineEnd = !empty($pl['dateEnd']) ? date('Ymd', $pl['dateEnd']) : '';
 		if ($lineStart !== '' && $lineEnd !== '' && $lineEnd < $lineStart) {
@@ -242,7 +242,7 @@ function auvoerechnung_build_model($invoice, $mysoc, &$buildWarnings = [], $opti
 			'name'         => $pl['name'],                    // BT-153
 			'description'  => $pl['itemDesc'],                // BT-154
 			'seller_item_id' => $pl['sellerId'],              // BT-155
-			'gtin'         => $pl['gtin'],                    // BT-157 (schéma 0160)
+			'gtin'         => $pl['gtin'],                    // BT-157 (scheme 0160)
 			'net_price'    => $pl['unitPrice'],
 			'quantity'     => $pl['qty'],
 			'unit_code'    => $pl['unitCode'],
@@ -387,7 +387,7 @@ function auvoerechnung_compute_totals($invoice, $sign, $prepared, $breakdown, &$
 
 	$grandTotal   = round($taxBasisTotal + $taxTotal, 2); // BR-CO-15
 	$totalPrepaid = auvoerechnung_get_prepaid_amount($invoice);
-	$duePayable   = round($grandTotal - $totalPrepaid, 2); // BR-CO-16, sans écrêtage
+	$duePayable   = round($grandTotal - $totalPrepaid, 2); // BR-CO-16, without clamping
 
 	// Compare with Dolibarr totals (visible PDF); a difference indicates data
 	// outside the supported scope (local taxes or inconsistent lines).
@@ -499,7 +499,7 @@ function auvoerechnung_build_party_model($role, $party, $email, $legalIdMode = '
 		$endpoint = auvoerechnung_resolve_endpoint($siren, $email, $role);
 	}
 
-	// BT-32 : identifiant fiscal (schemeID FC) quand il n'y a pas de n° de TVA.
+	// BT-32: tax registration ID (schemeID FC) when there is no VAT number.
 	// BR-CO-26 / BR-E-09: the seller must publish BT-31 OR BT-32. Without an
 	// intra-community VAT ID (typically a small-business exemption under Art. 293 B CGI),
 	// use the SIREN. For a German seller without a USt-IdNr (Kleinunternehmer, § 19 UStG),
@@ -516,8 +516,8 @@ function auvoerechnung_build_party_model($role, $party, $email, $legalIdMode = '
 	return [
 		'role'      => $role,
 		'name'      => (string) ($party->name ?? ''),           // BT-27 / BT-44
-		'id'        => $sellerId,                               // BT-29 sans schéma
-		'global_id' => $globalId,                               // BT-29 / BT-46 avec schéma
+		'id'        => $sellerId,                               // BT-29 without scheme
+		'global_id' => $globalId,                               // BT-29 / BT-46 with scheme
 		'legal_id'  => $legalId,                                // BT-30 / BT-47
 		'contact'   => $contact,                                // BG-6 / BG-9
 		'address'   => [                                        // BG-5 / BG-8
@@ -621,7 +621,7 @@ function auvoerechnung_model_to_cii($m)
 	// === SupplyChainTradeTransaction ===
 	$xml .= '<rsm:SupplyChainTradeTransaction>'."\n";
 
-	// BG-25 : lignes
+	// BG-25: lines
 	foreach ($m['lines'] as $l) {
 		$xml .= '  <ram:IncludedSupplyChainTradeLineItem>'."\n";
 		$xml .= '    <ram:AssociatedDocumentLineDocument>'."\n";
@@ -657,7 +657,7 @@ function auvoerechnung_model_to_cii($m)
 		}
 		$xml .= '      </ram:ApplicableTradeTax>'."\n";
 		if (($l['period_start'] ?? '') !== '' || ($l['period_end'] ?? '') !== '') {
-			// BG-26 : entre ApplicableTradeTax et la somme de ligne (ordre XSD)
+			// BG-26: between ApplicableTradeTax and the line total (XSD order)
 			$xml .= '      <ram:BillingSpecifiedPeriod>'."\n";
 			if ($l['period_start'] !== '') {
 				$xml .= '        <ram:StartDateTime>'."\n";
@@ -956,7 +956,7 @@ function auvoerechnung_cii_party($p)
  * note) according to EN 16931-3-2 and the element order in the OASIS XSDs.
  *
  * Differences from CII:
- *  - avoir : document CreditNote / CreditNoteLine / CreditedQuantity, et la
+ *  - credit note: CreditNote / CreditNoteLine / CreditedQuantity documents, and the
  *    due date (BT-9) goes in PaymentMeans/PaymentDueDate;
  *  - BT-8: InvoicePeriod/DescriptionCode, UNTDID 2005 list (3 = invoice date,
  *    35 = delivery, 432 = payment) rather than CII's 2475 codes;
@@ -1164,7 +1164,7 @@ function auvoerechnung_model_to_ubl($m)
 	$xml .= '    <cbc:PayableAmount'.$money($t['due_payable']).'</cbc:PayableAmount>'."\n";          // BT-115
 	$xml .= '  </cac:LegalMonetaryTotal>'."\n";
 
-	// BG-25 : lignes
+	// BG-25: lines
 	$lineTag = $isCN ? 'CreditNoteLine' : 'InvoiceLine';
 	$qtyTag = $isCN ? 'CreditedQuantity' : 'InvoicedQuantity';
 	foreach ($m['lines'] as $l) {
@@ -1248,10 +1248,10 @@ function auvoerechnung_ubl_party($p, $creditorId = '')
 	}
 	$ids = [];
 	if ($p['id'] !== '') {
-		$ids[] = ['', $p['id']];                                       // BT-29 sans schéma
+		$ids[] = ['', $p['id']];                                       // BT-29 without scheme
 	}
 	if ($p['global_id'] !== null) {
-		$ids[] = [$p['global_id']['scheme'], $p['global_id']['id']];   // BT-29/46 avec schéma
+		$ids[] = [$p['global_id']['scheme'], $p['global_id']['id']];   // BT-29/46 with scheme
 	}
 	if ($creditorId !== '') {
 		$ids[] = ['SEPA', $creditorId];                                // BT-90

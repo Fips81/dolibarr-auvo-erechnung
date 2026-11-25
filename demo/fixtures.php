@@ -41,7 +41,7 @@ $consts = [
 	'MAIN_INFO_SOCIETE_COUNTRY' => '1:FR:France',
 	'MAIN_INFO_SIREN'           => '732829320',
 	'MAIN_INFO_SIRET'           => '73282932000074',
-	'MAIN_INFO_TVAINTRA'        => 'FR44732829320', // Nom de constante Dolibarr réel (sans underscore)
+	'MAIN_INFO_TVAINTRA'        => 'FR44732829320', // Actual Dolibarr constant name (without underscore)
 	'MAIN_INFO_SOCIETE_MAIL'    => 'contact@demo.example',
 ];
 foreach ($consts as $k => $v) {
@@ -147,7 +147,7 @@ function mkFacture($db, $user, $socid, $lines, $type = 0)
 			'',                    // fk_remise_except
 			'HT',                  // price_base_type
 			0,                     // pu_ttc
-			0,                     // type ligne
+			0,                     // line type
 			-1,                    // rang
 			0,                     // special_code
 			'',                    // origin
