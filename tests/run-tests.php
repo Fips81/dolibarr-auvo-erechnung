@@ -1,30 +1,30 @@
 <?php
 /*
- * Suite de tests métier AuVo E-Rechnung.
+ * AuVo E-Rechnung business test suite.
  *
- * S'appuie sur les 10 fixtures Factur-X (F001-F010) créées par demo/fixtures.php.
- * Pour chaque cas, génère le XML via auvoerechnung_build_xml() puis vérifie :
- *  - TypeCode documentaire attendu (380/381/386)
- *  - CategoryCode(s) présents (S/K/G/O/E)
- *  - unitCode UN/ECE (C62, HUR, DAY...)
- *  - Présence/absence d'ExemptionReason et URIUniversalCommunication buyer (+ schemeID endpoint)
- *  - Présence/absence de TotalPrepaidAmount et valeur de DuePayableAmount
- *  - Validation XSD Factur-X EN16931
+ * Uses the ten Factur-X fixtures (F001-F010) created by demo/fixtures.php.
+ * For each case, generates XML with auvoerechnung_build_xml() and checks:
+ *  - Expected document TypeCode (380/381/386)
+ *  - Present CategoryCode values (S/K/G/O/E)
+ *  - UN/ECE unitCode (C62, HUR, DAY...)
+ *  - Presence of ExemptionReason and buyer URIUniversalCommunication (+ endpoint schemeID)
+ *  - Presence of TotalPrepaidAmount and DuePayableAmount value
+ *  - Factur-X EN16931 XSD validation
  *
- * Usage :
+ * Usage:
  *   php tests/run-tests.php
- *   Exit code 0 = tous les tests passent, 1 = au moins un échec
+ *   Exit code 0 = all tests pass; 1 = at least one test fails
  *
- * Prérequis : Dolibarr de démo avec fixtures.php exécuté (ids 1 à 10 = F001..F010).
+ * Prerequisite: demo Dolibarr with fixtures.php already run (IDs 1 through 10 = F001..F010).
  */
 
-// Sécurité : exécution CLI uniquement.
+// Safety: CLI execution only.
 if (PHP_SAPI !== 'cli') {
 	http_response_code(403);
 	die('CLI only');
 }
 
-// Localisation de master.inc.php : 2 niveaux au-dessus du module, ou DOL_DOCUMENT_ROOT
+// Locate master.inc.php: two levels above the module, or use DOL_DOCUMENT_ROOT.
 $candidates = [
 	__DIR__.'/../../../master.inc.php',
 	'/var/www/dolibarr/htdocs/master.inc.php',
@@ -53,8 +53,8 @@ $cases = [
 	1  => ['ref' => 'F001 standard FR 20%',    'typeCode' => '380', 'mainCategory' => 'S',  'unitCode' => 'C62', 'buyerUri' => true,  'buyerUriScheme' => '0225', 'exemption' => false, 'prepaid' => null, 'due' => 1200.00],
 	2  => ['ref' => 'F002 multi-TVA 20% + 5,5%','typeCode' => '380','mainCategory' => 'S',  'unitCode' => 'C62', 'buyerUri' => true,  'buyerUriScheme' => '0225', 'exemption' => false, 'prepaid' => null, 'due' => 1727.50],
 	3  => ['ref' => 'F003 TVA 0% franchise',   'typeCode' => '380', 'mainCategory' => 'E',  'unitCode' => 'C62', 'buyerUri' => true,  'buyerUriScheme' => '0225', 'exemption' => true,  'prepaid' => null, 'due' => 500.00],
-	// Avoir : depuis la v3.0.0, montants émis en POSITIF (BR-27) et
-	// DuePayableAmount = GrandTotal sans écrêtage (BR-CO-16) → 1200.00
+	// Credit note: since v3.0.0, amounts are emitted as POSITIVE (BR-27), and
+	// DuePayableAmount = GrandTotal without clamping (BR-CO-16) → 1200.00.
 	4  => ['ref' => 'F004 avoir',              'typeCode' => '381', 'mainCategory' => 'S',  'unitCode' => 'C62', 'buyerUri' => true,  'buyerUriScheme' => '0225', 'exemption' => false, 'prepaid' => null, 'due' => 1200.00],
 	5  => ['ref' => 'F005 ligne en heures',    'typeCode' => '380', 'mainCategory' => 'S',  'unitCode' => 'HUR', 'buyerUri' => true,  'buyerUriScheme' => '0225', 'exemption' => false, 'prepaid' => null, 'due' => 960.00],
 	6  => ['ref' => 'F006 ligne en jours',     'typeCode' => '380', 'mainCategory' => 'S',  'unitCode' => 'DAY', 'buyerUri' => true,  'buyerUriScheme' => '0225', 'exemption' => false, 'prepaid' => null, 'due' => 2700.00],
@@ -98,13 +98,13 @@ foreach ($cases as $id => $c) {
 	$f->fetch_thirdparty();
 	$xml = auvoerechnung_build_xml($f, $mysoc);
 
-	// Extractions
+	// Extract values.
 	$typeCode = getXmlSingleMatch('#<ram:TypeCode>([^<]+)</ram:TypeCode>#', $xml);
 	preg_match_all('#<ram:CategoryCode>([^<]+)</ram:CategoryCode>#', $xml, $mCat);
 	$categories = array_unique($mCat[1] ?? []);
 	preg_match_all('#unitCode="([A-Z0-9]+)"#', $xml, $mUnit);
 	$units = array_unique($mUnit[1] ?? []);
-	// Signe accepté : depuis la 3.0.0, DuePayableAmount n'est plus écrêté à zéro
+	// Accepted sign: since 3.0.0, DuePayableAmount is no longer clamped to zero.
 	$prepaid = getXmlSingleMatch('#<ram:TotalPrepaidAmount>(-?[0-9.]+)</ram:TotalPrepaidAmount>#', $xml);
 	$due = getXmlSingleMatch('#<ram:DuePayableAmount>(-?[0-9.]+)</ram:DuePayableAmount>#', $xml);
 	preg_match_all('#<ram:ExemptionReason>([^<]+)</ram:ExemptionReason>#', $xml, $mEx);
@@ -116,7 +116,7 @@ foreach ($cases as $id => $c) {
 	$buyerHasUri = strpos($buyerBlock, '<ram:URIUniversalCommunication>') !== false;
 	$buyerUriScheme = $buyerHasUri ? getXmlSingleMatch('#<ram:URIID schemeID="([^"]+)"#', $buyerBlock) : null;
 
-	// Assertions
+	// Assertions.
 	assertEquals($c['typeCode'], $typeCode, 'TypeCode', $pass, $fail, $caseFailures, $id);
 	assertEquals(true, in_array($c['mainCategory'], $categories, true), 'CategoryCode contient '.$c['mainCategory'], $pass, $fail, $caseFailures, $id);
 	assertEquals(true, in_array($c['unitCode'], $units, true), 'unitCode contient '.$c['unitCode'], $pass, $fail, $caseFailures, $id);
@@ -126,7 +126,7 @@ foreach ($cases as $id => $c) {
 	assertEquals($c['prepaid'] === null ? null : (float) $c['prepaid'], $prepaid === null ? null : (float) $prepaid, 'TotalPrepaidAmount', $pass, $fail, $caseFailures, $id);
 	assertEquals((float) $c['due'], $due === null ? null : (float) $due, 'DuePayableAmount', $pass, $fail, $caseFailures, $id);
 
-	// Validation XSD : même implémentation que la production (auvoerechnung_rules.php)
+	// XSD validation: same implementation as production (auvoerechnung_rules.php).
 	$xsdError = auvoerechnung_validate_xsd($xml, $modulePath);
 	if ($xsdError !== null) {
 		$caseFailures[] = sprintf("F%03d XSD validation KO : %s", $id, $xsdError);

@@ -8,36 +8,36 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Générateur XML CrossIndustryInvoice EN16931 pour Factur-X
- * Conforme aux règles BR-FR (XP Z12-012 V1.2.0)
+ * EN16931 CrossIndustryInvoice XML generator for Factur-X.
+ * Compliant with BR-FR rules (XP Z12-012 V1.2.0).
  */
 
 /**
- * Liste des codes ISO des pays de l'Union européenne (utilisée pour qualifier
- * la catégorie de TVA EN16931 sur les opérations B2B intracommunautaires).
+ * ISO country codes for the European Union (used to classify the EN16931 VAT
+ * category for intra-community B2B transactions).
  *
- * Mentions légales BR-FR par défaut (BG-3 IncludedNote) : surchargeable via
- * les constantes Dolibarr AUVOERECHNUNG_NOTE_*.
+ * Default BR-FR legal notices (BG-3 IncludedNote), overridable through
+ * Dolibarr constants AUVOERECHNUNG_NOTE_*.
  *
- * define() (au lieu de const) pour rester tolérant si la lib est incluse depuis
- * deux chemins distincts (custom + dol_buildpath) sur certains setups.
+ * Use define() rather than const so this remains safe if the library is included
+ * through two different paths (custom + dol_buildpath) in some setups.
  */
 if (!defined('AUVOERECHNUNG_EU_COUNTRIES')) {
 	define('AUVOERECHNUNG_EU_COUNTRIES', [
 		'AT','BE','BG','CY','CZ','DE','DK','EE','ES','FI','FR','GR','HR','HU',
 		'IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK',
 	]);
-	// Codes pays des DOM/COM remplacés par FR dans les flux de la réforme
-	// (BR-FR-MAP-14) : assimilés à la France pour la note BAR et pour
-	// l'applicabilité du bloc de règles BR-FR du validateur interne.
+	// Overseas department/territory country codes mapped to FR in reform flows
+	// (BR-FR-MAP-14): treat them as France for the BAR note and applicability of
+	// the internal validator's BR-FR rules.
 	define('AUVOERECHNUNG_FR_OVERSEAS_COUNTRIES', ['GF', 'TF', 'GP', 'GY', 'MQ', 'YT', 'RE', 'BL', 'MF', 'PM']);
 	define('AUVOERECHNUNG_DEFAULT_NOTE_PMD', 'En cas de retard de paiement, une pénalité égale à 3 fois le taux d\'intérêt légal sera exigible (article L.441-10 du Code de commerce).');
 	define('AUVOERECHNUNG_DEFAULT_NOTE_PMT', 'Une indemnité forfaitaire de 40 euros sera exigible pour frais de recouvrement en cas de retard de paiement.');
 	define('AUVOERECHNUNG_DEFAULT_NOTE_AAB', 'Pas d\'escompte pour paiement anticipé.');
-	// XRechnung (CIUS allemande de l'EN16931, KoSIT) : BT-23 imposé par la règle
-	// PEPPOL-EN16931-R001 du Schematron XRechnung, version par défaut de la
-	// spécification (BT-24). La KoSIT publie deux fois par an (01.02 / 01.07) ;
-	// la version reste réglable via AUVOERECHNUNG_XRECHNUNG_VERSION.
+	// XRechnung (German EN16931 CIUS from KoSIT): BT-23 is required by
+	// PEPPOL-EN16931-R001 in the XRechnung Schematron. This is the default
+	// specification version (BT-24). KoSIT publishes twice a year (Feb 1 / Jul 1);
+	// configure the version with AUVOERECHNUNG_XRECHNUNG_VERSION.
 	define('AUVOERECHNUNG_XRECHNUNG_BUSINESS_PROCESS', 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0');
 	define('AUVOERECHNUNG_XRECHNUNG_DEFAULT_VERSION', '3.0');
 }
@@ -45,8 +45,8 @@ if (!defined('AUVOERECHNUNG_EU_COUNTRIES')) {
 require_once __DIR__.'/auvoerechnung_model.php';
 
 /**
- * Traduit une clé via $langs si l'environnement Dolibarr est chargé,
- * sinon renvoie la clé brute (contexte tests unitaires standalone).
+ * Translates a key through $langs when the Dolibarr environment is loaded;
+ * otherwise returns the raw key (standalone unit-test context).
  */
 function auvoerechnung_trans($key, ...$args)
 {
@@ -59,12 +59,12 @@ function auvoerechnung_trans($key, ...$args)
 }
 
 /**
- * Variante sans entités HTML de auvoerechnung_trans(), pour les messages qui
- * finissent aussi dans le syslog, l'API JSON ou sont tronqués (dol_trunc) :
- * « ä » reste « ä » au lieu de « &auml; ».
+ * Variant of auvoerechnung_trans() without HTML entities, for messages also
+ * written to syslog, returned as API JSON, or truncated (dol_trunc): "ä" stays
+ * "ä" instead of becoming "&auml;".
  *
- * @param string $key   Clé de traduction
- * @param mixed  ...$args Paramètres %s de la traduction
+ * @param string $key   Translation key
+ * @param mixed  ...$args Translation %s parameters
  * @return string
  */
 function auvoerechnung_trans_raw($key, ...$args)
@@ -78,16 +78,17 @@ function auvoerechnung_trans_raw($key, ...$args)
 }
 
 /**
- * Traduction sans entités HTML pour un texte à PLUS de quatre paramètres.
+ * Translates text without HTML entities when it has MORE than four parameters.
  *
- * Translate::trans() n'accepte que quatre valeurs (la cinquième tombe dans
- * $maxsize) et transnoentitiesnoconv() cinq ; au-delà, sprintf() lève un
- * ArgumentCountError (PHP 8) que Dolibarr n'intercepte pas — fatal pour la
- * génération (issue #1). On lit donc le gabarit brut et on le remplit ici.
- * Gabarit absent ou nombre de %s incohérent : repli sur la clé + valeurs.
+ * Translate::trans() accepts only four values (the fifth is treated as $maxsize)
+ * and transnoentitiesnoconv() accepts five. More values make sprintf() throw an
+ * ArgumentCountError (PHP 8), which Dolibarr does not catch and which would stop
+ * generation (issue #1). Read the raw template and fill it here instead. If the
+ * template is missing or the number of %s placeholders is wrong, fall back to
+ * the key and values.
  *
- * @param string $key  Clé de traduction
- * @param array  $args Valeurs des %s, dans l'ordre
+ * @param string $key  Translation key
+ * @param array  $args Values for %s placeholders, in order
  * @return string
  */
 function auvoerechnung_trans_format($key, array $args)
@@ -113,23 +114,22 @@ function auvoerechnung_trans_format($key, array $args)
 }
 
 /**
- * Le vendeur est-il établi en France au sens du socle réforme ?
+ * Is the seller established in France for purposes of the reform baseline?
  *
- * Sert de garde unique à tout ce qui relève du droit français : mentions
- * légales PMD/PMT/AAB (BR-FR-05), note BAR (BR-FR-07/20/31), cadre de
- * facturation BT-23 (BR-FR-08) et contrôle des identifiants SIREN/SIRET.
- * Ces éléments ne sont pas opposables à un vendeur étranger — Factur-X est
- * la même spécification que ZUGFeRD et sert aussi hors de France ; les
- * émettre pour un vendeur allemand y injecterait du droit français.
- * Les DOM sont assimilés à la France (BR-FR-MAP-14).
+ * This is the single guard for all French-law features: PMD/PMT/AAB legal
+ * notices (BR-FR-05), BAR note (BR-FR-07/20/31), invoice process BT-23
+ * (BR-FR-08), and SIREN/SIRET validation. These do not apply to foreign sellers:
+ * Factur-X uses the same specification as ZUGFeRD and is also used outside
+ * France, so emitting these for a German seller would incorrectly apply French
+ * law. Overseas departments are treated as France (BR-FR-MAP-14).
  *
- * @param Societe|object $mysoc  Société émettrice
+ * @param Societe|object $mysoc  Issuing company
  * @return bool
  */
 function auvoerechnung_seller_is_fr($mysoc)
 {
-	// Pays inconnu (objet absent, fiche société incomplète) : on retombe sur FR,
-	// comportement historique du module.
+	// Unknown country (missing object or incomplete company card): fall back to
+	// FR, matching the module's historical behavior.
 	$country = (is_object($mysoc) && !empty($mysoc->country_code)) ? strtoupper($mysoc->country_code) : 'FR';
 	return ($country === 'FR' || in_array($country, AUVOERECHNUNG_FR_OVERSEAS_COUNTRIES, true));
 }
@@ -181,14 +181,14 @@ function auvoerechnung_default_country()
 }
 
 /**
- * Vérifie si la facture est dans le périmètre supporté par le générateur.
- * Renvoie un message d'erreur bloquant, ou null si la facture est traitable.
+ * Checks whether the invoice is within the generator's supported scope.
+ * Returns a blocking error message, or null if the invoice can be processed.
  *
- * Multidevise : Dolibarr ne stocke la ventilation TVA qu'en devise société.
- * Émettre un XML en devise société alors que le PDF visible est en devise
- * étrangère violerait le principe hybride Factur-X (lisible = structuré).
- * Le support BT-5/BT-6 complet nécessiterait les montants multicurrency_total_*
- * par ligne + le double TaxTotalAmount — non implémenté à ce stade (documenté).
+ * Multi-currency: Dolibarr stores the VAT breakdown only in the company currency.
+ * Emitting XML in the company currency while the visible PDF uses a foreign
+ * currency would violate the Factur-X hybrid principle (readable = structured).
+ * Full BT-5/BT-6 support requires multicurrency_total_* amounts per line and a
+ * second TaxTotalAmount; this is not implemented yet (see documentation).
  *
  * @param Facture $invoice
  * @return string|null
@@ -202,9 +202,9 @@ function auvoerechnung_check_supported($invoice)
 		return auvoerechnung_trans('AuvoERechnungErrMulticurrency', $invoice->multicurrency_code, $companyCurrency);
 	}
 
-	// Taxes locales (localtax1/2, RE/IRPF...) : non représentables dans le XML
-	// EN16931 (TVA uniquement). Le total XML divergerait du TTC visible sur le
-	// PDF — même principe de refus que le multidevise.
+	// Local taxes (localtax1/2, RE/IRPF, etc.) cannot be represented in standard
+	// EN16931 XML (VAT only). XML totals would differ from the PDF total, so refuse
+	// the invoice as with multi-currency.
 	if (abs((float) ($invoice->total_localtax1 ?? 0)) > 0.005 || abs((float) ($invoice->total_localtax2 ?? 0)) > 0.005) {
 		return auvoerechnung_trans('AuvoERechnungErrLocalTax');
 	}
@@ -217,21 +217,21 @@ function auvoerechnung_check_supported($invoice)
 }
 
 /**
- * Génère le XML Factur-X EN16931 à partir d'une facture Dolibarr.
+ * Generates EN16931 Factur-X XML from a Dolibarr invoice.
  *
- * Convention avoirs (TypeCode 381) : Dolibarr stocke des totaux négatifs,
- * EN16931 exige des montants positifs (BR-27 : prix net ligne >= 0). Tous les
- * montants sont donc multipliés par -1 pour un avoir, et DuePayableAmount
- * respecte BR-CO-16 (BT-115 = BT-112 - BT-113, sans écrêtage à zéro).
+ * Credit note convention (TypeCode 381): Dolibarr stores negative totals, but
+ * EN16931 requires positive amounts (BR-27: line net price >= 0). Multiply all
+ * amounts by -1 for credit notes. DuePayableAmount follows BR-CO-16
+ * (BT-115 = BT-112 - BT-113, without clamping to zero).
  *
- * @param Facture $invoice        Objet facture Dolibarr (avec lines chargées)
- * @param Societe $mysoc          Société émettrice (vendeur)
- * Les décisions métier sont prises par auvoerechnung_build_model() (modèle
- * sémantique EN16931, indépendant de la syntaxe), sérialisé ici en CII.
+ * @param Facture $invoice        Dolibarr invoice (with lines loaded)
+ * @param Societe $mysoc          Issuing company (seller)
+ * Business decisions are made by auvoerechnung_build_model() (syntax-neutral
+ * EN16931 semantic model), which is serialized here as CII.
  *
- * @param array   $buildWarnings  (sortie) Avertissements non bloquants détectés pendant la génération
- * @param array   $options        cf. auvoerechnung_build_model()
- * @return string                 XML CrossIndustryInvoice
+ * @param array   $buildWarnings  (output) Non-blocking warnings detected during generation
+ * @param array   $options        See auvoerechnung_build_model()
+ * @return string                 CrossIndustryInvoice XML
  */
 function auvoerechnung_build_xml($invoice, $mysoc, &$buildWarnings = [], $options = [])
 {
@@ -239,24 +239,23 @@ function auvoerechnung_build_xml($invoice, $mysoc, &$buildWarnings = [], $option
 }
 
 /**
- * Renvoie les seules lignes facturables (qty != 0 OU total_ht != 0).
- * Filtre les descriptions, titres et sous-totaux qui ne portent ni quantité
- * ni montant et ne doivent pas apparaître dans le XML EN16931.
+ * Returns only billable lines (qty != 0 OR total_ht != 0).
+ * Filters descriptions, headings, and subtotals with no quantity or amount,
+ * which must not appear in EN16931 XML.
  *
- * @param array $lines Lignes Dolibarr
+ * @param array $lines Dolibarr invoice lines
  * @return array
  */
 function auvoerechnung_filter_billable_lines($lines)
 {
 	$out = [];
 	foreach ((array) $lines as $line) {
-		// product_type=9 est la convention cœur Dolibarr pour les lignes de
-		// présentation (titres, sous-totaux) ajoutées par le module natif
-		// "Subtotals" (special_code 81) ou par des modules tiers comme
-		// ATM Consulting "Sous-total" (special_code 104777). Ces lignes ne
-		// représentent aucun bien/service facturable ; certaines portent un
-		// montant non nul (sous-total affiché), ce qui les ferait compter en
-		// double dans le XML EN16931 si elles n'étaient pas exclues ici.
+		// product_type=9 is Dolibarr's convention for presentation lines
+		// (headings, subtotals) added by the native "Subtotals" module
+		// (special_code 81) or third-party modules such as ATM Consulting's
+		// "Subtotal" (special_code 104777). These do not represent billable goods
+		// or services. Some have non-zero amounts (displayed subtotal), which
+		// would be counted twice in EN16931 XML if not excluded here.
 		$productType = isset($line->product_type) ? (int) $line->product_type : null;
 		if ($productType === 9) {
 			continue;
@@ -271,29 +270,29 @@ function auvoerechnung_filter_billable_lines($lines)
 }
 
 /**
- * Prépare les lignes pour le XML : normalise le signe (avoirs), arrondit les
- * totaux, et requalifie les lignes à montant négatif (remises fixes Dolibarr)
- * en remises document BG-21 pour respecter BR-27.
+ * Prepares invoice lines for XML: normalizes signs for credit notes, rounds
+ * totals, and converts negative-amount lines (Dolibarr fixed discounts) into
+ * BG-21 document allowances to satisfy BR-27.
  *
- * Si AUCUNE ligne positive ne subsiste (facture 380 entièrement négative,
- * cas hors convention), les lignes sont conservées telles quelles : le XML
- * violera BR-27 mais le contrôle interne des règles métier le signalera.
+ * If NO positive lines remain (an entirely negative type 380 invoice, outside
+ * the normal convention), retain the lines as-is. The XML will violate BR-27,
+ * which the internal business-rule check will report.
  *
- * Les acomptes imputés en ligne (cf. auvoerechnung_get_deposit_lines) sont
- * mis à part dans 'deposits' : ils vont en BT-113, pas en remise BG-20.
+ * Deposits applied as lines (see auvoerechnung_get_deposit_lines) are collected
+ * separately in 'deposits': they go in BT-113, not in BG-20 allowances.
  *
  * @return array ['lines' => array, 'allowances' => array, 'deposits' => array]
  */
 function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdparty, $mysoc, &$buildWarnings)
 {
-	// Constructeur unique de ligne préparée : utilisé par le chemin nominal ET
-	// le fallback "tout négatif" pour que les deux émettent le même mapping.
+	// Single constructor for a prepared line, used by both the normal path and
+	// the "all negative" fallback so they emit the same mapping.
 	$warnedUnits = [];
 	$buildLine = function ($line) use ($sign, $invoice, $thirdparty, $mysoc, &$buildWarnings, &$warnedUnits) {
 		$desc = auvoerechnung_html_to_text($line->desc ?: ($line->description ?? $line->label ?? ''));
 		$item = auvoerechnung_line_item($line, $desc);
 		if ($desc === '') {
-			// BT-153 est obligatoire : ligne libre sans texte
+			// BT-153 is mandatory: free-text line without a description.
 			$desc = auvoerechnung_trans_raw('AuvoERechnungLineNoName');
 			if ($desc === 'AuvoERechnungLineNoName') {
 				$desc = 'Position';
@@ -336,7 +335,7 @@ function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdpart
 	foreach ($billableLines as $line) {
 		$pl = $buildLine($line);
 		if ($depositLines && auvoerechnung_is_deposit_line($line, $depositLines)) {
-			// Acompte imputé : ni ligne ni remise, porté en BT-113
+			// Applied deposit: neither a line nor an allowance; reported in BT-113.
 			$deposits[] = [
 				'amount' => abs($pl['lineTotal']),
 				'tax'    => abs($pl['lineTax']),
@@ -358,8 +357,8 @@ function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdpart
 	}
 
 	if (empty($lines) && (!empty($allowances) || !empty($deposits))) {
-		// Facture intégralement négative hors avoir : pas de conversion BG-21
-		// possible (il faut au moins une ligne). On ré-émet les lignes brutes.
+		// Entirely negative invoice other than a credit note: cannot convert to
+		// BG-21 because at least one line is required. Emit the original lines.
 		$buildWarnings[] = auvoerechnung_trans('AuvoERechnungWarnAllNegativeLines');
 		$lines = array_map($buildLine, $billableLines);
 		$allowances = [];
@@ -370,18 +369,17 @@ function auvoerechnung_prepare_lines($billableLines, $sign, $invoice, $thirdpart
 }
 
 /**
- * Résout le compte bancaire (IBAN/BIC) à publier dans le XML.
+ * Resolves the bank account (IBAN/BIC) to include in the XML.
  *
- * Priorité — pour que le XML colle au PDF (issue #16) :
- *   1. le compte choisi SUR LA FACTURE (fk_account), c.-à-d. exactement celui
- *      que Dolibarr imprime dans le PDF quand un compte est sélectionné au
- *      niveau du tiers ou de la facture ;
- *   2. à défaut, le compte figé dans la config du module
- *      (AUVOERECHNUNG_BANK_ACCOUNT) — repli historique, préserve l'existant.
+ * Priority, so the XML matches the PDF (issue #16):
+ *   1. the account selected ON THE INVOICE (fk_account), exactly the one
+ *      Dolibarr prints when an account is selected for the third party or invoice;
+ *   2. otherwise, the account configured in the module
+ *      (AUVOERECHNUNG_BANK_ACCOUNT), the historical fallback.
  *
  * @param object      $db      Handle DB Dolibarr
- * @param object|null $invoice Facture courante (pour lire fk_account) ; null = config seule
- * @return array ['iban' => string, 'bic' => string] (chaînes vides si aucun compte résolu)
+ * @param object|null $invoice Current invoice (to read fk_account); null = use module setting only
+ * @return array ['iban' => string, 'bic' => string] (empty strings if no account is resolved)
  */
 function auvoerechnung_get_bank_account($db, $invoice = null)
 {
@@ -403,9 +401,9 @@ function auvoerechnung_get_bank_account($db, $invoice = null)
 }
 
 /**
- * Informations de prélèvement SEPA (moyen de paiement 59) :
- * - ICS créancier (BT-90) depuis la constante Dolibarr PRELEVEMENT_ICS
- * - RUM du mandat (BT-89) et IBAN débiteur (BT-91) depuis le RIB par défaut du tiers
+ * SEPA direct debit information (payment means 59):
+ * - creditor ICS (BT-90) from the Dolibarr PRELEVEMENT_ICS constant;
+ * - mandate RUM (BT-89) and debtor IBAN (BT-91) from the third party's default bank account.
  *
  * @return array ['ics' => string, 'rum' => string, 'debtor_iban' => string]
  */
@@ -418,8 +416,8 @@ function auvoerechnung_get_direct_debit_info($db, $buyer, &$buildWarnings)
 	];
 
 	if (!empty($buyer->id)) {
-		// type = 'ban' : llx_societe_rib stocke aussi les modes de paiement
-		// carte (Stripe...) avec default_rib = 1 — il ne faut pas les lire.
+		// type = 'ban': llx_societe_rib also stores card payment methods (Stripe,
+		// etc.) with default_rib = 1; do not use those entries.
 		$sql = "SELECT rum, iban_prefix FROM ".MAIN_DB_PREFIX."societe_rib"
 			." WHERE fk_soc = ".((int) $buyer->id)." AND default_rib = 1"
 			." AND (type = 'ban' OR type IS NULL OR type = '')"
@@ -445,24 +443,23 @@ function auvoerechnung_get_direct_debit_info($db, $buyer, &$buildWarnings)
 }
 
 /**
- * Paliers d'escompte (Skonto) configurés pour une condition de règlement.
+ * Configured cash-discount (Skonto) tiers for a payment term.
  *
- * Configuration : constante AUVOERECHNUNG_SKONTO_TERMS, JSON indexé par l'id
- * (rowid) de la condition de règlement Dolibarr (dictionnaire c_payment_term),
- * ex. {"3":[{"days":7,"percent":2}]}. L'id reste stable quand le code ou le
- * libellé de la condition est modifié dans le dictionnaire. Les entrées
- * invalides sont ignorées.
+ * Configuration: AUVOERECHNUNG_SKONTO_TERMS constant, JSON indexed by the
+ * Dolibarr payment-term ID (rowid) in dictionary c_payment_term, e.g.
+ * {"3":[{"days":7,"percent":2}]}. The ID remains stable if the dictionary
+ * code or label changes. Invalid entries are ignored.
  *
- * Jusqu'à 5.2.x, la constante AUVOERECHNUNG_SKONTO était indexée par le code :
- * tant que auvoerechnung_migrate_skonto_keys() n'est pas passée, on lit
- * l'ancien format via $paymentTermCode.
+ * Through 5.2.x, AUVOERECHNUNG_SKONTO was indexed by code. Until
+ * auvoerechnung_migrate_skonto_keys() has run, read the old format through
+ * $paymentTermCode.
  *
- * Fonction publique, utilisable par d'autres modules (dol_include_once de
+ * Public function, available to other modules (dol_include_once for
  * /auvoerechnung/core/lib/auvoerechnung.lib.php).
  *
- * @param int    $paymentTermId    Id de la condition de règlement (Facture::cond_reglement_id)
- * @param string $paymentTermCode  Code de la condition (ancien format uniquement)
- * @return array<int,array{days:int,percent:float}>  Paliers triés par délai
+ * @param int    $paymentTermId    Payment-term ID (Facture::cond_reglement_id)
+ * @param string $paymentTermCode  Payment-term code (legacy format only)
+ * @return array<int,array{days:int,percent:float}>  Discount tiers sorted by due day
  */
 function auvoerechnung_get_skonto_terms($paymentTermId, $paymentTermCode = '')
 {
@@ -489,13 +486,13 @@ function auvoerechnung_get_skonto_terms($paymentTermId, $paymentTermCode = '')
 }
 
 /**
- * Migration 5.2.x → 5.3.0 : AUVOERECHNUNG_SKONTO (indexé par code) devient
- * AUVOERECHNUNG_SKONTO_TERMS (indexé par id). Les codes introuvables dans le
- * dictionnaire sont abandonnés (journalisés). L'ancienne constante est
- * supprimée ensuite. Idempotent : sans ancienne constante, ne fait rien.
+ * Migration 5.2.x → 5.3.0: AUVOERECHNUNG_SKONTO (indexed by code) becomes
+ * AUVOERECHNUNG_SKONTO_TERMS (indexed by ID). Codes not found in the dictionary
+ * are discarded (and logged). The old constant is then deleted. Idempotent:
+ * does nothing when the old constant is absent.
  *
  * @param DoliDB $db
- * @return int  Nombre de conditions reprises, -1 si erreur
+ * @return int  Number of payment terms migrated, or -1 on error
  */
 function auvoerechnung_migrate_skonto_keys($db)
 {
@@ -535,15 +532,14 @@ function auvoerechnung_migrate_skonto_keys($db)
 }
 
 /**
- * Retire de la configuration Skonto les conditions de règlement qui n'existent
- * plus dans le dictionnaire. Dolibarr ne pose pas de clé étrangère sur
- * c_payment_term : une condition utilisée peut être supprimée, et un id libéré
- * peut être réattribué (auto-incrément recalculé au redémarrage sur d'anciens
- * MySQL/MariaDB) — sans ce nettoyage, la nouvelle condition hériterait des
- * paliers.
+ * Remove payment terms that no longer exist in the dictionary from the Skonto
+ * configuration. Dolibarr does not define a foreign key on c_payment_term, so
+ * a term can be deleted and its freed ID reassigned (the auto-increment value
+ * may be recalculated at restart on older MySQL/MariaDB versions). Without this
+ * cleanup, the new term would inherit the old tiers.
  *
- * @param array<string,mixed> $all          Configuration indexée par id
- * @param int[]               $existingIds  Ids présents dans le dictionnaire
+ * @param array<string,mixed> $all          Configuration indexed by ID
+ * @param int[]               $existingIds  IDs present in the dictionary
  * @return array<string,mixed>
  */
 function auvoerechnung_skonto_drop_orphans($all, $existingIds)
@@ -559,10 +555,10 @@ function auvoerechnung_skonto_drop_orphans($all, $existingIds)
 }
 
 /**
- * Prévient les autres modules d'un changement des paliers Skonto, par le hook
- * « auvoerechnungSkontoChanged » (contexte « auvoerechnungsetup »).
- * Paramètres du hook : 'terms' (configuration complète, indexée par id de
- * condition de règlement) et 'previous' (configuration avant modification).
+ * Notify other modules when Skonto tiers change through the
+ * "auvoerechnungSkontoChanged" hook ("auvoerechnungsetup" context).
+ * Hook parameters: 'terms' (complete configuration, indexed by payment term
+ * ID) and 'previous' (configuration before the change).
  *
  * @param array<string,array<int,array{days:int,percent:float}>> $terms
  * @param array<string,array<int,array{days:int,percent:float}>> $previous
@@ -583,9 +579,9 @@ function auvoerechnung_notify_skonto_changed($terms, $previous)
 }
 
 /**
- * Lignes Skonto au format imposé par la KoSIT (BR-DE-18), aussi recommandé
- * par ZUGFeRD : « #SKONTO#TAGE=7#PROZENT=2.00# ». Chaque ligne se termine par
- * un saut de ligne, y compris la dernière (sinon BR-DE-18 rejette).
+ * Skonto lines in the format required by KoSIT (BR-DE-18) and also recommended
+ * by ZUGFeRD: "#SKONTO#TAGE=7#PROZENT=2.00#". Every line, including the last,
+ * must end with a newline (otherwise BR-DE-18 rejects it).
  *
  * @param array<int,array{days:int,percent:float}> $terms
  * @return string
@@ -600,10 +596,10 @@ function auvoerechnung_skonto_lines($terms)
 }
 
 /**
- * Libellé « sur facture » de la condition de règlement (traduction Dolibarr
- * PaymentCondition<code> si elle existe, sinon le texte du dictionnaire).
- * Les retours à la ligne sont aplatis et les « # » de tête retirés : en BT-20,
- * une ligne commençant par « # » serait lue comme une ligne Skonto.
+ * Invoice-facing label of the payment term (Dolibarr translation
+ * PaymentCondition<code> if available, otherwise the dictionary text).
+ * Flatten line breaks and remove leading "#" characters: in BT-20, a line
+ * starting with "#" would be read as a Skonto line.
  *
  * @param object $invoice
  * @return string
@@ -629,9 +625,9 @@ function auvoerechnung_payment_terms_text($invoice)
 }
 
 /**
- * Contenu de BT-20 (Payment terms) : texte de la condition de règlement suivi
- * des lignes Skonto. Vide (élément non émis) sans escompte configuré, et pour
- * un avoir, auquel un escompte ne s'applique pas.
+ * BT-20 (Payment terms) content: payment term text followed by Skonto lines.
+ * Empty (element omitted) when no discount is configured, and for a credit
+ * note, to which a discount does not apply.
  *
  * @param object $invoice
  * @param bool   $isCreditNote
@@ -651,9 +647,9 @@ function auvoerechnung_build_payment_terms_description($invoice, $isCreditNote =
 }
 
 /**
- * Propose un palier Skonto à partir du libellé d'une condition de règlement
- * (« 7 Tage 2% Skonto », « 2 % Skonto bei Zahlung innerhalb von 10 Tagen »…).
- * Simple suggestion affichée dans la configuration, jamais appliquée seule.
+ * Suggest a Skonto tier from a payment term label ("7 Tage 2% Skonto",
+ * "2 % Skonto bei Zahlung innerhalb von 10 Tagen", etc.). This is only a
+ * suggestion shown in settings and is never applied automatically.
  *
  * @param string $label
  * @return array{days:int,percent:float}|null
@@ -675,10 +671,10 @@ function auvoerechnung_guess_skonto($label)
 }
 
 /**
- * Retourne la valeur d'une constante Dolibarr, ou le défaut fourni si elle est
- * absente OU vide. getDolGlobalString() ne retombe sur le défaut que lorsque la
- * clé n'existe pas ; or nos constantes de configuration sont créées vides à
- * l'activation du module, donc le défaut ne s'appliquait jamais sans ce garde-fou.
+ * Return a Dolibarr constant's value, or the supplied default if the constant
+ * is missing OR empty. getDolGlobalString() uses the default only when the key
+ * does not exist. Since module configuration constants are created empty on
+ * activation, this guard is needed for the default to take effect.
  */
 function auvoerechnung_conf_or_default($key, $default)
 {
@@ -687,20 +683,19 @@ function auvoerechnung_conf_or_default($key, $default)
 }
 
 /**
- * Mentions légales PMD/PMT/AAB effectivement applicables, dans l'ordre
- * d'émission, après surcharge par les constantes Dolibarr.
+ * Applicable PMD/PMT/AAB legal notices in emission order, after Dolibarr
+ * constant overrides.
  *
- * Les trois textes par défaut sont des obligations du droit français
- * (art. L.441-9 et L.441-10 du Code de commerce, règle BR-FR-05). Pour un
- * vendeur établi hors de France, aucun défaut n'est appliqué : Factur-X est
- * la même spécification que ZUGFeRD, et imprimer d'office des mentions
- * françaises — ou leur transposition devinée — dans la facture d'un vendeur
- * étranger serait faux. Les constantes AUVOERECHNUNG_NOTE_* restent
- * pleinement utilisables : un vendeur allemand y saisit ses propres mentions
- * (§ 288 BGB, escompte…), et elles sont alors émises normalement.
+ * The three default texts are required by French law (Arts. L.441-9 and
+ * L.441-10 of the Commercial Code, rule BR-FR-05). No defaults are applied for
+ * a seller established outside France: Factur-X is the same specification as
+ * ZUGFeRD, and automatically printing French notices—or guessed equivalents—
+ * on a foreign seller's invoice would be wrong. AUVOERECHNUNG_NOTE_* constants
+ * remain available, so a German seller can enter its own notices (§ 288 BGB,
+ * cash discount, etc.) and have them emitted normally.
  *
- * @param bool $sellerIsFR  cf. auvoerechnung_seller_is_fr()
- * @return array<string,string>  ['PMD' => texte, 'PMT' => texte, 'AAB' => texte]
+ * @param bool $sellerIsFR  See auvoerechnung_seller_is_fr()
+ * @return array<string,string>  ['PMD' => text, 'PMT' => text, 'AAB' => text]
  */
 function auvoerechnung_resolve_legal_notes($sellerIsFR = true)
 {
@@ -721,26 +716,27 @@ function auvoerechnung_resolve_legal_notes($sellerIsFR = true)
 
 
 /**
- * Code de qualification du traitement attendu (note BAR — règles BR-FR-07,
- * BR-FR-20 et BR-FR-31 : une seule valeur parmi la liste fermée) :
- *  - 'B2C'    : acheteur non assujetti (particulier ou « Assujetti à la TVA » à
- *               Non) → relève du e-reporting des ventes B2C ;
- *  - 'B2BINT' : acheteur assujetti établi hors France → e-reporting des ventes
- *               B2B internationales ;
- *  - 'B2B'    : acheteur assujetti français → e-invoicing (cas nominal).
- * Les codes pays des DOM/COM (remplacés par FR dans les flux, cf. BR-FR-MAP-14)
- * sont assimilés à la France. Les valeurs OUTOFSCOPE et ARCHIVEONLY couvrent des
- * cas (hors réforme, avoir interne d'annulation) que le module ne produit pas.
+ * Expected processing qualification code (BAR note; rules BR-FR-07, BR-FR-20,
+ * and BR-FR-31 allow only one value from this closed list):
+ *  - 'B2C': buyer is not taxable (private individual or "Subject to VAT" is No),
+ *           so B2C sales are handled through e-reporting;
+ *  - 'B2BINT': taxable buyer established outside France; international B2B sales
+ *              are handled through e-reporting;
+ *  - 'B2B': taxable buyer established in France; e-invoicing (standard case).
+ * Overseas department/territory country codes (mapped to FR in submissions,
+ * see BR-FR-MAP-14) are treated as France. OUTOFSCOPE and ARCHIVEONLY cover
+ * cases this module does not produce (outside the reform, internal cancellation
+ * credit note).
  *
- * Choix assumé : un acheteur non assujetti établi HORS France est aussi émis en
- * 'B2C'. La liste fermée de BR-FR-20 (XP Z12-012, révision juillet 2025) ne
- * comporte aucune valeur « B2C international » — émettre un code hors liste
- * violerait BR-FR-20 ; la qualification fine domestique/international relève du
- * flux e-reporting (10.x), pas de la note BAR. À revoir si une révision
- * ultérieure de la norme ajoute cette valeur.
+ * Intentional choice: a non-taxable buyer established OUTSIDE France is also
+ * emitted as 'B2C'. The closed list in BR-FR-20 (XP Z12-012, July 2025 revision)
+ * has no "international B2C" value; emitting an unlisted code would violate
+ * BR-FR-20. Detailed domestic/international classification belongs in the
+ * e-reporting flow (10.x), not the BAR note. Revisit if a future standard
+ * revision adds such a value.
  *
- * @param Societe|object $buyer  Tiers acheteur
- * @return string 'B2B', 'B2BINT' ou 'B2C'
+ * @param Societe|object $buyer  Buyer
+ * @return string 'B2B', 'B2BINT', or 'B2C'
  */
 function auvoerechnung_resolve_bar_code($buyer)
 {
@@ -748,7 +744,7 @@ function auvoerechnung_resolve_bar_code($buyer)
 		return 'B2C';
 	}
 	$country = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : auvoerechnung_default_country());
-	// Codes remplacés par FR dans les flux (BR-FR-MAP-14) : traités comme FR
+	// Country codes mapped to FR in submissions (BR-FR-MAP-14) are treated as FR.
 	if ($country !== 'FR' && !in_array($country, AUVOERECHNUNG_FR_OVERSEAS_COUNTRIES, true)) {
 		return 'B2BINT';
 	}
@@ -756,20 +752,20 @@ function auvoerechnung_resolve_bar_code($buyer)
 }
 
 /**
- * Cadre de facturation du socle réforme (BT-23, règle BR-FR-08) pour le profil
- * PDP/B2B. Liste fermée XP Z12-012 : la lettre qualifie la nature de la facture
- * (B = biens, S = services, M = double), déduite du product_type des lignes ;
- * le chiffre qualifie le processus de dépôt.
- *  - Cas nominal (dépôt de la facture par le fournisseur) : B1 / S1 / M1.
- *  - Facture définitive après acompte (acomptes imputés) : B4 / S4 / M4 —
- *    jamais sur une facture d'acompte elle-même (interdit par BR-FR-CO-08).
- * Les processus spécifiques (déjà payée x2, sous-traitance S3/S5/S6,
- * autofacturation, multi-vendeurs x8, bidirectionnel x9) ne correspondent à
- * aucun flux produit par ce module : non émis.
+ * Billing framework for the reform baseline (BT-23, rule BR-FR-08) in the
+ * PDP/B2B profile. The closed XP Z12-012 list uses the letter for invoice type
+ * (B = goods, S = services, M = both), derived from line product_type; the
+ * digit identifies the submission process.
+ *  - Standard case (invoice submitted by the supplier): B1 / S1 / M1.
+ *  - Final invoice after a deposit (deposits applied): B4 / S4 / M4; never on
+ *    the deposit invoice itself (prohibited by BR-FR-CO-08).
+ * Specific processes (already paid x2, subcontracting S3/S5/S6, self-billing,
+ * multiple sellers x8, bidirectional x9) do not match any flow produced by
+ * this module and are not emitted.
  *
- * @param array  $billableLines  Lignes facturables (cf. auvoerechnung_filter_billable_lines)
- * @param string $typeCode       TypeCode BT-3 émis ('380', '386', '381'...)
- * @param float  $prepaidAmount  Montant d'acomptes imputés (BT-113)
+ * @param array  $billableLines  Billable lines (see auvoerechnung_filter_billable_lines)
+ * @param string $typeCode       Emitted BT-3 TypeCode ('380', '386', '381',...)
+ * @param float  $prepaidAmount  Amount of applied deposits (BT-113)
  * @return string 'B1'|'S1'|'M1'|'B4'|'S4'|'M4'
  */
 function auvoerechnung_resolve_business_process($billableLines, $typeCode, $prepaidAmount = 0.0)
@@ -784,8 +780,8 @@ function auvoerechnung_resolve_business_process($billableLines, $typeCode, $prep
 		}
 	}
 	$letter = ($hasGoods && $hasServices) ? 'M' : ($hasServices ? 'S' : 'B');
-	// BR-FR-CO-08 : un cadre x4 (facture définitive après acompte) est
-	// incompatible avec les types facture d'acompte (386/500/503)
+	// BR-FR-CO-08: an x4 framework (final invoice after deposit) is incompatible
+	// with deposit invoice types (386/500/503).
 	$isDepositInvoice = in_array($typeCode, ['386', '500', '503'], true);
 	$digit = (!$isDepositInvoice && (float) $prepaidAmount > 0) ? '4' : '1';
 	return $letter.$digit;
@@ -794,24 +790,24 @@ function auvoerechnung_resolve_business_process($billableLines, $typeCode, $prep
 
 
 /**
- * Calcule la ventilation TVA par (catégorie, taux) — deux catégories distinctes
- * au même taux (ex. K et AE à 0 %) produisent deux blocs ApplicableTradeTax.
+ * Calculate the VAT breakdown by (category, rate). Two distinct categories at
+ * the same rate (e.g. K and AE at 0%) produce two ApplicableTradeTax blocks.
  *
- * Consomme les lignes/remises préparées par auvoerechnung_prepare_lines() (mêmes
- * catégories, mêmes arrondis) pour garantir la cohérence BR-S-08 : base par
- * (catégorie, taux) = somme des lignes - remises de la catégorie.
+ * Uses the lines/discounts prepared by auvoerechnung_prepare_lines() (same
+ * categories and rounding) to ensure BR-S-08 consistency: base per
+ * (category, rate) = sum of lines minus discounts in that category.
  *
- * Réconciliation des taxes, dans l'ordre de priorité :
- *  1. sum(tax) == total_tva facture (écart d'arrondi imputé au plus gros groupe)
- *  2. BR-CO-17 : chaque groupe doit rester à +/-0.01 de base x taux ; sinon la
- *     taxe du groupe est recalculée sur la base et un avertissement est émis
- *     (l'écart résiduel avec le TTC Dolibarr est signalé par build_xml).
+ * Reconcile taxes in priority order:
+ *  1. sum(tax) == invoice total_tva (apply rounding difference to the largest group)
+ *  2. BR-CO-17: each group must remain within +/-0.01 of base × rate; otherwise
+ *     recalculate the group's tax from its base and issue a warning (build_xml
+ *     reports any remaining difference from Dolibarr's gross total).
  *
  * @param array  $prepared       ['lines' => [...], 'allowances' => [...]] (cf. prepare_lines)
- * @param object $invoice        Facture Dolibarr
- * @param float  $sign           1.0 ou -1.0 (avoir)
- * @param array  $buildWarnings  (sortie) avertissements
- * @return array<string,array>   Indexé par "categorie|taux", avec base/tax/rate/categoryCode/exemption/vatex
+ * @param object $invoice        Dolibarr invoice
+ * @param float  $sign           1.0 or -1.0 (credit note)
+ * @param array  $buildWarnings  (output) warnings
+ * @return array<string,array>   Indexed by "category|rate", with base/tax/rate/categoryCode/exemption/vatex
  */
 function auvoerechnung_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$buildWarnings = [])
 {
@@ -844,7 +840,7 @@ function auvoerechnung_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$bui
 		$accumulate($al['taxCat'], $al['rate'], -$al['amount'], $al['tax']);
 	}
 
-	// Arrondi des taxes par groupe puis réconciliation avec le total facture
+	// Round tax per group, then reconcile with the invoice total.
 	$sumTax = 0.0;
 	foreach ($breakdown as $key => $b) {
 		$breakdown[$key]['base'] = round($b['base'], 2);
@@ -852,14 +848,14 @@ function auvoerechnung_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$bui
 		$sumTax += $breakdown[$key]['tax'];
 	}
 	$invoiceTax = round($sign * (float) $invoice->total_tva, 2);
-	// Acomptes imputés en ligne : Dolibarr a déduit leur TVA du total facture,
-	// la ventilation (sans ces lignes) porte la TVA de l'entgelt complet.
+	// Deposits applied as lines: Dolibarr deducted their VAT from the invoice
+	// total, so the breakdown (without these lines) carries VAT on the full amount.
 	foreach ($prepared['deposits'] ?? [] as $dep) {
 		$invoiceTax = round($invoiceTax + $dep['tax'], 2);
 	}
 	$delta = round($invoiceTax - $sumTax, 2);
 	if (abs($delta) >= 0.01) {
-		// Imputer l'écart d'arrondi sur le groupe taxé à la plus grande base
+		// Apply the rounding difference to the taxed group with the largest base.
 		$targetKey = null;
 		$targetBase = -1.0;
 		foreach ($breakdown as $key => $b) {
@@ -878,11 +874,11 @@ function auvoerechnung_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$bui
 		}
 	}
 
-	// Garde-fou BR-CO-17 : la taxe d'un groupe ne doit pas s'écarter de plus
-	// d'un centime de base x taux (rejet Schematron sinon). Si l'imputation
-	// ci-dessus (ou des arrondis ligne à ligne cumulés) dépasse la tolérance,
-	// on recale la taxe du groupe sur sa base — la priorité va à la validité
-	// EN16931 du XML, l'écart avec les totaux Dolibarr est signalé en aval.
+	// BR-CO-17 safeguard: a group's tax must not differ from base × rate by more
+	// than one cent (otherwise Schematron rejects it). If the adjustment above
+	// (or accumulated line-level rounding) exceeds the tolerance, recalculate
+	// the group's tax from its base. XML EN16931 validity takes priority; any
+	// difference from Dolibarr totals is reported later.
 	foreach ($breakdown as $key => $b) {
 		if ($b['rate'] <= 0) {
 			continue;
@@ -898,16 +894,16 @@ function auvoerechnung_get_tax_breakdown($prepared, $invoice, $sign = 1.0, &$bui
 }
 
 /**
- * Vrai si le tiers est hors champ de l'e-invoicing B2B (réforme 2026-2027) :
- * particulier (typent TE_PRIVATE) OU non assujetti à la TVA (champ « Assujetti
- * à la TVA » de la fiche tiers). Ces tiers relèvent de l'e-reporting, pas de
- * la facturation électronique entre assujettis.
+ * Whether the customer is outside the scope of B2B e-invoicing (2026-2027 reform):
+ * a private individual (typent TE_PRIVATE) OR not subject to VAT (the
+ * "Subject to VAT" field on the customer record). These customers fall under
+ * e-reporting, not electronic invoicing between taxable persons.
  *
- * Le typent seul ne suffit pas (une association non assujettie n'est pas un
- * « Particulier ») et le tva_assuj seul non plus (souvent laissé par défaut) :
- * on combine les deux.
+ * typent alone is insufficient (a non-taxable association is not a "Private
+ * individual"), and tva_assuj alone is insufficient (often left at its default),
+ * so both are checked.
  *
- * @param Societe|null $thirdparty  Tiers Dolibarr (fetch déjà fait)
+ * @param Societe|null $thirdparty  Dolibarr customer (already fetched)
  * @return bool
  */
 function auvoerechnung_is_non_assujetti($thirdparty)
@@ -922,18 +918,18 @@ function auvoerechnung_is_non_assujetti($thirdparty)
 }
 
 /**
- * Vérifie les infos obligatoires pour Factur-X EN16931 + BR-FR
- * Retourne un tableau de warnings (vide si tout est OK)
+ * Check the required information for Factur-X EN16931 + BR-FR.
+ * Returns an array of warnings (empty when everything is valid).
  *
- * @param Facture $invoice   Objet facture Dolibarr
- * @param Societe $mysoc     Société émettrice
- * @return array             Liste de messages d'avertissement
+ * @param Facture $invoice   Dolibarr invoice object
+ * @param Societe $mysoc     Seller company
+ * @return array             List of warning messages
  */
 function auvoerechnung_check_mandatory($invoice, $mysoc)
 {
 	$warnings = [];
 
-	// SIREN/SIRET : identifiants français — mêmes règles de pays que le générateur
+	// SIREN/SIRET are French identifiers; use the same country rules as the generator.
 	$sellerIsFR = auvoerechnung_seller_is_fr($mysoc);
 
 	$sellerChecks = [
@@ -946,11 +942,11 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
 	];
 	$isFranchise = isset($mysoc->tva_assuj) && (int) $mysoc->tva_assuj === 0;
 	foreach ($sellerChecks as $field => $transKey) {
-		// Franchise en base (293 B CGI) : pas de TVA intra → ne pas warn
+		// Small-business VAT exemption (Art. 293 B CGI): no intra-community VAT ID; no warning.
 		if ($field === 'tva_intra' && $isFranchise) {
 			continue;
 		}
-		// SIRET/SIREN : identifiant français uniquement, non pertinent hors FR
+		// SIRET/SIREN are French identifiers and are not relevant outside France.
 		if ($field === 'idprof2' && !$sellerIsFR) {
 			continue;
 		}
@@ -959,23 +955,23 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
 		}
 	}
 
-	// Champ TVA intra rempli mais sans préfixe pays (BR-CO-09) : il n'est pas
-	// publié en BT-31. Cas typique : Steuernummer saisie au mauvais endroit.
+	// A VAT ID field populated without a country prefix (BR-CO-09) is not
+	// published in BT-31. Typical case: a Steuernummer entered in the wrong field.
 	if (trim((string) ($mysoc->tva_intra ?? '')) !== '' && !auvoerechnung_is_vat_id($mysoc->tva_intra)) {
 		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnSellerVATInvalid', $mysoc->tva_intra);
 	}
 
-	// BT-34 (adresse électronique vendeur) : satisfaite par le SIREN (endpoint 0225)
-	// OU l'email. On n'avertit que si aucune des deux n'est disponible.
-	// Hors vendeur FR, BT-34 est facultatif en EN16931 (BR-FR-13 ne s'applique
-	// pas) : pas d'avertissement.
+	// BT-34 (seller electronic address) is satisfied by the SIREN (endpoint 0225)
+	// OR an email address. Warn only when neither is available.
+	// For non-French sellers, BT-34 is optional under EN16931 (BR-FR-13 does not
+	// apply), so no warning is needed.
 	$sellerSiren = $sellerIsFR ? auvoerechnung_party_siren($mysoc) : '';
 	if ($sellerIsFR && $sellerSiren === '' && empty($mysoc->email)) {
 		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnSellerEndpoint');
 	}
 
-	// BT-29 (ram:ID) : si un SIRET est renseigné (idprof2), il doit faire 14
-	// chiffres. Il identifie l'établissement ; le SIREN (BT-30) vient d'idprof1.
+	// BT-29 (ram:ID): if a SIRET is provided (idprof2), it must contain 14 digits.
+	// It identifies the establishment; the SIREN (BT-30) comes from idprof1.
 	$sellerSiret = $sellerIsFR ? preg_replace('/[^0-9]/', '', $mysoc->idprof2 ?? '') : '';
 	if ($sellerSiret !== '' && strlen($sellerSiret) !== 14) {
 		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnSellerSIRETLen', strlen($sellerSiret));
@@ -994,12 +990,12 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
 		}
 	}
 
-	// BT-49 (adresse électronique acheteur) : satisfaite par le SIREN (endpoint 0225)
-	// OU l'email. Pour un acheteur FR, l'absence de SIREN empêche le routage PA/PDP,
-	// même si un email est présent (un email n'est pas routable sur le réseau).
+	// BT-49 (buyer electronic address) is satisfied by the SIREN (endpoint 0225)
+	// OR an email address. For a French buyer, a missing SIREN prevents PA/PDP
+	// routing even when an email is present (email cannot be routed on the network).
 	$buyerIsFR  = strtoupper(!empty($buyer->country_code) ? $buyer->country_code : auvoerechnung_default_country()) === 'FR';
-	// Pays manquant : l'adresse (BT-40/BT-55) est obligatoire et le pays
-	// détermine les catégories de TVA ; on suppose le pays de la société.
+	// Missing country: the address (BT-40/BT-55) is mandatory and the country
+	// determines the VAT categories; assume the seller company's country.
 	if (!is_object($mysoc) || empty($mysoc->country_code)) {
 		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnSellerNoCountry');
 	}
@@ -1008,26 +1004,26 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
 	}
 	$buyerSiren = $buyerIsFR ? auvoerechnung_party_siren($buyer) : '';
 	$buyerEmail = auvoerechnung_get_buyer_email($buyer, $invoice->db);
-	// Hors vendeur FR, BT-49 est facultatif en EN16931 (BR-FR-12 ne s'applique
-	// pas ; seule XRechnung l'exige, profil non émis ici) : pas d'avertissement.
+	// For non-French sellers, BT-49 is optional under EN16931 (BR-FR-12 does not
+	// apply; only XRechnung requires it, and that profile is not emitted here).
 	if ($sellerIsFR && $buyerSiren === '' && $buyerEmail === '') {
 		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnBuyerEndpoint');
 	} elseif ($sellerIsFR && $buyerSiren === '' && $buyerIsFR && !auvoerechnung_is_non_assujetti($buyer)) {
-		// Non assujetti (particulier OU « Assujetti à la TVA » à Non, ex. asso) :
-		// pas de SIREN, hors champ e-invoicing (relève du e-reporting)
-		// → pas d'avertissement de routage
+		// Not taxable (private individual OR "Subject to VAT" is No, e.g. an
+		// association): no SIREN, outside e-invoicing scope (handled by e-reporting),
+		// so no routing warning.
 		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnBuyerSIRENRouting');
 	}
 
-	// BT-46 acheteur (ram:ID) : si un SIRET est renseigné, il doit faire 14 chiffres.
+	// BT-46 buyer (ram:ID): if a SIRET is provided, it must contain 14 digits.
 	$buyerSiret = $buyerIsFR ? preg_replace('/[^0-9]/', '', $buyer->idprof2 ?? '') : '';
 	if ($buyerSiret !== '' && strlen($buyerSiret) !== 14) {
 		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnBuyerSIRETLen', strlen($buyerSiret));
 	}
 
-	// BR-FR-01/02 : identifiant de facture (BT-1) — 35 caractères maximum,
-	// alphanumériques + « - + _ / » uniquement (l'espace n'est pas admis).
-	// Contrôle amont ; la violation bloquante est portée par le validateur.
+	// BR-FR-01/02: invoice identifier (BT-1), maximum 35 characters; only
+	// alphanumeric characters and "- + _ /" are allowed (no spaces).
+	// This is a pre-check; the blocking violation is handled by the validator.
 	$ref = (string) ($invoice->ref ?? '');
 	if ($ref !== '') {
 		$refLen = function_exists('mb_strlen') ? mb_strlen($ref) : strlen($ref);
@@ -1039,8 +1035,8 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
 		}
 	}
 
-	// BR-FR-09 : quand un SIREN (idprof1) ET un SIRET (idprof2) sont saisis,
-	// les 9 premiers chiffres du SIRET doivent correspondre au SIREN.
+	// BR-FR-09: when both a SIREN (idprof1) and SIRET (idprof2) are entered,
+	// the first nine digits of the SIRET must match the SIREN.
 	$sellerSirenSaisi = $sellerIsFR ? preg_replace('/[^0-9]/', '', $mysoc->idprof1 ?? '') : '';
 	if (strlen($sellerSirenSaisi) === 9 && strlen($sellerSiret) === 14 && strncmp($sellerSiret, $sellerSirenSaisi, 9) !== 0) {
 		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnSellerSirenSiretMismatch', $sellerSirenSaisi, $sellerSiret);
@@ -1050,10 +1046,9 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
 		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnBuyerSirenSiretMismatch', $buyerSirenSaisi, $buyerSiret);
 	}
 
-	// BR-FR-16 : taux de TVA hors liste française fermée (métropole + DOM).
-	// AVERTISSEMENT uniquement — la liste de la norme peut évoluer et un taux
-	// légitime ne doit jamais être bloqué.
-	// Seulement pour un vendeur français : 19 % ou 7 % sont des taux allemands normaux.
+	// BR-FR-16: VAT rate is outside the closed French list (mainland + overseas).
+	// Warning only: the standards list may change, and a legitimate rate must
+	// never be blocked. Apply only to French sellers; 19% or 7% are normal German rates.
 	if ($sellerIsFR) {
 		$frVatRates = [0.0, 0.9, 1.05, 1.75, 2.1, 5.5, 7.0, 8.5, 9.2, 9.6, 10.0, 13.0, 19.6, 20.0, 20.6];
 		$flaggedRates = [];
@@ -1075,9 +1070,9 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
 		}
 	}
 
-	// BR-FR-23/25 : suffixe d'adresse électronique vendeur — charset fermé
-	// (sanitisé par auvoerechnung_resolve_endpoint) et longueur
-	// totale de l'adresse limitée à 125 caractères.
+	// BR-FR-23/25: seller electronic-address suffix uses a closed character set
+	// (sanitized by auvoerechnung_resolve_endpoint), and the full address is
+	// limited to 125 characters.
 	$endpointSuffix = trim(getDolGlobalString('AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER', ''));
 	if ($endpointSuffix !== '') {
 		$suffixClean = preg_replace('/[^A-Za-z0-9._-]/', '', $endpointSuffix);
@@ -1090,15 +1085,15 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
 		}
 	}
 
-	// Compte bancaire : OK si la facture en porte un (fk_account) OU si le module
-	// en a un configuré. On n'avertit que si les deux manquent (issue #16 : le
-	// compte de la facture prime sur la config).
+	// Bank account: valid if the invoice has one (fk_account) OR one is configured
+	// in the module. Warn only if both are missing (issue #16: the invoice account
+	// takes precedence over the configuration).
 	if (empty($invoice->fk_account) && getDolGlobalInt('AUVOERECHNUNG_BANK_ACCOUNT') <= 0) {
 		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnNoBank');
 	}
 
-	// PDF/A-3 : sans police embarquée forcée, le PDF TCPDF utilise les polices
-	// base-14 non embarquées et échoue à la validation veraPDF.
+	// PDF/A-3: without a forced embedded font, TCPDF uses non-embedded Base 14
+	// fonts and fails veraPDF validation.
 	$forceFont = function_exists('getDolGlobalString') ? getDolGlobalString('MAIN_PDF_FORCE_FONT', '') : '';
 	if ($forceFont === '') {
 		$warnings[] = auvoerechnung_trans('AuvoERechnungWarnNoForceFont');
@@ -1112,15 +1107,15 @@ function auvoerechnung_check_mandatory($invoice, $mysoc)
 
 
 /**
- * Mappe l'unité Dolibarr d'une ligne vers le code UN/ECE Rec 20 attendu par Factur-X.
+ * Map a Dolibarr line unit to the UN/ECE Rec 20 code expected by Factur-X.
  *
- * Résolution par le CODE de l'unité Dolibarr (llx_c_units.code : H, D, W, MO...,
- * univoque), puis, pour les unités ajoutées par l'utilisateur, par le libellé
- * court. Sans correspondance : C62 (pièce / one) et $unknown reçoit le libellé,
- * pour que l'appelant puisse avertir au lieu d'émettre silencieusement « pièce ».
+ * Resolve by the Dolibarr unit CODE (llx_c_units.code: H, D, W, MO...,
+ * which is unique), then by the short label for user-added units. If there is
+ * no match, use C62 (piece / one) and set $unknown to the label so the caller
+ * can issue a warning instead of silently emitting "piece".
  *
- * @param object      $line    Ligne de facture Dolibarr
- * @param string|null $unknown Reçoit le libellé de l'unité sans correspondance
+ * @param object      $line    Dolibarr invoice line
+ * @param string|null $unknown Receives the label of an unmatched unit
  * @return string Code UN/ECE (ex: HUR, DAY, MTR, KGM, C62...)
  */
 function auvoerechnung_map_unit_code($line, &$unknown = null)
@@ -1135,7 +1130,7 @@ function auvoerechnung_map_unit_code($line, &$unknown = null)
 		'P' => 'C62', 'SET' => 'SET',
 		'S' => 'SEC', 'MI' => 'MIN', 'H' => 'HUR', 'D' => 'DAY', 'W' => 'WEE', 'MO' => 'MON', 'Y' => 'ANN',
 	];
-	// Unités ajoutées par l'utilisateur : libellé court (sans ambiguïté seulement)
+	// User-added units: match by short label only when it is unambiguous.
 	static $shortLabelMap = [
 		'h' => 'HUR', 'mn' => 'MIN', 'min' => 'MIN', 'd' => 'DAY', 'w' => 'WEE', 'wk' => 'WEE',
 		'week' => 'WEE', 'month' => 'MON', 'y' => 'ANN', 'cl' => 'CLT', 'ml' => 'MLT', 'km' => 'KMT',
@@ -1179,57 +1174,56 @@ function auvoerechnung_map_unit_code($line, &$unknown = null)
 }
 
 /**
- * Résout la catégorie TVA EN16931 (CategoryCode + code VATEX) selon le contexte métier.
+ * Resolve the EN16931 VAT category (CategoryCode + VATEX code) for the business context.
  *
- * Intracommunautaire B2B (acheteur UE hors FR avec TVA intra, taux 0) :
- *  - biens (product_type 0)    → K  (livraison intracommunautaire, art. 138 dir. 2006/112/CE)
- *  - services (product_type 1) → AE (autoliquidation, art. 196 dir. 2006/112/CE)
+ * Intra-community B2B (EU buyer outside France with a VAT ID, 0% rate):
+ *  - goods (product_type 0)    → K  (intra-community supply, Art. 138 Directive 2006/112/EC)
+ *  - services (product_type 1) → AE (reverse charge, Art. 196 Directive 2006/112/EC)
  *
- * @param object $line        Ligne de facture
- * @param object $invoice     Facture Dolibarr
- * @param object $thirdparty  Tiers acheteur
- * @param object $mysoc       Société émettrice
+ * @param object $line        Invoice line
+ * @param object $invoice     Dolibarr invoice
+ * @param object $thirdparty  Buyer
+ * @param object $mysoc       Seller company
  * @return array ['code' => 'S|K|AE|G|O|E|Z', 'exemption' => string|null, 'vatex' => string|null]
  */
 function auvoerechnung_resolve_tax_category($line, $invoice, $thirdparty, $mysoc)
 {
-	// Société émettrice non assujettie (franchise en base 293 B CGI, micro-entreprise) :
-	// catégorie E (Exempt from tax). Le code 'O' (Services hors champ) déclencherait
-	// BR-O-04/05 sur le taux 0 et n'est sémantiquement pas le bon (293 B = exonération
-	// française, pas une opération hors champ EU). BR-E-09 demande un identifiant
-	// fiscal vendeur : assuré par SpecifiedTaxRegistration schemeID="FC" (SIREN) dans
-	// auvoerechnung_build_party_model() quand tva_intra est vide.
-	// TVA > 0 : standard — prioritaire sur le statut franchise, car une ligne
-	// qui porte réellement de la TVA (ex. ancienne facture régénérée après un
-	// passage en franchise) en catégorie E violerait BR-E-05 (taux non nul).
+	// Non-taxable seller (small-business VAT exemption under Art. 293 B CGI): use
+	// category E (Exempt from tax). Code 'O' (services outside scope) would trigger
+	// BR-O-04/05 at a 0% rate and is semantically incorrect (Art. 293 B is a French
+	// exemption, not an EU out-of-scope transaction). BR-E-09 requires a seller tax
+	// identifier, provided as SpecifiedTaxRegistration schemeID="FC" (SIREN) in
+	// auvoerechnung_build_party_model() when tva_intra is empty.
+	// A VAT rate above 0 takes precedence over the exemption status: a line that
+	// actually carries VAT (e.g. an old invoice regenerated after switching to the
+	// exemption regime) would violate BR-E-05 if categorized as E.
 	if ((float) $line->tva_tx > 0) {
 		return ['code' => 'S', 'exemption' => null, 'vatex' => null];
 	}
 
-	// Pays « domestique » du vendeur : sert à distinguer les opérations
-	// intracommunautaires (acheteur UE d'un autre pays) et à choisir la langue
-	// du motif d'exonération (droit français ou allemand). Les DOM restent
-	// rattachés à FR, comportement historique du module.
+	// Seller's "domestic" country: used to distinguish intra-community operations
+	// (an EU buyer in another country) and choose the exemption-reason language
+	// (French or German law). Overseas territories remain mapped to FR, matching
+	// the module's historical behavior.
 	$sellerCountry = auvoerechnung_seller_is_fr($mysoc) ? 'FR' : strtoupper($mysoc->country_code);
 	$sellerIsDE    = ($sellerCountry === 'DE');
 	$isService     = ((int) ($line->product_type ?? 0) === 1);
 
 	if (isset($mysoc->tva_assuj) && (int) $mysoc->tva_assuj === 0) {
-		// Régime de franchise : le motif d'exonération dépend du pays du vendeur.
-		// Le code VATEX-FR-FRANCHISE est propre au droit français ; côté allemand
-		// (§ 19 UStG) aucun code de la liste CEF ne correspond, le texte libre
-		// suffit à satisfaire BR-E-10.
+		// Exemption regime: the reason depends on the seller's country.
+		// VATEX-FR-FRANCHISE is specific to French law. For Germany (§ 19 UStG), no
+		// CEF list code applies, so free text is sufficient for BR-E-10.
 		if ($sellerIsDE) {
 			return ['code' => 'E', 'exemption' => 'Kein Ausweis von Umsatzsteuer, da Kleinunternehmer gemäß § 19 UStG', 'vatex' => null];
 		}
 		return ['code' => 'E', 'exemption' => 'TVA non applicable, art. 293 B du CGI', 'vatex' => 'VATEX-FR-FRANCHISE'];
 	}
 
-	// TVA = 0 : qualifier selon le contexte
+	// For 0% VAT, determine the category from the context.
 	$buyerCountry = strtoupper(!empty($thirdparty->country_code) ? $thirdparty->country_code : $sellerCountry);
 	$buyerVat     = auvoerechnung_party_vat_id($thirdparty);
 
-	// Export hors UE : G
+	// Export outside the EU: G.
 	if (!in_array($buyerCountry, AUVOERECHNUNG_EU_COUNTRIES, true)) {
 		if ($sellerIsDE) {
 			$reason = $isService
@@ -1240,7 +1234,7 @@ function auvoerechnung_resolve_tax_category($line, $invoice, $thirdparty, $mysoc
 		return ['code' => 'G', 'exemption' => 'Export hors Union européenne (art. 262 I du CGI)', 'vatex' => 'VATEX-EU-G'];
 	}
 
-	// UE hors pays du vendeur avec TVA intra : K (biens) ou AE (services, art. 196)
+	// EU buyer outside the seller's country with a VAT ID: K (goods) or AE (services, Art. 196).
 	if ($buyerCountry !== $sellerCountry && !empty($buyerVat)) {
 		if ($isService) {
 			$reason = $sellerIsDE
@@ -1254,23 +1248,23 @@ function auvoerechnung_resolve_tax_category($line, $invoice, $thirdparty, $mysoc
 		return ['code' => 'K', 'exemption' => $reason, 'vatex' => 'VATEX-EU-IC'];
 	}
 
-	// Pays du vendeur ou UE sans TVA intra et TVA=0 : exonération par défaut.
-	// Pas de code VATEX émis : impossible de deviner la base légale (296ter,
-	// 261-4 formation, § 4 UStG…) — renseigner un motif explicite via la description.
+	// Seller's country or EU buyer without a VAT ID at 0%: default to exempt.
+	// Do not emit a VATEX code because the legal basis cannot be inferred (Art. 296ter,
+	// Art. 261-4 training, § 4 UStG, etc.); provide an explicit reason in the description.
 	return ['code' => 'E', 'exemption' => $sellerIsDE ? 'Umsatzsteuerfrei' : 'Exonéré de TVA', 'vatex' => null];
 }
 
 /**
- * Résout le TypeCode documentaire EN16931 selon le type de facture Dolibarr.
+ * Resolve the EN16931 document TypeCode from the Dolibarr invoice type.
  *
- * Types Dolibarr non couverts par un TypeCode dédié :
- *  - TYPE_SITUATION (5) : émis en 380 avec un avertissement — le mapping des
- *    lignes de situation (cumuls, retenues de garantie) n'est pas garanti.
- *  - TYPE_PROFORMA (4) : une proforma n'est pas une facture au sens EN16931.
+ * Dolibarr types without a dedicated TypeCode:
+ *  - TYPE_SITUATION (5): emitted as 380 with a warning; mapping of progress
+ *    billing lines (cumulative amounts, retention) is not guaranteed.
+ *  - TYPE_PROFORMA (4): a pro forma is not an invoice under EN16931.
  *
- * @param object $invoice        Facture Dolibarr
- * @param array  $buildWarnings  (sortie) avertissements
- * @return string '380' (standard), '381' (avoir), '384' (rectificative), '386' (acompte)
+ * @param object $invoice        Dolibarr invoice
+ * @param array  $buildWarnings  (output) warnings
+ * @return string '380' (standard), '381' (credit note), '384' (corrective), '386' (prepayment)
  */
 function auvoerechnung_resolve_document_type($invoice, &$buildWarnings = [])
 {
@@ -1292,10 +1286,10 @@ function auvoerechnung_resolve_document_type($invoice, &$buildWarnings = [])
 }
 
 /**
- * Retourne le montant total déjà prépayé via acomptes imputés sur la facture finale.
+ * Return the total amount already prepaid through deposits applied to the final invoice.
  *
- * @param object $invoice Facture Dolibarr
- * @return float Montant prépayé ≥ 0
+ * @param object $invoice Dolibarr invoice
+ * @return float Prepaid amount ≥ 0
  */
 function auvoerechnung_get_prepaid_amount($invoice)
 {
@@ -1304,22 +1298,21 @@ function auvoerechnung_get_prepaid_amount($invoice)
 }
 
 /**
- * Acomptes imputés comme LIGNE de la facture finale (chemin standard de
- * Dolibarr : « Insérer la remise », ligne négative avec fk_remise_except).
+ * Deposits applied as a LINE on the final invoice (Dolibarr's standard path:
+ * "Insert discount", a negative line with fk_remise_except).
  *
- * Par défaut Dolibarr ne traite pas une facture d'acompte comme un paiement
- * (FACTURE_DEPOSITS_ARE_JUST_PAYMENTS, déconseillée) mais comme une ligne
- * négative ; getSumDepositsUsed() vaut alors 0. Ces lignes ne sont pas une
- * remise (BG-20) : elles sont sorties des lignes et des remises et portées,
- * TTC, en BT-113, avec la facture d'acompte en BG-3 et les Teilentgelte en
- * BT-22 (BMF 15.10.2026 Rn. 3), comme sur le chemin « paiement ».
+ * By default, Dolibarr treats a deposit invoice as a negative line rather than
+ * a payment (FACTURE_DEPOSITS_ARE_JUST_PAYMENTS is discouraged); in that case
+ * getSumDepositsUsed() returns 0. These lines are not discounts (BG-20): remove
+ * them from lines and discounts, and report them gross in BT-113, with the
+ * deposit invoice in BG-3 and the partial-payment details in BT-22 (BMF
+ * 15 Oct 2026, para. 3), as in the payment path.
  *
- * Seules les factures standard sont concernées, et seules les remises dont
- * la source est une facture d'acompte (type 3) — un avoir ou un trop-perçu
- * imputé en ligne reste une remise.
+ * This applies only to standard invoices and discounts sourced from a deposit
+ * invoice (type 3). A credit note or overpayment applied as a line remains a discount.
  *
- * @param object $invoice Facture Dolibarr
- * @return array<int,object> Indexé par rowid de la remise : fid, ref, datef,
+ * @param object $invoice Dolibarr invoice
+ * @return array<int,object> Indexed by discount rowid: fid, ref, datef,
  *                           amount_ht, amount_tva, amount_ttc, tva_tx
  */
 function auvoerechnung_get_deposit_lines($invoice)
@@ -1354,10 +1347,10 @@ function auvoerechnung_get_deposit_lines($invoice)
 }
 
 /**
- * Est-ce une ligne d'acompte imputé (cf. auvoerechnung_get_deposit_lines) ?
+ * Is this a deposit line applied to the invoice (see auvoerechnung_get_deposit_lines)?
  *
- * @param object $line         Ligne de facture
- * @param array  $depositLines Résultat de auvoerechnung_get_deposit_lines()
+ * @param object $line         Invoice line
+ * @param array  $depositLines Result of auvoerechnung_get_deposit_lines()
  * @return bool
  */
 function auvoerechnung_is_deposit_line($line, array $depositLines)
@@ -1367,10 +1360,10 @@ function auvoerechnung_is_deposit_line($line, array $depositLines)
 }
 
 /**
- * Montant TTC des acomptes imputés en ligne, tel que Dolibarr l'a déduit des
- * totaux de la facture (somme des lignes, en valeur absolue).
+ * Gross amount of deposits applied as lines, as deducted by Dolibarr from the
+ * invoice totals (sum of lines, as an absolute value).
  *
- * @param object $invoice Facture Dolibarr
+ * @param object $invoice Dolibarr invoice
  * @return float
  */
 function auvoerechnung_get_deposit_lines_gross($invoice)
@@ -1389,20 +1382,20 @@ function auvoerechnung_get_deposit_lines_gross($invoice)
 }
 
 /**
- * Liste les factures antérieures à référencer en BG-3 :
- *  - facture d'origine d'un avoir ou d'une rectificative (fk_facture_source)
- *  - factures d'acompte imputées sur la facture (llx_societe_remise_except)
+ * List the preceding invoices to reference in BG-3:
+ *  - source invoice for a credit note or corrective invoice (fk_facture_source)
+ *  - deposit invoices applied to this invoice (llx_societe_remise_except)
  *
- * Rectificatives (BT-3 384/471/472/473) : BR-FR-CO-04 exige UNE ET UNE SEULE
- * référence BT-25 — celle de la facture remplacée. Les factures d'acompte
- * imputées ne sont donc PAS référencées en BG-3 dans ce cas (le montant
- * prépayé reste porté par BT-113) ; sans cette restriction, une rectificative
- * avec acompte imputé produirait N>1 références et le validateur interne
- * bloquerait à tort la génération en mode strict.
+ * Corrective invoices (BT-3 384/471/472/473): BR-FR-CO-04 requires exactly
+ * ONE BT-25 reference, to the invoice being replaced. Applied deposit invoices
+ * are therefore NOT referenced in BG-3 in this case (the prepaid amount stays
+ * in BT-113). Without this restriction, a corrective invoice with an applied
+ * deposit would produce multiple references and the internal validator would
+ * incorrectly block generation in strict mode.
  *
- * @param object $invoice  Facture Dolibarr
- * @param string $typeCode TypeCode BT-3 émis ('380', '384', '381'...) ; '' = pas de restriction
- * @return array Liste de ['ref' => string, 'date' => 'YYYYMMDD'|'']
+ * @param object $invoice  Dolibarr invoice
+ * @param string $typeCode Emitted BT-3 TypeCode ('380', '384', '381',...); '' = no restriction
+ * @return array List of ['ref' => string, 'date' => 'YYYYMMDD'|'']
  */
 function auvoerechnung_get_preceding_invoices($invoice, $typeCode = '')
 {
@@ -1413,7 +1406,7 @@ function auvoerechnung_get_preceding_invoices($invoice, $typeCode = '')
 		return $out;
 	}
 
-	// BR-FR-CO-04 : une rectificative ne référence QUE la facture remplacée
+	// BR-FR-CO-04: a corrective invoice references ONLY the invoice it replaces.
 	$isCorrective = in_array($typeCode, ['384', '471', '472', '473'], true);
 
 	$sourceIds = [];
@@ -1422,7 +1415,7 @@ function auvoerechnung_get_preceding_invoices($invoice, $typeCode = '')
 	}
 
 	if (!$isCorrective && !empty($invoice->id)) {
-		// Acomptes/avoirs consommés sur cette facture via remises exceptionnelles
+		// Deposits/credit notes consumed on this invoice through exceptional discounts.
 		$sql = "SELECT DISTINCT fk_facture_source FROM ".MAIN_DB_PREFIX."societe_remise_except"
 			." WHERE fk_facture = ".((int) $invoice->id)." AND fk_facture_source IS NOT NULL";
 		$res = $db->query($sql);
@@ -1434,7 +1427,7 @@ function auvoerechnung_get_preceding_invoices($invoice, $typeCode = '')
 	}
 
 	if (!$isCorrective) {
-		// Acomptes imputés en ligne (chemin standard de Dolibarr)
+		// Deposits applied as lines (Dolibarr's standard path).
 		foreach (auvoerechnung_get_deposit_lines($invoice) as $dep) {
 			$sourceIds[] = (int) $dep->fid;
 		}
@@ -1463,16 +1456,16 @@ function auvoerechnung_get_preceding_invoices($invoice, $typeCode = '')
 }
 
 /**
- * Texte BT-22 pour une facture finale avec acomptes imputés (§ 14 Abs. 5 UStG).
+ * BT-22 text for a final invoice with applied deposits (§ 14(5) UStG).
  *
  * BMF-Schreiben vom 15.10.2026 (Rn. 3) : Bis 30.06.2030 wird beanstandungsfrei
  * hingenommen, wenn die Teilentgelte als Summe in BT-113 abgezogen werden und
  * die Angaben nach UStAE 14.8 Abs. 7/8 (Entgelt, Steuersatz, Steuer je
- * Anzahlung) im Freitext BT-22 stehen. Vide si aucun acompte (facture de type
- * acompte inclus) n'est imputé, ou si la base est inaccessible.
+ * advance payment) may be stated as free text in BT-22. Empty when no deposit
+ * (including a deposit invoice) was applied or when the source data is unavailable.
  *
- * @param object $invoice Facture Dolibarr
- * @return string Texte (une ligne par acompte) ou chaîne vide
+ * @param object $invoice Dolibarr invoice
+ * @return string Text (one line per deposit) or an empty string
  */
 function auvoerechnung_build_deposit_note($invoice)
 {
@@ -1480,7 +1473,7 @@ function auvoerechnung_build_deposit_note($invoice)
 	if (!is_object($db) || empty($invoice->id) || auvoerechnung_get_prepaid_amount($invoice) <= 0) {
 		return '';
 	}
-	// Chemin « paiement » (FACTURE_DEPOSITS_ARE_JUST_PAYMENTS) : fk_facture
+	// "Payment" path (FACTURE_DEPOSITS_ARE_JUST_PAYMENTS): fk_facture.
 	$deposits = [];
 	$sql = "SELECT f.rowid AS fid, f.ref, f.datef, re.amount_ht, re.amount_tva, re.amount_ttc, re.tva_tx"
 		." FROM ".MAIN_DB_PREFIX."societe_remise_except re"
@@ -1493,7 +1486,7 @@ function auvoerechnung_build_deposit_note($invoice)
 			$deposits[] = $obj;
 		}
 	}
-	// Chemin standard : ligne négative (fk_facture_line)
+	// Standard path: negative line (fk_facture_line).
 	foreach (auvoerechnung_get_deposit_lines($invoice) as $obj) {
 		$deposits[] = $obj;
 	}
@@ -1503,7 +1496,7 @@ function auvoerechnung_build_deposit_note($invoice)
 	$lines = [];
 	foreach ($deposits as $obj) {
 		$date = !empty($obj->datef) ? substr($obj->datef, 8, 2).'.'.substr($obj->datef, 5, 2).'.'.substr($obj->datef, 0, 4) : '';
-		// Six valeurs : au-delà de quatre, $langs->trans() est fatal (issue #1)
+		// Six values: $langs->trans() fails with more than four (issue #1).
 		$lines[] = auvoerechnung_trans_format('AuvoERechnungDepositNoteLine', [
 			$obj->ref,
 			$date,
@@ -1520,16 +1513,16 @@ function auvoerechnung_build_deposit_note($invoice)
 }
 
 /**
- * N° de commande DE L'ACHETEUR (BT-13 « Purchase order reference ») de la
- * première commande client liée à la facture, via llx_element_element.
+ * BUYER'S purchase order number (BT-13 "Purchase order reference") from the
+ * first customer order linked to the invoice through llx_element_element.
  *
- * C'est le champ « Réf. client » de la commande (ref_client, libellé allemand
- * « Ihr Zeichen » / « Kunden-BestellNr. »), PAS la référence interne Dolibarr
- * de la commande (c.ref, ex. CO2606-0042) : celle-ci est un numéro du vendeur,
- * inexploitable par l'acheteur. Vide si la commande n'a pas de réf. client.
+ * This is the order's "Customer reference" field (ref_client, German labels
+ * "Ihr Zeichen" / "Kunden-BestellNr."), NOT its internal Dolibarr reference
+ * (c.ref, e.g. CO2606-0042), which is the seller's number and unusable by the
+ * buyer. Empty if the order has no customer reference.
  *
- * @param object $invoice Facture Dolibarr
- * @return string N° de commande de l'acheteur ou chaîne vide
+ * @param object $invoice Dolibarr invoice
+ * @return string Buyer's purchase order number or an empty string
  */
 function auvoerechnung_get_linked_order_ref($invoice)
 {
@@ -1552,7 +1545,7 @@ function auvoerechnung_get_linked_order_ref($invoice)
 
 
 /**
- * Extrait le SIREN (9 premiers chiffres) d'un SIRET
+ * Extract the SIREN (first nine digits) from a SIRET.
  */
 function auvoerechnung_extract_siren($siret)
 {
@@ -1563,14 +1556,14 @@ function auvoerechnung_extract_siren($siret)
 }
 
 /**
- * Détermine si une facture relève du circuit Chorus Pro (B2G, secteur public),
- * auquel cas un PDF Factur-X au profil Chorus doit être généré EN PLUS du PDF
- * EN16931 standard. Trois signaux (du plus explicite au filet de sécurité) :
- *   1. case à cocher « Facture Chorus Pro » sur la facture (extrafield lfxchorus) ;
- *   2. présence d'un champ Chorus rempli (code service / engagement / marché) ;
- *   3. acheteur = État central (SIRET commençant par 110002011).
+ * Determine whether an invoice uses the Chorus Pro workflow (B2G, public sector).
+ * If so, generate a Chorus-profile Factur-X PDF in addition to the standard
+ * EN16931 PDF. Three signals, from most explicit to fallback:
+ *   1. "Chorus Pro invoice" checkbox on the invoice (extrafield lfxchorus);
+ *   2. a populated Chorus field (service code / commitment / contract);
+ *   3. buyer is the central government (SIRET starts with 110002011).
  *
- * @param Facture $invoice  Facture Dolibarr (thirdparty et array_options chargés)
+ * @param Facture $invoice  Dolibarr invoice (thirdparty and array_options loaded)
  * @return bool
  */
 function auvoerechnung_is_chorus_invoice($invoice)
@@ -1585,16 +1578,16 @@ function auvoerechnung_is_chorus_invoice($invoice)
 			return true;
 		}
 	}
-	// Filet auto : acheteur = secteur public détecté par le SIRET.
+	// Automatic fallback: buyer is public sector based on the SIRET.
 	return auvoerechnung_is_public_sector_siret($invoice);
 }
 
 /**
- * Détecte si l'acheteur est une entité publique d'après son SIRET (État central :
- * SIRET commençant par 110002011). Sert au filet de détection automatique ET au
- * message d'information affiché quand les fonctionnalités Chorus sont désactivées.
- * NB : les collectivités/hôpitaux ont leur propre SIREN — non détectables ainsi,
- * d'où la case à cocher manuelle dans l'onglet Chorus.
+ * Detect whether the buyer is a public entity from its SIRET (central government:
+ * SIRET starts with 110002011). Used as an automatic fallback and in the
+ * information message shown when Chorus features are disabled.
+ * Note: local authorities and hospitals have their own SIREN and cannot be
+ * detected this way, which is why the Chorus tab has a manual checkbox.
  *
  * @param Facture $invoice
  * @return bool
@@ -1612,12 +1605,12 @@ function auvoerechnung_is_public_sector_siret($invoice)
 }
 
 /**
- * Construit le tableau d'options pour générer le XML au profil Chorus Pro à
- * partir des extrafields de la facture (cadre de facturation BT-23, code service
- * BT-10, n° engagement BT-13, n° marché BT-12).
+ * Build the options array for generating XML with the Chorus Pro profile from
+ * invoice extrafields (billing framework BT-23, service code BT-10, commitment
+ * number BT-13, contract number BT-12).
  *
  * @param Facture $invoice
- * @return array  options pour auvoerechnung_build_xml()
+ * @return array  Options for auvoerechnung_build_xml()
  */
 function auvoerechnung_chorus_options($invoice)
 {
@@ -1632,11 +1625,11 @@ function auvoerechnung_chorus_options($invoice)
 }
 
 /**
- * Liste officielle des cadres de facturation Chorus Pro (BT-23), source AIFE
- * « Annexe Processus de facturation » V4.00 §2.1. A1 = dépôt fournisseur (défaut
- * B2G). Pas de A11 dans la nomenclature AIFE.
+ * Official list of Chorus Pro billing frameworks (BT-23), from AIFE's
+ * "Billing Process Annex" V4.00 §2.1. A1 = supplier submission (B2G default).
+ * A11 is not present in the AIFE nomenclature.
  *
- * @return array  code => libellé
+ * @return array  code => label
  */
 function auvoerechnung_chorus_frameworks()
 {
@@ -1669,23 +1662,22 @@ function auvoerechnung_chorus_frameworks()
 }
 
 /**
- * Recopie les 3 mentions légales BR-FR-05 (PMD/PMT/AAB) dans le pied de facture
- * Dolibarr (FACTURE_FREE_TEXT). N'écrase jamais l'existant : seules les mentions
- * absentes sont ajoutées. Idempotent.
+ * Copy the three BR-FR-05 legal notices (PMD/PMT/AAB) to the Dolibarr invoice
+ * footer (FACTURE_FREE_TEXT). Never overwrite existing text; add only missing
+ * notices. Idempotent.
  *
  * @param DoliDB $db
- * @return int  Nombre de mentions ajoutées
+ * @return int  Number of notices added
  */
 /**
- * Force printable=0 et list=0 sur les extrafields Chorus (lfx*).
+ * Set printable=0 and list=0 for Chorus extrafields (lfx*).
  *
- * Ces champs sont internes (édités dans l'onglet « Chorus Pro » dédié) et ne
- * doivent jamais s'imprimer sur le PDF. Dolibarr 23 les crée avec printable!=0,
- * et son modèle PDF (pdf_sponge → getExtrafieldsInHtml) imprime dans la NOTE du
- * PDF tout extrafield dont printable vaut 1 ou 2 → un bloc de libellés Chorus
- * vides apparaissait dans la description de la facture (Dolibarr 23.0.1).
- * Idempotent, inoffensif sur Dolibarr ≤ 22 (déjà à 0). Renvoie le nb de lignes
- * corrigées.
+ * These fields are internal (edited in the dedicated "Chorus Pro" tab) and
+ * must never print on the PDF. Dolibarr 23 creates them with printable!=0, and
+ * its PDF model (pdf_sponge → getExtrafieldsInHtml) prints every extrafield with
+ * printable set to 1 or 2 in the PDF NOTE. This caused an empty block of Chorus
+ * labels to appear in invoice descriptions (Dolibarr 23.0.1). Idempotent and
+ * harmless on Dolibarr <= 22 (already set to 0). Returns the number of rows fixed.
  *
  * @param DoliDB $db
  * @return int
@@ -1703,16 +1695,16 @@ function auvoerechnung_fix_chorus_extrafields_display($db)
 function auvoerechnung_append_notes_to_footer($db, $overwrite = null)
 {
 	global $conf, $mysoc;
-	// Depuis Dolibarr 17, la « Mention complémentaire sur les factures » est
-	// stockée dans INVOICE_FREE_TEXT (ex-FACTURE_FREE_TEXT) — c'est CETTE
-	// constante que le PDF imprime. On vise donc INVOICE_FREE_TEXT.
+	// Since Dolibarr 17, "Additional invoice text" is stored in INVOICE_FREE_TEXT
+	// (formerly FACTURE_FREE_TEXT); this is the constant printed by the PDF.
+	// Therefore, target INVOICE_FREE_TEXT.
 	$constName = auvoerechnung_invoice_freetext_const();
 	if ($overwrite === null) {
 		$overwrite = (getDolGlobalInt('AUVOERECHNUNG_NOTES_OVERWRITE', 0) === 1);
 	}
 	$freeText = getDolGlobalString($constName, '');
-	// Mêmes mentions que dans le XML : pas de défaut français imposé au PDF
-	// d'un vendeur étranger (seules ses constantes AUVOERECHNUNG_NOTE_* comptent).
+	// Use the same notices as in the XML: do not impose French defaults on a
+	// foreign seller's PDF (only its AUVOERECHNUNG_NOTE_* constants apply).
 	$mentions = array();
 	foreach (auvoerechnung_resolve_legal_notes(auvoerechnung_seller_is_fr($mysoc ?? null)) as $m) {
 		$m = trim($m);
@@ -1720,14 +1712,14 @@ function auvoerechnung_append_notes_to_footer($db, $overwrite = null)
 			$mentions[] = $m;
 		}
 	}
-	// On centre les mentions sur le PDF (HTML), cohérent avec la « Mention
-	// complémentaire » qui est rendue en HTML et souvent déjà centrée.
+	// Center the notices in the PDF (HTML), matching the "Additional text" field,
+	// which is rendered as HTML and is often already centered.
 	$wrap = static function ($m) {
 		return '<p style="text-align:center;margin:0;">'.$m.'</p>';
 	};
 	$added = 0;
 	if ($overwrite || trim($freeText) === '') {
-		// Champ vide OU option « écraser » : on (re)met nos mentions.
+		// Empty field OR "overwrite" option: add or replace our notices.
 		$parts = array();
 		foreach ($mentions as $m) {
 			$parts[] = $wrap($m);
@@ -1735,8 +1727,8 @@ function auvoerechnung_append_notes_to_footer($db, $overwrite = null)
 		$newText = implode("\n", $parts);
 		$added = ($newText !== $freeText) ? count($mentions) : 0;
 	} else {
-		// On AJOUTE nos mentions après le texte existant (seulement celles
-		// qui manquent — on teste le texte brut), sans toucher au reste.
+		// Append our notices after existing text (only missing ones, checked
+		// against the plain text) without changing anything else.
 		$newText = $freeText;
 		foreach ($mentions as $m) {
 			if (strpos($newText, $m) !== false) {
@@ -1753,13 +1745,13 @@ function auvoerechnung_append_notes_to_footer($db, $overwrite = null)
 }
 
 /**
- * Nom de la constante de « mention complémentaire sur les factures » : Dolibarr
- * l'a renommée FACTURE_FREE_TEXT → INVOICE_FREE_TEXT en v17, et c'est CELLE-CI
- * que le modèle PDF lit. Le module cible Dolibarr 19+ → toujours INVOICE_FREE_TEXT.
+ * Name of the "additional invoice text" constant: Dolibarr renamed
+ * FACTURE_FREE_TEXT to INVOICE_FREE_TEXT in v17, and the PDF model reads the
+ * latter. This module targets Dolibarr 19+, so always use INVOICE_FREE_TEXT.
  *
- * NB : surtout PAS de détection « celle qui a du contenu » — si l'ancienne
- * FACTURE_FREE_TEXT traîne un résidu, on écrirait dans une constante que le PDF
- * n'imprime plus (et le champ INVOICE_FREE_TEXT vide ne serait jamais rempli).
+ * Note: do NOT detect "whichever one has content". If the old FACTURE_FREE_TEXT
+ * contains stale text, we would write to a constant the PDF no longer reads,
+ * leaving INVOICE_FREE_TEXT empty and nothing printed.
  *
  * @return string
  */
@@ -1769,19 +1761,19 @@ function auvoerechnung_invoice_freetext_const()
 }
 
 /**
- * Liste les polices PDF disponibles dans le TCPDF de Dolibarr, avec pour chacune
- * si elle est conforme Factur-X (PDF/A-3 = police EMBARQUÉE).
+ * List the PDF fonts available in Dolibarr's TCPDF, and whether each one
+ * complies with Factur-X (PDF/A-3 requires an EMBEDDED font).
  *
- * Détection (calibrée sur les définitions TCPDF) : une police est embarquée si
- * son $type n'est PAS 'core' (base-14 non embarquée) ET qu'elle a un $file
- * (programme de police embarqué, ex 'dejavusans.z', 'pdfahelvetica.z').
+ * Detection (based on TCPDF definitions): a font is embedded when its $type is
+ * not 'core' (Base 14 fonts are not embedded) AND it has a $file (embedded font
+ * program, e.g. 'dejavusans.z' or 'pdfahelvetica.z').
  *
- * On ne renvoie que les polices « régulières » : les variantes gras/italique
- * (suffixe b / i / bi) sont écartées car TCPDF les sélectionne automatiquement
- * à partir de la police de base posée dans MAIN_PDF_FORCE_FONT.
+ * Return only regular fonts: bold/italic variants (suffix b / i / bi) are
+ * excluded because TCPDF selects them automatically from the base font set in
+ * MAIN_PDF_FORCE_FONT.
  *
- * Chemin TCPDF stable de Dolibarr 18 à 23. Renvoie array(nomPolice => bool
- * embarquée), trié, ou array() si le dossier est introuvable.
+ * Stable TCPDF path in Dolibarr 18 through 23. Returns a sorted array of
+ * (fontName => embedded) or an empty array if the directory cannot be found.
  *
  * @return array
  */
@@ -1798,7 +1790,7 @@ function auvoerechnung_list_pdf_fonts()
 	}
 	foreach ($files as $path) {
 		$name = basename($path, '.php');
-		// Écarter les variantes gras/italique (b / i / bi) d'une police de base.
+		// Skip bold/italic variants (b / i / bi) of a base font.
 		$base = preg_replace('/(bi|b|i)$/', '', $name);
 		if ($base !== $name && file_exists($dir.$base.'.php')) {
 			continue;
@@ -1822,27 +1814,27 @@ function auvoerechnung_list_pdf_fonts()
 }
 
 /**
- * Code d'exigibilité TVA (BT-8) dérivé du régime TVA de Dolibarr (constante
- * TAX_MODE, Configuration > Taxes) — plus de réglage dédié dans le module.
- *   TAX_MODE 1 = sur les débits      → '5'
- *   TAX_MODE 2 = sur les encaissements → '72'
+ * VAT due-date code (BT-8) derived from Dolibarr's VAT regime (TAX_MODE
+ * constant, Configuration > Taxes); there is no separate module setting.
+ *   TAX_MODE 1 = on debits      → '5'
+ *   TAX_MODE 2 = on payments    → '72'
  *   TAX_MODE 0 = standard (mixte) : on suit TAX_MODE_SELL_SERVICE.
  *
  * Only for French sellers (setting AUVOERECHNUNG_VAT_DUE_DATE = auto); other
  * sellers get BT-8 only when set explicitly (5 = Soll, 72 = Ist).
  *
- * Conformité XP Z12-012 vérifiée (2026-07) : la codelist UNTDID 2475 admise par
- * EN16931 en CII est {5, 29, 72}. Pour l'option « débits », la règle
- * BR-FR-MAP-03 impose la valeur 5 en CII, et BR-FR-MAP-29 précise que le PPF
- * n'attend QUE 5 (le 29 « date de livraison », pourtant admis par EN16931, doit
- * être retranscrit en 5 dans les flux). Le 72 (date de paiement) code la TVA
- * sur les encaissements. Le mapping actuel est donc exact — ne pas y toucher.
- * Périmètre d'émission : uniquement sur les catégories 'S' (cf. build_xml), ce
- * qui est correct — toute ligne à taux > 0 est classée S par ce module, et
- * l'exigibilité n'a pas de sens sur les catégories sans TVA due (E/K/G/AE/O/Z).
+ * XP Z12-012 compliance checked (2026-07): the UNTDID 2475 code list allowed
+ * by EN16931 in CII is {5, 29, 72}. For "on debits", BR-FR-MAP-03 requires
+ * value 5 in CII, and BR-FR-MAP-29 specifies that PPF expects only 5 (29,
+ * "delivery date", although allowed by EN16931, must be mapped to 5 in
+ * submissions). Value 72 (payment date) codes VAT on payments. The current
+ * mapping is correct and should not be changed. Emit only for category 'S'
+ * (see build_xml), which is correct: this module classifies every line with a
+ * rate above 0 as S, and the due date is not relevant to categories without
+ * VAT due (E/K/G/AE/O/Z).
  *
  * @param object|null $mysoc  Seller; null keeps the Dolibarr mapping
- * @return string  '5', '72' ou '' (omis)
+ * @return string  '5', '72' or '' (omitted)
  */
 function auvoerechnung_resolve_vat_due_date_code($mysoc = null)
 {
@@ -1875,19 +1867,19 @@ function auvoerechnung_resolve_vat_due_date_code($mysoc = null)
 }
 
 /**
- * Résout le binaire PHP CLI pour le subprocess d'injection.
- *  1. surcharge manuelle (AUVOERECHNUNG_PHP_CLI_PATH non vide) → utilisée telle
- *     quelle ; un dossier est complété par php.exe (Windows) ou php ;
- *  2. cache (AUVOERECHNUNG_PHP_CLI_CACHE) encore valide → réutilisé ;
- *  3. sinon auto-détection puis mise en cache.
+ * Resolve the PHP CLI binary for the injection subprocess.
+ *  1. Use a non-empty manual override (AUVOERECHNUNG_PHP_CLI_PATH) as provided;
+ *     append php.exe (Windows) or php when the value is a directory.
+ *  2. Reuse a valid cached value (AUVOERECHNUNG_PHP_CLI_CACHE).
+ *  3. Otherwise, auto-detect and cache the result.
  *
  * @param DoliDB $db
- * @return string  Chemin/commande du binaire PHP CLI ('php' en dernier recours)
+ * @return string  PHP CLI binary path/command ('php' as a last resort)
  */
 function auvoerechnung_resolve_php_cli($db)
 {
-	// 'php' nu (ancien défaut) = pas une vraie surcharge → on auto-détecte (qui
-	// fera mieux, et retombe sur 'php' au pire). Une surcharge = un chemin précis.
+	// Bare 'php' (the old default) is not a real override: auto-detect a better
+	// candidate, falling back to 'php' if needed. An override is a specific path.
 	$manual = trim(getDolGlobalString('AUVOERECHNUNG_PHP_CLI_PATH', ''));
 	if ($manual !== '' && $manual !== 'php') {
 		return auvoerechnung_php_cli_from_dir($manual);
@@ -1897,9 +1889,9 @@ function auvoerechnung_resolve_php_cli($db)
 		return $cache;
 	}
 	$detected = auvoerechnung_detect_php_cli();
-	// Mise en cache best-effort : dolibarr_set_const() vit dans admin.lib.php,
-	// chargée par main.inc.php en contexte web/hook mais pas dans un bootstrap CLI
-	// minimal — on ne casse pas la résolution si elle est absente.
+	// Best-effort caching: dolibarr_set_const() is in admin.lib.php, loaded by
+	// main.inc.php in web/hook contexts but not in a minimal CLI bootstrap. Do not
+	// fail binary resolution if the function is unavailable.
 	if ($detected !== '' && is_object($db) && function_exists('dolibarr_set_const')) {
 		dolibarr_set_const($db, 'AUVOERECHNUNG_PHP_CLI_CACHE', $detected, 'chaine', 0, '', 0);
 	}
@@ -1907,9 +1899,9 @@ function auvoerechnung_resolve_php_cli($db)
 }
 
 /**
- * Surcharge manuelle du binaire PHP CLI : si l'utilisateur a saisi un dossier
- * (ex. C:\laragon\bin\php\php-8.3.16), on y ajoute php.exe sous Windows,
- * php ailleurs. Un chemin de fichier est renvoyé tel quel.
+ * Manual override for the PHP CLI binary: if the user entered a directory
+ * (e.g. C:\laragon\bin\php\php-8.3.16), append php.exe on Windows or php
+ * elsewhere. A file path is returned unchanged.
  *
  * @param string $path
  * @return string
@@ -1923,12 +1915,12 @@ function auvoerechnung_php_cli_from_dir($path)
 }
 
 /**
- * Sonde une liste de candidats et renvoie le premier binaire PHP CLI dont le
- * SAPI est « cli » ET dont la version major.minor correspond à celle du web
- * (pour ne pas prendre un PHP d'une autre version). Renvoie '' si rien.
+ * Probe a list of candidates and return the first PHP CLI binary whose SAPI is
+ * "cli" AND whose major.minor version matches the web version, avoiding a
+ * different PHP installation. Return '' if no candidate matches.
  *
- * NB : en contexte FPM, PHP_BINARY pointe sur php-fpm (inutilisable en CLI) —
- * on en déduit un candidat CLI en remplaçant php-fpm→php et sbin→bin.
+ * Note: in an FPM context, PHP_BINARY points to php-fpm (not usable from CLI).
+ * Derive a CLI candidate by replacing php-fpm with php and sbin with bin.
  *
  * @return string
  */
@@ -1941,15 +1933,15 @@ function auvoerechnung_detect_php_cli()
 	$candidates = array();
 	if (defined('PHP_BINARY') && PHP_BINARY !== '') {
 		$candidates[] = str_replace(array('php-fpm', '/sbin/'), array('php', '/bin/'), PHP_BINARY);
-		// Windows : dériver php.exe du dossier du binaire web
-		// (ex C:\php\php-cgi.exe → C:\php\php.exe).
+		// Windows: derive php.exe from the web binary's directory
+		// (e.g. C:\php\php-cgi.exe → C:\php\php.exe).
 		if (DIRECTORY_SEPARATOR === '\\') {
 			$candidates[] = dirname(PHP_BINARY).'\\php.exe';
 		}
 	}
-	// Windows avec mod_php (Laragon, XAMPP, WAMP) : PHP_BINARY pointe sur
-	// httpd.exe. Le dossier de PHP se retrouve via le php.ini chargé ou le
-	// dossier des extensions (…\php-8.x\ext).
+	// Windows with mod_php (Laragon, XAMPP, WAMP): PHP_BINARY points to httpd.exe.
+	// Find the PHP directory through the loaded php.ini or the extension
+	// directory (...\php-8.x\ext).
 	if (DIRECTORY_SEPARATOR === '\\') {
 		$ini = php_ini_loaded_file();
 		if ($ini) {
@@ -1978,11 +1970,11 @@ function auvoerechnung_detect_php_cli()
 }
 
 /**
- * Vérifie qu'un candidat est un binaire PHP CLI exécutable (SAPI cli), et
- * éventuellement de la version attendue.
+ * Check that a candidate is an executable PHP CLI binary (SAPI cli), and
+ * optionally that it has the expected version.
  *
  * @param string $cand
- * @param string $wantVersion  major.minor attendu, ou '' pour ne pas vérifier
+ * @param string $wantVersion  Expected major.minor, or '' to skip the check
  * @return bool
  */
 function auvoerechnung_php_cli_is_valid($cand, $wantVersion = '')
@@ -1990,11 +1982,11 @@ function auvoerechnung_php_cli_is_valid($cand, $wantVersion = '')
 	if (!function_exists('exec')) {
 		return false;
 	}
-	// Sonde cross-plateforme via `php -v` (et NON `php -r "..."`) : un snippet -r
-	// contient des guillemets, or escapeshellarg() sous Windows remplace les "
-	// par des espaces — la commande serait cassée. `php -v` n'a aucun guillemet.
-	// La redirection d'erreurs diffère aussi : NUL sous Windows, /dev/null sinon.
-	// 1re ligne de `php -v` : « PHP 8.2.30 (cli) (built: ...) ... »
+	// Probe cross-platform with `php -v` (not `php -r "..."`): an -r snippet
+	// contains quotes, and escapeshellarg() replaces " with spaces on Windows,
+	// breaking the command. `php -v` contains no quotes. Error redirection also
+	// differs: NUL on Windows, /dev/null elsewhere.
+	// First line of `php -v`: "PHP 8.2.30 (cli) (built: ...) ..."
 	$devnull = (DIRECTORY_SEPARATOR === '\\') ? 'NUL' : '/dev/null';
 	$out = array();
 	$rc = 1;
@@ -2004,14 +1996,14 @@ function auvoerechnung_php_cli_is_valid($cand, $wantVersion = '')
 	}
 	$version = '';
 	foreach ($out as $line) {
-		// SAPI « (cli) » sur la ligne de version = c'est bien un binaire CLI.
+		// SAPI "(cli)" on the version line confirms this is a CLI binary.
 		if (preg_match('/^PHP\s+(\d+\.\d+)\.[^\s]*\s+\(cli\)/i', $line, $m)) {
 			$version = $m[1];
 			break;
 		}
 	}
 	if ($version === '') {
-		return false; // pas exécutable, ou SAPI != cli
+		return false; // not executable, or SAPI != cli
 	}
 	if ($wantVersion !== '') {
 		return $version === $wantVersion;
@@ -2020,13 +2012,13 @@ function auvoerechnung_php_cli_is_valid($cand, $wantVersion = '')
 }
 
 /**
- * SIREN (9 chiffres) d'un tiers, pour BT-30/BT-47 (SpecifiedLegalOrganization).
- * Source canonique : champ idprof1 (SIREN) de Dolibarr ; à défaut, dérivé des
- * 9 premiers chiffres du SIRET (idprof2). Renvoie '' si rien d'exploitable ou
- * si la valeur ne se normalise pas à exactement 9 chiffres (BR-FR-10).
+ * Customer's 9-digit SIREN for BT-30/BT-47 (SpecifiedLegalOrganization).
+ * Canonical source: Dolibarr's idprof1 (SIREN) field; if empty, derive it from
+ * the first nine digits of SIRET (idprof2). Return '' if there is no usable
+ * value or it cannot be normalized to exactly nine digits (BR-FR-10).
  *
- * @param object $party  mysoc ou Societe (champs idprof1 / idprof2)
- * @return string        SIREN à 9 chiffres, ou ''
+ * @param object $party  mysoc or Societe (idprof1 / idprof2 fields)
+ * @return string        9-digit SIREN, or ''
  */
 function auvoerechnung_party_siren($party)
 {
@@ -2038,14 +2030,14 @@ function auvoerechnung_party_siren($party)
 }
 
 /**
- * La valeur est-elle un n° de TVA intracommunautaire exploitable en BT-31/BT-48 ?
+ * Is this a VAT ID that can be used in BT-31/BT-48?
  *
- * BR-CO-09 : l'identifiant TVA doit commencer par le code pays ISO 3166-1
- * alpha-2 (EL pour la Grèce). Une saisie sans préfixe — typiquement une
- * Steuernummer allemande « 22/180/80394 » tapée dans le champ TVA intra par un
- * Kleinunternehmer — ne doit PAS être publiée sous schemeID="VA".
+ * BR-CO-09: a VAT identifier must start with the ISO 3166-1 alpha-2 country
+ * code (EL for Greece). A value without a prefix—typically a German
+ * Kleinunternehmer's Steuernummer "22/180/80394" entered in the VAT ID field—
+ * must NOT be published with schemeID="VA".
  *
- * @param string|null $vat  Valeur du champ tva_intra
+ * @param string|null $vat  Value of the tva_intra field
  * @return bool
  */
 function auvoerechnung_is_vat_id($vat)
@@ -2055,10 +2047,10 @@ function auvoerechnung_is_vat_id($vat)
 }
 
 /**
- * N° de TVA intra d'un tiers, seulement s'il a la forme d'un n° de TVA
- * (cf. auvoerechnung_is_vat_id), sinon ''.
+ * Customer VAT ID, only when it has the format of a VAT ID
+ * (see auvoerechnung_is_vat_id); otherwise, ''.
  *
- * @param object $party  mysoc ou Societe
+ * @param object $party  mysoc or Societe
  * @return string
  */
 function auvoerechnung_party_vat_id($party)
@@ -2068,21 +2060,20 @@ function auvoerechnung_party_vat_id($party)
 }
 
 /**
- * Steuernummer (numéro fiscal allemand) d'un tiers, pour BT-32.
+ * Customer's German tax number (Steuernummer), for BT-32.
  *
- * Conventions Dolibarr pour l'Allemagne (langs/de_DE/companies.lang, depuis
- * 2016) :
- *   idprof1 = Steuernummer   → c'est CE champ
- *   idprof2 = Amtsgericht    (texte, ex. « Amtsgericht Koblenz »)
+ * Dolibarr conventions for Germany (langs/de_DE/companies.lang, since 2016):
+ *   idprof1 = Steuernummer   → this is THE field
+ *   idprof2 = Amtsgericht    (text, e.g. "Amtsgericht Koblenz")
  *   idprof3 = Handelsregister-Nummer
- * Ordre de lecture : idprof1, puis idprof2 (anciennes fiches de ce module, qui
- * y lisaient la Steuernummer), puis le champ TVA intra quand il contient une
- * Steuernummer au lieu d'un n° de TVA. Seule une valeur ayant la forme d'une
- * Steuernummer (chiffres, « / » et espaces, au moins 10 chiffres) est
- * retenue : jamais un nom de tribunal, jamais une USt-IdNr (préfixe pays).
+ * Read order: idprof1, then idprof2 (older records in this module stored the
+ * Steuernummer there), then the VAT ID field if it contains a Steuernummer
+ * instead of a VAT ID. Accept only values matching the Steuernummer format
+ * (digits, "/" and spaces, at least 10 digits): never a court name and never a
+ * USt-IdNr (country prefix).
  *
- * @param object $party  mysoc ou Societe
- * @return string        Steuernummer telle que saisie, ou ''
+ * @param object $party  mysoc or Societe
+ * @return string        Steuernummer as entered, or ''
  */
 function auvoerechnung_party_steuernummer($party)
 {
@@ -2100,10 +2091,10 @@ function auvoerechnung_party_steuernummer($party)
 }
 
 /**
- * Leitweg-ID (identifiant de routage administration publique allemande),
- * pour BT-10, lue sur l'extrafield tiers dédié — pas de champ Dolibarr natif
- * équivalent (contrairement à la Steuernummer qui réutilise idprof2, les
- * idprof* sont déjà occupés par les conventions allemandes existantes).
+ * Leitweg ID (German public administration routing identifier) for BT-10,
+ * read from the dedicated customer extrafield. Dolibarr has no native
+ * equivalent field; unlike the Steuernummer, it cannot reuse idprof2 because
+ * the idprof* fields already follow existing German conventions.
  */
 function auvoerechnung_party_leitwegid($party)
 {
@@ -2112,17 +2103,17 @@ function auvoerechnung_party_leitwegid($party)
 }
 
 /**
- * Leitweg-ID applicable à une facture : celle saisie sur la facture
- * (extrafield facture lfxleitwegid, ex. autre service d'une même
- * administration), sinon celle du tiers.
+ * Leitweg ID applicable to an invoice: use the value entered on the invoice
+ * (invoice extrafield lfxleitwegid, e.g. for another department of the same
+ * administration), otherwise use the customer's value.
  *
- * @param object $invoice  Facture (array_options et thirdparty chargés)
+ * @param object $invoice  Invoice (array_options and thirdparty loaded)
  * @return string
  */
 function auvoerechnung_invoice_leitwegid($invoice)
 {
-	// Die Leitweg-ID gilt nur für Käufer in Deutschland (wie im Datenmodell BT-10/BT-49).
-	// Für ausländische Käufer wird sie ignoriert, damit Vorprüfung und XML übereinstimmen.
+	// The Leitweg ID applies only to buyers in Germany (as defined for BT-10/BT-49).
+	// Ignore it for foreign buyers so the pre-check and XML remain consistent.
 	$buyer = $invoice->thirdparty ?? null;
 	$country = strtoupper((is_object($buyer) && !empty($buyer->country_code)) ? $buyer->country_code : auvoerechnung_default_country());
 	if ($country !== 'DE') {
@@ -2133,11 +2124,11 @@ function auvoerechnung_invoice_leitwegid($invoice)
 }
 
 /**
- * Identifiant de spécification XRechnung (BT-24), ex.
+ * XRechnung specification identifier (BT-24), e.g.
  * urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0
- * (BR-DE-21). Version « majeure.mineure » réglable (AUVOERECHNUNG_XRECHNUNG_VERSION)
- * pour suivre les publications semestrielles de la KoSIT sans nouvelle version
- * du module ; toute valeur mal formée retombe sur la version par défaut.
+ * (BR-DE-21). The major.minor version can be configured with
+ * AUVOERECHNUNG_XRECHNUNG_VERSION to follow KoSIT's twice-yearly releases
+ * without a new module release. Malformed values fall back to the default.
  *
  * @return string
  */
@@ -2151,10 +2142,10 @@ function auvoerechnung_xrechnung_cius_id()
 }
 
 /**
- * N° de fournisseur du vendeur chez ce client (BT-29), extrafield tiers
+ * Seller's supplier number at this customer (BT-29), customer extrafield
  * « Unsere Lieferantennummer beim Kunden » (lfxsupplierno).
  *
- * @param object $party  Tiers acheteur
+ * @param object $party  Buyer
  * @return string
  */
 function auvoerechnung_party_supplier_number($party)
@@ -2164,12 +2155,13 @@ function auvoerechnung_party_supplier_number($party)
 }
 
 /**
- * Chemin du fichier XRechnung d'une facture : {dossier facture}/{ref}-XRECHNUNG.xml.
- * Nom fixe, indépendant du nom du PDF (les modèles ODT produisent {ref}_{modèle}.pdf).
+ * Path to an invoice's XRechnung file: {invoice folder}/{ref}-XRECHNUNG.xml.
+ * The name is fixed and independent of the PDF name (ODT templates produce
+ * {ref}_{template}.pdf).
  *
- * @param string $ref     Référence de la facture
- * @param int    $entity  Entité de la facture
- * @return string  Chemin, ou '' si le répertoire documents des factures est inconnu
+ * @param string $ref     Invoice reference
+ * @param int    $entity  Invoice entity
+ * @return string  Path, or '' if the invoice documents directory is unknown
  */
 function auvoerechnung_xrechnung_path($ref, $entity)
 {
@@ -2186,7 +2178,7 @@ function auvoerechnung_xrechnung_path($ref, $entity)
 }
 
 /**
- * Types MIME admis pour les pièces jointes BG-24 (BR-CL-24), par extension.
+ * MIME types allowed for BG-24 attachments (BR-CL-24), by file extension.
  */
 const AUVOERECHNUNG_ATTACHMENT_MIMES = [
 	'pdf'  => 'application/pdf',
@@ -2199,20 +2191,19 @@ const AUVOERECHNUNG_ATTACHMENT_MIMES = [
 ];
 
 /**
- * Pièces jointes à intégrer dans la XRechnung (BG-24), selon la configuration :
- *  - AUVOERECHNUNG_XR_EMBED_PDF : le PDF de la facture ;
- *  - AUVOERECHNUNG_XR_EMBED_FILES : les autres fichiers déposés dans les
- *    documents de la facture (justificatifs, relevés d'heures…), dans les
- *    formats admis par BR-CL-24. Les documents générés par Dolibarr ou le
- *    module (nom commençant par la référence de la facture : PDF/ODT du
- *    modèle, XRechnung, PDF Chorus) sont exclus, sauf s'ils sont indexés
- *    comme « déposés » dans l'ECM.
- * Noms de fichiers uniques (BR-DE-22). Au-delà de 7 Mo cumulés (≈ 9,3 Mo une
- * fois en base64), avertissement : l'OZG-RE refuse les e-mails de plus de 10 Mo.
+ * Attachments to include in the XRechnung (BG-24), according to configuration:
+ *  - AUVOERECHNUNG_XR_EMBED_PDF: the invoice PDF;
+ *  - AUVOERECHNUNG_XR_EMBED_FILES: other files in the invoice documents
+ *    directory (supporting documents, timesheets, etc.) in formats allowed by
+ *    BR-CL-24. Files generated by Dolibarr or this module (names starting with
+ *    the invoice reference: template PDF/ODT, XRechnung, Chorus PDF) are
+ *    excluded unless indexed as uploaded in ECM.
+ * File names must be unique (BR-DE-22). Above 7 MB total (about 9.3 MB after
+ * base64 encoding), issue a warning: OZG-RE rejects emails larger than 10 MB.
  *
- * @param object   $invoice   Facture (ref, id, entity, db, last_main_doc)
+ * @param object   $invoice   Invoice (ref, id, entity, db, last_main_doc)
  * @param string[] $warnings  (sortie) avertissements
- * @param string   $pdfPath   PDF de la facture (vide = recherche automatique)
+ * @param string   $pdfPath   Invoice PDF (empty = search automatically)
  * @return array<int,array{id:string,name:string,mime:string,content:string,description:string}>
  */
 function auvoerechnung_collect_attachments($invoice, &$warnings = [], $pdfPath = '')
@@ -2286,15 +2277,15 @@ function auvoerechnung_collect_attachments($invoice, &$warnings = [], $pdfPath =
 }
 
 /**
- * Prépare une facture d'exemple pour le test de la page de configuration :
- * vendeur = la société réelle ($mysoc), acheteur fictif d'une administration
- * allemande avec la Leitweg-ID de test de la KoSIT (991-33333TEST-33), deux
- * lignes (prestation et livraison) à 19 % — 0 % pour un vendeur non
- * assujetti (Kleinunternehmer). Rien n'est enregistré.
+ * Prepare a sample invoice for the configuration page test: the seller is the
+ * real company ($mysoc); the fictional buyer is a German public administration
+ * with KoSIT's test Leitweg ID (991-33333TEST-33); two lines (service and
+ * delivery) at 19%, or 0% for a non-taxable seller (Kleinunternehmer). Nothing
+ * is saved.
  *
- * @param object $invoice  Facture vide (Facture ou objet compatible)
- * @param object $buyer    Tiers vide (Societe ou objet compatible)
- * @param object $mysoc    Société émettrice
+ * @param object $invoice  Empty invoice (Facture or compatible object)
+ * @param object $buyer    Empty customer (Societe or compatible object)
+ * @param object $mysoc    Seller company
  * @return void
  */
 function auvoerechnung_sample_invoice($invoice, $buyer, $mysoc)
@@ -2347,17 +2338,17 @@ function auvoerechnung_sample_invoice($invoice, $buyer, $mysoc)
 }
 
 /**
- * Faut-il produire une XRechnung pour ce tiers ?
+ * Should an XRechnung be produced for this customer?
  *
- * Extrafield tiers « E-Rechnungsformat » (lfxeformat) :
+ * Customer extrafield "E-invoice format" (lfxeformat):
  *   'xrechnung', 'xrechnung_cii', 'xrechnung_ubl' → oui ; 'zugferd' → non ;
- *   vide / 'auto' → oui dès qu'une Leitweg-ID est renseignée (acheteur public
- *   allemand, qui attend XRechnung ou ZUGFeRD au profil XRECHNUNG).
+ *   empty / 'auto' → yes whenever a Leitweg ID is set (German public buyer,
+ *   which expects XRechnung or ZUGFeRD with the XRECHNUNG profile).
  *
- * Une Leitweg-ID saisie sur la facture ($invoice) vaut comme celle du tiers.
+ * A Leitweg ID entered on the invoice ($invoice) counts the same as one on the customer record.
  *
- * @param object      $buyer    Tiers acheteur (array_options chargés)
- * @param object|null $invoice  Facture, pour sa Leitweg-ID propre
+ * @param object      $buyer    Buyer (array_options loaded)
+ * @param object|null $invoice  Invoice, for its own Leitweg ID
  * @return bool
  */
 function auvoerechnung_wants_xrechnung($buyer, $invoice = null)
@@ -2377,11 +2368,11 @@ function auvoerechnung_wants_xrechnung($buyer, $invoice = null)
 }
 
 /**
- * Syntaxe de la XRechnung pour ce tiers : 'ubl' ou 'cii'. Choix explicite sur
- * la fiche tiers (« XRechnung (UBL) » / « XRechnung (CII) »), sinon réglage
- * du module AUVOERECHNUNG_XRECHNUNG_SYNTAX (CII par défaut).
+ * XRechnung syntax for this customer: 'ubl' or 'cii'. Use the explicit choice
+ * on the customer record ("XRechnung (UBL)" / "XRechnung (CII)"), otherwise use
+ * the AUVOERECHNUNG_XRECHNUNG_SYNTAX module setting (CII by default).
  *
- * @param object $buyer  Tiers acheteur (array_options chargés)
+ * @param object $buyer  Buyer (array_options loaded)
  * @return string 'cii'|'ubl'
  */
 function auvoerechnung_xrechnung_syntax($buyer)
@@ -2398,16 +2389,16 @@ function auvoerechnung_xrechnung_syntax($buyer)
 }
 
 /**
- * XRechnung d'une facture dans la syntaxe voulue, à partir d'un seul modèle.
- * La version CII est toujours produite aussi : les règles métier internes
- * (auvoerechnung_validate_business_rules) s'appliquent à elle — même modèle,
- * même contenu sémantique ; la syntaxe UBL elle-même est couverte par son XSD.
+ * Build an invoice's XRechnung in the requested syntax from a single model.
+ * The CII version is always produced too, so the internal business rules
+ * (auvoerechnung_validate_business_rules) apply to it. Both use the same model
+ * and semantic content; the UBL syntax itself is validated by its XSD.
  *
  * @param object      $invoice
  * @param object      $mysoc
  * @param array       $buildWarnings  (sortie)
- * @param array       $options        cf. auvoerechnung_build_model() ('profile' forcé à xrechnung)
- * @param string|null $syntax         'cii'|'ubl', null = selon le tiers (auvoerechnung_xrechnung_syntax)
+ * @param array       $options        See auvoerechnung_build_model() ('profile' forced to xrechnung)
+ * @param string|null $syntax         'cii'|'ubl', null = based on the customer (auvoerechnung_xrechnung_syntax)
  * @return array{syntax:string,xml:string,cii:string}
  */
 function auvoerechnung_build_xrechnung($invoice, $mysoc, &$buildWarnings = [], $options = [], $syntax = null)
@@ -2423,11 +2414,10 @@ function auvoerechnung_build_xrechnung($invoice, $mysoc, &$buildWarnings = [], $
 }
 
 /**
- * Date saisie dans un extrafield de type date de la facture (timestamp), ou
- * null si vide.
+ * Date entered in an invoice date-type extrafield (timestamp), or null if empty.
  *
  * @param object $invoice
- * @param string $name     Nom de l'extrafield sans préfixe options_
+ * @param string $name     Extrafield name without the options_ prefix
  * @return int|null
  */
 function auvoerechnung_invoice_date_option($invoice, $name)
@@ -2443,10 +2433,10 @@ function auvoerechnung_invoice_date_option($invoice, $name)
 }
 
 /**
- * Lieu de livraison (BG-13) : premier contact externe « livraison »
- * (SHIPPING) rattaché à la facture. Nom (BT-70) : nom complet du contact,
- * à défaut sa société ; adresse (BG-15) : celle du contact, pays par défaut
- * celui de l'acheteur. Null sans contact de livraison.
+ * Delivery location (BG-13): first external "delivery" (SHIPPING) contact
+ * linked to the invoice. Name (BT-70): contact's full name, or their company;
+ * address (BG-15): the contact's address, defaulting the country to the buyer's.
+ * Null when there is no delivery contact.
  *
  * @param object $invoice
  * @return array{name:string,address:array}|null
@@ -2482,9 +2472,9 @@ function auvoerechnung_get_ship_to($invoice)
 }
 
 /**
- * La facture est-elle exclue de la facturation électronique (case « Keine
- * E-Rechnung », extrafield lfxnoeinvoice) ? Le PDF reste un PDF ordinaire et
- * aucune XRechnung n'est produite automatiquement.
+ * Is the invoice excluded from e-invoicing ("No e-invoice" checkbox,
+ * extrafield lfxnoeinvoice)? The PDF remains a regular PDF and no XRechnung is
+ * generated automatically.
  *
  * @param object $invoice
  * @return bool
@@ -2498,16 +2488,16 @@ function auvoerechnung_einvoice_disabled($invoice)
 }
 
 /**
- * Contact du vendeur pour XRechnung (BG-6 : BT-41 nom, BT-42 téléphone,
- * BT-43 email ; BR-DE-2/5/6/7). Chaque champ est pris, dans l'ordre :
- *   1. réglage du module (AUVOERECHNUNG_CONTACT_NAME / _PHONE / _EMAIL) ;
- *   2. auteur de la facture (nom complet, téléphone pro/mobile, email) ;
- *   3. société émettrice (téléphone, email ; pas de nom de personne).
- * Le téléphone ne garde que les caractères admis par l'OZG-RE (0-9 ( ) - + et
- * espace).
+ * Seller contact for XRechnung (BG-6: BT-41 name, BT-42 phone, BT-43 email;
+ * BR-DE-2/5/6/7). Each field is selected in this order:
+ *   1. module setting (AUVOERECHNUNG_CONTACT_NAME / _PHONE / _EMAIL);
+ *   2. invoice author (full name, work/mobile phone, email);
+ *   3. seller company (phone, email; no individual name).
+ * The phone number keeps only characters allowed by OZG-RE (0-9 ( ) - + and
+ * spaces).
  *
- * @param object $invoice  Facture
- * @param object $mysoc    Société émettrice
+ * @param object $invoice  Invoice
+ * @param object $mysoc    Seller company
  * @return array{name:string,phone:string,email:string}
  */
 function auvoerechnung_get_seller_contact($invoice, $mysoc)
@@ -2547,12 +2537,12 @@ function auvoerechnung_get_seller_contact($invoice, $mysoc)
 }
 
 /**
- * Contrôle amont des données requises par XRechnung (règles BR-DE fatales
- * et PEPPOL-EN16931-R010/R020). Renvoie des messages traduits ; une liste vide
- * signifie que la XRechnung peut être produite.
+ * Pre-check the data required by XRechnung (fatal BR-DE and PEPPOL-EN16931-
+ * R010/R020 rules). Returns translated messages; an empty list means the
+ * XRechnung can be generated.
  *
- * @param object $invoice  Facture (thirdparty chargé)
- * @param object $mysoc    Société émettrice
+ * @param object $invoice  Invoice (thirdparty loaded)
+ * @param object $mysoc    Seller company
  * @return string[]
  */
 function auvoerechnung_check_xrechnung($invoice, $mysoc)
@@ -2560,7 +2550,7 @@ function auvoerechnung_check_xrechnung($invoice, $mysoc)
 	$problems = [];
 	$buyer = $invoice->thirdparty ?? null;
 
-	// BT-10 (BR-DE-15) : Leitweg-ID, à défaut référence client.
+	// BT-10 (BR-DE-15): Leitweg ID, falling back to the customer reference.
 	if (auvoerechnung_invoice_leitwegid($invoice) === '' && empty($invoice->ref_client)) {
 		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingBuyerRef');
 	}
@@ -2575,22 +2565,22 @@ function auvoerechnung_check_xrechnung($invoice, $mysoc)
 	if (!preg_match('/^[^@\s]+@([^@.\s]+\.)+[^@.\s]+$/', $contact['email'])) {
 		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingContactEmail');
 	}
-	// BT-34 (PEPPOL-EN16931-R020) : email de la société.
+	// BT-34 (PEPPOL-EN16931-R020): company email address.
 	if (empty($mysoc->email)) {
 		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingSellerEmail');
 	}
-	// BT-49 (PEPPOL-EN16931-R010) : Leitweg-ID (0204) ou email de l'acheteur.
+	// BT-49 (PEPPOL-EN16931-R010): buyer's Leitweg ID (0204) or email address.
 	if (auvoerechnung_invoice_leitwegid($invoice) === '' && auvoerechnung_get_buyer_email($buyer, $invoice->db ?? null) === '') {
 		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingBuyerAddress');
 	}
-	// BT-37/38, BT-52/53 (BR-DE-3/4/8/9)
+	// BT-37/38, BT-52/53 (BR-DE-3/4/8/9).
 	if (empty($mysoc->zip) || empty($mysoc->town)) {
 		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingSellerZipTown');
 	}
 	if (empty($buyer->zip) || empty($buyer->town)) {
 		$problems[] = auvoerechnung_trans('AuvoERechnungXrMissingBuyerZipTown');
 	}
-	// BG-16 (BR-DE-1, BR-DE-23-a) : virement → IBAN obligatoire.
+	// BG-16 (BR-DE-1, BR-DE-23-a): bank transfer requires an IBAN.
 	$paymentMeans = getDolGlobalString('AUVOERECHNUNG_PAYMENT_MEANS', '30');
 	if (in_array($paymentMeans, ['30', '58'], true)) {
 		$bank = auvoerechnung_get_bank_account($invoice->db ?? null, $invoice);
@@ -2602,7 +2592,7 @@ function auvoerechnung_check_xrechnung($invoice, $mysoc)
 }
 
 /**
- * Cherche l'email d'un tiers : d'abord sur la fiche, sinon sur le 1er contact
+ * Find a customer's email: first on the customer record, otherwise on the first contact.
  */
 function auvoerechnung_get_buyer_email($buyer, $db)
 {
@@ -2629,13 +2619,13 @@ function auvoerechnung_get_buyer_email($buyer, $db)
 }
 
 /**
- * Résout le chemin du PDF principal d'une facture, ou null s'il n'existe pas.
- * Convention Dolibarr : <dir_entité>/<ref>/<ref>.pdf ; repli sur last_main_doc
- * (chemin relatif à DOL_DATA_ROOT) si le fichier conventionnel est absent.
+ * Resolve the path to an invoice's main PDF, or null if it does not exist.
+ * Dolibarr convention: <entity_dir>/<ref>/<ref>.pdf; fall back to last_main_doc
+ * (relative to DOL_DATA_ROOT) if the conventional file is missing.
  *
- * @param string $ref          Référence de la facture
- * @param int    $entity       Entité de la facture (multicompany)
- * @param string $lastMainDoc  Valeur de llx_facture.last_main_doc (optionnel)
+ * @param string $ref          Invoice reference
+ * @param int    $entity       Invoice entity (multicompany)
+ * @param string $lastMainDoc  Value of llx_facture.last_main_doc (optional)
  * @return string|null
  */
 function auvoerechnung_invoice_pdf_path($ref, $entity, $lastMainDoc = '')
@@ -2658,9 +2648,9 @@ function auvoerechnung_invoice_pdf_path($ref, $entity, $lastMainDoc = '')
 			return $candidate;
 		}
 	}
-	// Repli modèle ODT : le PDF y est nommé {ref}_{template}.pdf (pas {ref}.pdf) et
-	// last_main_doc peut pointer le .odt. On prend alors le PDF le plus récent du
-	// dossier de la facture, hors PDF Chorus ({ref}-CHORUS.pdf).
+	// ODT template fallback: its PDF is named {ref}_{template}.pdf (not {ref}.pdf),
+	// and last_main_doc may point to the .odt. In that case, use the newest PDF
+	// in the invoice folder, excluding the Chorus PDF ({ref}-CHORUS.pdf).
 	if (!empty($dir)) {
 		$cands = glob($dir.'/'.$safeRef.'/*.pdf');
 		if (!empty($cands)) {
@@ -2679,11 +2669,11 @@ function auvoerechnung_invoice_pdf_path($ref, $entity, $lastMainDoc = '')
 }
 
 /**
- * Extrait le XML Factur-X embarqué dans un PDF (lecture seule, in-process :
- * le Reader atgp repose sur smalot/pdfparser, sans conflit FPDF/TCPDF).
+ * Extract the Factur-X XML embedded in a PDF (read-only, in-process: the atgp
+ * Reader uses smalot/pdfparser, avoiding conflicts with FPDF/TCPDF).
  *
- * @param string $pdfPath Chemin du PDF
- * @return string|null    XML, ou null si absent/illisible
+ * @param string $pdfPath PDF path
+ * @return string|null    XML, or null if missing/unreadable
  */
 function auvoerechnung_extract_xml_from_pdf($pdfPath)
 {
@@ -2697,7 +2687,7 @@ function auvoerechnung_extract_xml_from_pdf($pdfPath)
 }
 
 /**
- * Tronque un IBAN pour affichage : "FR76...0185". Vide si IBAN absent.
+ * Truncate an IBAN for display: "FR76...0185". Empty if no IBAN is available.
  */
 function auvoerechnung_iban_short($iban)
 {
@@ -2709,7 +2699,7 @@ function auvoerechnung_iban_short($iban)
 
 if (!function_exists('auvoerechnung_xml_encode')) {
 	/**
-	 * Échappe une valeur pour insertion dans le XML (ENT_XML1).
+	 * Escape a value for insertion into XML (ENT_XML1).
 	 */
 	function auvoerechnung_xml_encode($str)
 	{
@@ -2719,7 +2709,7 @@ if (!function_exists('auvoerechnung_xml_encode')) {
 
 if (!function_exists('auvoerechnung_format_amount')) {
 	/**
-	 * Formate un montant à 2 décimales (AmountType EN16931).
+	 * Format an amount to two decimal places (EN16931 AmountType).
 	 */
 	function auvoerechnung_format_amount($amount)
 	{
@@ -2728,7 +2718,7 @@ if (!function_exists('auvoerechnung_format_amount')) {
 }
 
 /**
- * Formate une quantité (BT-129) : jusqu'à 4 décimales, zéros traînants retirés.
+ * Format a quantity (BT-129) to up to four decimal places, removing trailing zeros.
  */
 function auvoerechnung_format_qty($qty)
 {
@@ -2848,8 +2838,8 @@ function auvoerechnung_pdf_font_embedded($font)
 }
 
 /**
- * Formate un prix unitaire net (BT-146) : 2 décimales, étendu à 4 quand la
- * précision le justifie (ex. 100/3 = 33.3333) pour limiter l'écart qty x prix.
+ * Format a net unit price (BT-146) to two decimal places, extending to four
+ * when precision requires it (e.g. 100/3 = 33.3333) to limit quantity × price drift.
  */
 function auvoerechnung_format_unit_price($price)
 {
@@ -2862,14 +2852,14 @@ function auvoerechnung_format_unit_price($price)
 }
 
 /**
- * Interroge l'API GitHub pour la dernière release publiée du module.
- * Résultat (succès OU échec) mis en cache 24h dans une constante Dolibarr pour
- * ne pas retenter un appel réseau lent à chaque ouverture de la page admin.
+ * Query the GitHub API for the module's latest published release.
+ * Cache the result (success OR failure) in a Dolibarr constant for 24 hours to
+ * avoid retrying a slow network request every time the admin page is opened.
  *
  * @param object $db               Handle DB Dolibarr
  * @param string $currentVersion   Version actuelle du module (ex: "1.1.0")
  * @return array|null              ['version' => 'x.y.z', 'url' => 'https://...']
- *                                 si une version plus récente existe, null sinon
+ *                                 if a newer version exists, otherwise null
  */
 function auvoerechnung_check_latest_release($db, $currentVersion)
 {
@@ -2908,7 +2898,7 @@ function auvoerechnung_check_latest_release($db, $currentVersion)
 				if (is_array($data) && !empty($data['tag_name'])) {
 					$latest  = ltrim($data['tag_name'], 'v');
 					$htmlUrl = $data['html_url'] ?? '';
-					// Validation défensive : on n'accepte qu'une URL github.com officielle du repo
+					// Defensive validation: accept only an official github.com URL for this repository.
 					if (!preg_match('#^https://github\.com/Fips81/dolibarr-auvo-erechnung/#', $htmlUrl)) {
 						$htmlUrl = 'https://github.com/Fips81/dolibarr-auvo-erechnung/releases';
 					}
@@ -2916,8 +2906,8 @@ function auvoerechnung_check_latest_release($db, $currentVersion)
 			}
 		}
 
-		// Cacher aussi l'échec (version null) : GitHub injoignable ne doit pas
-		// ralentir la page admin de 5s à chaque ouverture pendant 24h.
+		// Cache failures too (version null): an unreachable GitHub must not slow
+		// down the admin page by five seconds on every visit for 24 hours.
 		dolibarr_set_const($db, 'AUVOERECHNUNG_UPDATE_CHECK_CACHE', json_encode([
 			'ts'      => $now,
 			'version' => $latest,

@@ -1,23 +1,23 @@
 <?php
 /*
- * AuVo E-Rechnung - Fixtures de démo
+ * AuVo E-Rechnung - Demo fixtures
  *
- * Crée : société émettrice, compte bancaire, 6 tiers variés,
- * 10 factures couvrant tous les cas métier Factur-X
- * (standard, multi-TVA, TVA 0%, avoir, heures, jours, sans email,
- *  UE autoliquidation, acompte TYPE_DEPOSIT, finale avec acompte imputé).
+ * Creates a seller company, bank account, six varied customers, and ten
+ * invoices covering all Factur-X business cases (standard, multiple VAT rates,
+ * 0% VAT, credit note, hours, days, no email, EU reverse charge, TYPE_DEPOSIT,
+ * and a final invoice with an applied deposit).
  *
- * À lancer UNIQUEMENT sur une instance Dolibarr de test (écrit dans la base) :
+ * Run ONLY on a test Dolibarr instance (this writes to the database):
  *   php htdocs/custom/auvoerechnung/demo/fixtures.php
  */
 
-// Sécurité : ce script écrit des données de démo — exécution CLI uniquement.
+// Safety: this script writes demo data; run it from the CLI only.
 if (PHP_SAPI !== 'cli') {
 	http_response_code(403);
 	die('CLI only');
 }
 
-// Localisation de master.inc.php : 3 niveaux au-dessus du module (htdocs/custom/auvoerechnung/demo)
+// Locate master.inc.php: three levels above this module (htdocs/custom/auvoerechnung/demo).
 $res = @include __DIR__.'/../../../master.inc.php';
 if (!$res) {
 	die("Impossible de charger master.inc.php\n");
@@ -191,9 +191,9 @@ foreach ($f as $k => $v) {
 
 echo "=== Lien acompte F009 -> F010 (llx_societe_remise_except) ===\n";
 if ($f['F009_deposit'] > 0 && $f['F010_with_deposit'] > 0) {
-	// Mécanisme Dolibarr : pour que getSumDepositsUsed() détecte un acompte
-	// sur la facture finale, il faut une ligne dans llx_societe_remise_except
-	// avec description='(DEPOSIT)', fk_facture_source = deposit, fk_facture = finale
+	// Dolibarr mechanism: for getSumDepositsUsed() to detect a deposit on the
+	// final invoice, llx_societe_remise_except must contain a row with
+	// description='(DEPOSIT)', fk_facture_source = deposit, and fk_facture = final invoice.
 	$sql = "INSERT INTO ".MAIN_DB_PREFIX."societe_remise_except "
 		." (datec, entity, fk_soc, discount_type, fk_user, description, amount_ht, amount_tva, amount_ttc, tva_tx, fk_facture_source, fk_facture)"
 		." VALUES (NOW(), 1, ".((int) $tiers['fr_std']).", 0, 1, '(DEPOSIT)', 200, 40, 240, 20, ".((int) $f['F009_deposit']).", ".((int) $f['F010_with_deposit']).")";

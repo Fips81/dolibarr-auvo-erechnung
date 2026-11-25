@@ -8,16 +8,15 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Script standalone pour injecter le XML Factur-X dans un PDF
+ * Standalone script to embed Factur-X XML into a PDF.
  *
  * Usage: php inject_facturx.php <pdf_path> <xml_path>
  *
- * Ce script s'exécute dans un process PHP séparé, sans Dolibarr chargé,
- * pour éviter les conflits entre FPDF (utilisé par atgp/factur-x) et
- * TCPDF (utilisé par Dolibarr).
+ * This script runs in a separate PHP process without Dolibarr loaded, to
+ * avoid conflicts between FPDF (used by atgp/factur-x) and TCPDF (used by Dolibarr).
  */
 
-// Sécurité : ce script ne doit être exécuté qu'en ligne de commande
+// Security: this script must only run from the command line.
 if (PHP_SAPI !== 'cli') {
 	http_response_code(403);
 	die('Access denied');
@@ -50,9 +49,9 @@ try {
 		exit(1);
 	}
 
-	// AFRelationship 'Alternative' (7e argument) : imposé par la spec Factur-X
-	// pour les profils BASIC/EN16931/EXTENDED ('Data' est réservé à
-	// MINIMUM/BASIC WL et déclenche une erreur Mustang/FNFE).
+	// AFRelationship 'Alternative' (7th argument) is required by the Factur-X
+	// specification for BASIC/EN16931/EXTENDED profiles. 'Data' is reserved for
+	// MINIMUM/BASIC WL and triggers a Mustang/FNFE error.
 	$writer = new \Atgp\FacturX\Writer();
 	$facturxPdf = $writer->generate(
 		$pdfContent,
@@ -64,9 +63,9 @@ try {
 		'Alternative'
 	);
 
-	// Écriture atomique : le PDF original n'est remplacé qu'une fois le
-	// nouveau fichier intégralement écrit (évite un PDF tronqué si disque
-	// plein ou process interrompu).
+	// Atomic write: replace the original PDF only after the new file has been
+	// written completely. This avoids a truncated PDF if the disk is full or
+	// the process is interrupted.
 	$tmpPath = $pdfPath.'.facturx.tmp';
 	if (file_put_contents($tmpPath, $facturxPdf) !== strlen($facturxPdf)) {
 		@unlink($tmpPath);

@@ -8,10 +8,10 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Onglet « Chorus Pro » de la fiche facture : paramètres du profil B2G
- * (cadre de facturation BT-23, code service BT-10, n° engagement BT-13,
- * n° marché BT-12) + case d'activation. Ces champs pilotent la génération
- * du second PDF {ref}-CHORUS.pdf.
+ * "Chorus Pro" tab on the invoice card: B2G profile settings (invoice process
+ * BT-23, service code BT-10, commitment number BT-13, contract number BT-12)
+ * and enable checkbox. These fields control generation of the second PDF,
+ * {ref}-CHORUS.pdf.
  */
 
 $res = 0;
@@ -40,13 +40,13 @@ if ($id <= 0 || $object->fetch($id) <= 0) {
 }
 $object->fetch_thirdparty();
 
-// Zugriff auf die Rechnung (Entity, externe Benutzer, Zugriff nur auf eigene Geschäftspartner)
+// Check invoice access (entity, external users, and access limited to the user's own third parties).
 restrictedArea($user, 'facture', $object->id, '', '', 'fk_soc', 'rowid');
 
 $form = new Form($db);
 
 /*
- * Enregistrement des paramètres Chorus
+ * Save Chorus settings.
  */
 if ($action === 'savechorus' && auvoerechnung_user_can($user, 'write')) {
 	if (GETPOST('token', 'alpha') !== currentToken()) {
@@ -65,10 +65,10 @@ if ($action === 'savechorus' && auvoerechnung_user_can($user, 'write')) {
 }
 
 /*
- * Report manuel des références Chorus remplies dans la note publique (visible
- * sur le PDF). Sur demande uniquement (bouton) : les champs Chorus sont sinon
- * masqués du PDF. N'ajoute que les champs non vides, sans doublon, sans toucher
- * au reste de la note.
+ * Manually copy the populated Chorus references to the public note (visible on
+ * the PDF). This runs only on request through the button; Chorus fields are
+ * otherwise hidden from the PDF. Add only non-empty fields, avoid duplicates,
+ * and leave the rest of the note unchanged.
  */
 if ($action === 'writechorusnote' && auvoerechnung_user_can($user, 'write')) {
 	if (GETPOST('token', 'alpha') !== currentToken()) {
@@ -113,7 +113,7 @@ if ($action === 'writechorusnote' && auvoerechnung_user_can($user, 'write')) {
 }
 
 /*
- * Vue
+ * View.
  */
 llxHeader('', $langs->trans('AuvoERechnungChorusTab').' — '.$object->ref);
 
@@ -126,7 +126,7 @@ dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref');
 print '<div class="fichecenter">';
 print '<div class="opacitymedium" style="margin:6px 0 14px 0;">'.$langs->trans('AuvoERechnungChorusTabHelp').'</div>';
 
-// État de détection courant
+// Current detection status.
 $isChorus = auvoerechnung_is_chorus_invoice($object);
 print '<div class="info" style="margin-bottom:12px;">'.$langs->trans('AuvoERechnungChorusDetected').' : <strong>'
 	.($isChorus ? $langs->trans('Yes') : $langs->trans('No')).'</strong></div>';
@@ -137,29 +137,29 @@ print '<input type="hidden" name="action" value="savechorus">';
 
 print '<table class="border centpercent tableforfield">';
 
-// Case d'activation (forçage du profil Chorus)
+// Enable checkbox (force the Chorus profile).
 print '<tr><td class="titlefieldcreate">'.$langs->trans('AuvoERechnungEfChorus').'</td><td>';
 print '<input type="checkbox" name="lfxchorus" value="1"'.(!empty($object->array_options['options_lfxchorus']) ? ' checked' : '').'>';
 print ' <span class="opacitymedium">'.$langs->trans('AuvoERechnungEfChorusHint').'</span>';
 print '</td></tr>';
 
-// Cadre de facturation BT-23
+// Billing framework BT-23.
 print '<tr><td>'.$langs->trans('AuvoERechnungEfCadre').'</td><td>';
 $curCadre = !empty($object->array_options['options_lfxcadre']) ? $object->array_options['options_lfxcadre'] : 'A1';
 print $form->selectarray('lfxcadre', auvoerechnung_chorus_frameworks(), $curCadre, 0, 0, 0, '', 0, 0, 0, '', 'minwidth400');
 print '</td></tr>';
 
-// Code service exécutant BT-10
+// Service code (BT-10).
 print '<tr><td>'.$langs->trans('AuvoERechnungEfServiceCode').'</td><td>';
 print '<input type="text" name="lfxservicecode" class="flat minwidth300" value="'.dol_escape_htmltag($object->array_options['options_lfxservicecode'] ?? '').'">';
 print '</td></tr>';
 
-// N° engagement BT-13
+// Commitment number (BT-13).
 print '<tr><td>'.$langs->trans('AuvoERechnungEfEngagement').'</td><td>';
 print '<input type="text" name="lfxengagement" class="flat minwidth300" value="'.dol_escape_htmltag($object->array_options['options_lfxengagement'] ?? '').'">';
 print '</td></tr>';
 
-// N° marché BT-12
+// Contract number (BT-12).
 print '<tr><td>'.$langs->trans('AuvoERechnungEfMarche').'</td><td>';
 print '<input type="text" name="lfxmarche" class="flat minwidth300" value="'.dol_escape_htmltag($object->array_options['options_lfxmarche'] ?? '').'">';
 print '</td></tr>';
@@ -172,8 +172,8 @@ print '<input type="submit" class="button button-save" value="'.$langs->trans('S
 print '</div>';
 print '</form>';
 
-// Bouton manuel : reporter les références Chorus remplies dans la note publique
-// de la facture (qui s'imprime sur le PDF). Sur demande, jamais automatique.
+// Manual button: copy populated Chorus references to the invoice's public note
+// (printed on the PDF). Runs only on request, never automatically.
 if (auvoerechnung_user_can($user, 'write')) {
 	print '<form method="POST" action="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'?id='.((int) $object->id).'" class="center" style="margin-top:16px;">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';

@@ -1,16 +1,16 @@
 <?php
 /*
- * Suite de tests unitaires standalone AuVo E-Rechnung — AUCUN Dolibarr requis.
+ * Standalone AuVo E-Rechnung unit test suite — NO Dolibarr installation required.
  *
- * Génère le XML Factur-X sur des objets factices (stubs.php) et vérifie pour
- * chaque scénario : validation XSD EN16931, règles métier internes (BR-*),
- * et assertions ciblées (TypeCode, catégories, montants, blocs optionnels).
+ * Generates Factur-X XML from mock objects (stubs.php) and checks each scenario
+ * for EN16931 XSD validation, internal business rules (BR-*), and targeted
+ * assertions (TypeCode, categories, amounts, optional blocks).
  *
  * Usage : php tests/unit-tests.php
- * Exit code 0 = tous les tests passent, 1 = au moins un échec.
+ * Exit code 0 = all tests pass; 1 = at least one test fails.
  *
- * Complémentaire de tests/run-tests.php qui, lui, s'exécute contre un
- * Dolibarr réel avec les fixtures de demo/.
+ * Complements tests/run-tests.php, which runs against a real Dolibarr instance
+ * using the fixtures in demo/.
  */
 
 require_once __DIR__.'/stubs.php';
@@ -67,8 +67,8 @@ function lfx_xp_str($xp, $query)
 
 function lfx_check_xsd($xml, $xsdPath)
 {
-	// Même implémentation que la production (core/lib/auvoerechnung_rules.php) :
-	// les tests valident le code réellement exécuté par le hook.
+	// Same implementation as production (core/lib/auvoerechnung_rules.php): the
+	// tests validate the code actually executed by the hook.
 	if (!file_exists($xsdPath)) {
 		return 'XSD absent';
 	}
@@ -76,7 +76,7 @@ function lfx_check_xsd($xml, $xsdPath)
 }
 
 /**
- * Réinitialise la config factice avant chaque scénario.
+ * Reset the mock configuration before each scenario.
  */
 function lfx_reset($conf = [], $bank = ['iban' => 'FR7630006000011234567890189', 'bic' => 'AGRIFRPP'], $dbHandlers = [])
 {
@@ -96,9 +96,9 @@ function lfx_std_validate($xml, $xsdPath, $expectBrOk = true)
 	$violations = auvoerechnung_validate_business_rules($xml);
 	if ($expectBrOk) {
 		lfx_assert(empty($violations), 'Règles BR respectées ('.implode(' ; ', $violations).')');
-		// Tout XML jugé conforme ici est aussi soumis au validateur officiel
-		// KoSIT en CI (tests/kosit-validate.sh) : le contrôle interne ne doit
-		// jamais être plus permissif que le Schematron officiel.
+		// Every XML deemed compliant here is also checked by the official KoSIT
+		// validator in CI (tests/kosit-validate.sh): internal checks must never be
+		// more permissive than the official Schematron.
 		static $dumpCount = 0;
 		$dumpCount++;
 		$label = preg_replace('/[^A-Za-z0-9]+/', '-', explode(' ', $GLOBALS['currentTest'] ?? 'test')[0]);
@@ -110,12 +110,12 @@ function lfx_std_validate($xml, $xsdPath, $expectBrOk = true)
 }
 
 /**
- * Vrai si au moins une entrée du tableau contient le fragment donné
- * (préfixe de règle « BR-FR-01 », clé de traduction, etc.).
+ * Return true if at least one array entry contains the given fragment
+ * (a rule prefix such as "BR-FR-01", a translation key, etc.).
  */
 /**
- * Écrit un XML de test dans LFX_DUMP_DIR (si défini), pour validation externe
- * (validateur officiel KoSIT en CI).
+ * Write a test XML file to LFX_DUMP_DIR (if set) for external validation
+ * (the official KoSIT validator in CI).
  */
 function lfx_dump($name, $xml)
 {
@@ -156,17 +156,17 @@ $xp = lfx_xpath($xml);
 lfx_assert_eq('380', lfx_xp_str($xp, '//rsm:ExchangedDocument/ram:TypeCode'), 'TypeCode');
 lfx_assert_eq('1200.00', lfx_xp_str($xp, '//ram:DuePayableAmount'), 'DuePayableAmount');
 lfx_assert_eq('S', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax/ram:CategoryCode'), 'CategoryCode');
-// BT-29 : SIRET (établissement) dans ram:GlobalID/0009 (le schemeID ne se met PAS
-// sur ram:ID en EN16931 — sinon « @schemeID not used » côté Schematron FNFE)
+// BT-29: SIRET (establishment) in ram:GlobalID/0009 (schemeID must NOT be set
+// on ram:ID in EN16931, or FNFE Schematron reports "@schemeID not used").
 lfx_assert_eq('0009', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:GlobalID/@schemeID'), 'BT-29 schemeID SIRET (0009)');
 lfx_assert_eq('90945830600012', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:GlobalID'), 'BT-29 SIRET vendeur');
-// BT-30 : SIREN (entité légale) dans SpecifiedLegalOrganization/0002
+// BT-30: SIREN (legal entity) in SpecifiedLegalOrganization/0002.
 lfx_assert_eq('0002', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:SpecifiedLegalOrganization/ram:ID/@schemeID'), 'BT-30 schemeID SIREN (0002)');
 lfx_assert_eq('909458306', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:SpecifiedLegalOrganization/ram:ID'), 'BT-30 SIREN vendeur');
 lfx_assert(empty($w), 'aucun warning ('.implode(' ; ', $w).')');
 echo "U01 OK\n";
 
-// U01b : source du SIREN — idprof1 prioritaire, fallback dérivé du SIRET
+// U01b: SIREN source — idprof1 takes priority, with a SIRET-derived fallback.
 $wb = [];
 $socPrio = lfx_make_party(['idprof1' => '111222333', 'idprof2' => '44455566600018', 'tva_intra' => '', 'tva_assuj' => 0]);
 $xpb = lfx_xpath(auvoerechnung_build_xml($inv, $socPrio, $wb));
@@ -178,7 +178,7 @@ $xpf = lfx_xpath(auvoerechnung_build_xml($inv, $socFb, $wf));
 lfx_assert_eq('909458306', lfx_xp_str($xpf, '//ram:SellerTradeParty/ram:SpecifiedLegalOrganization/ram:ID'), 'BT-30 SIREN dérivé du SIRET quand idprof1 absent');
 echo "U01b OK\n";
 
-// U01c : profil Chorus Pro — SIRET-14 dans SpecifiedLegalOrganization (0009) + BT-10/12/13
+// U01c: Chorus Pro profile — 14-digit SIRET in SpecifiedLegalOrganization (0009) + BT-10/12/13.
 $wc = [];
 $xmlChorus = auvoerechnung_build_xml($inv, $mysoc, $wc, [
 	'profile'      => 'choruspro',
@@ -335,10 +335,10 @@ $inv->ref = 'FA2606-0007';
 $inv->thirdparty = lfx_make_party();
 $inv->lines = [];
 for ($i = 0; $i < 50; $i++) {
-	// Chaque ligne : 0.33 HT, TVA ligne arrondie par excès à 0.07 (cas Dolibarr)
+	// Each line: 0.33 net; line VAT rounds up to 0.07 (Dolibarr behavior).
 	$inv->lines[] = lfx_make_line(0.33, 20.0, 0.07, 1.0, 'Article '.$i);
 }
-// Totaux facture calculés globalement par Dolibarr : 16.50 HT, 3.30 TVA
+// Invoice totals calculated globally by Dolibarr: 16.50 net, 3.30 VAT.
 $inv->total_ht = 16.50;
 $inv->total_tva = 3.30;
 $inv->total_ttc = 19.80;
@@ -480,12 +480,12 @@ $w = [];
 $xml = auvoerechnung_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
-// BT-23 (BR-FR-08) : cadre socle émis en profil PDP — B1 = dépôt fournisseur de biens
+// BT-23 (BR-FR-08): baseline framework emitted in the PDP profile — B1 = supplier submission for goods.
 lfx_assert_eq('B1', lfx_xp_str($xp, '//ram:BusinessProcessSpecifiedDocumentContextParameter/ram:ID'), 'BT-23 socle B1 en profil PDP (BR-FR-08)');
 lfx_assert_eq('72', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax/ram:DueDateTypeCode'), 'BT-8 = 72 (TAX_MODE=2 encaissements)');
 lfx_assert_eq('SERVICE-ACHATS-75', lfx_xp_str($xp, '//ram:BuyerReference'), 'BT-10 ref client');
 lfx_assert_eq('BESTELLUNG-4711', lfx_xp_str($xp, '//ram:BuyerOrderReferencedDocument/ram:IssuerAssignedID'), 'BT-13 = n° de commande de l\'acheteur (réf. client de la commande liée)');
-// Commande liée sans réf. client : pas de BT-13 (jamais la réf. interne CO…).
+// Linked order without a customer reference: no BT-13 (never use the internal CO... reference).
 lfx_reset(['TAX_MODE' => 2], ['iban' => 'FR7630006000011234567890189', 'bic' => 'AGRIFRPP'], [
 	'element_element' => [(object) ['ref_client' => '']],
 ]);
@@ -553,7 +553,7 @@ echo "U16 OK\n";
 
 // ---------------------------------------------------------------------------
 $currentTest = 'U17 validateur BR détecte les violations';
-// XML volontairement faux : prix négatif + total incohérent
+// Deliberately invalid XML: negative price + inconsistent total.
 lfx_reset();
 $inv = new LfxFakeInvoice();
 $inv->ref = 'FA2606-0016';
@@ -675,19 +675,19 @@ $inv->lines = [lfx_make_line(100.00, 20.0, 20.00)];
 $inv->total_ht = 100.00;
 $inv->total_tva = 20.00;
 $inv->total_ttc = 120.00;
-// Vendeur : SIREN saisi (idprof1) sans rapport avec le SIRET (idprof2)
+// Seller: entered SIREN (idprof1) does not match the SIRET (idprof2).
 $socBad = lfx_make_party(['name' => 'INCOHERENT SARL', 'idprof1' => '111222333', 'idprof2' => '99988877700012', 'tva_intra' => 'FR00111222333']);
 $w = [];
 $violations = auvoerechnung_validate_business_rules(auvoerechnung_build_xml($inv, $socBad, $w));
 lfx_assert(lfx_contains($violations, 'BR-FR-09'), 'BR-FR-09 détectée (SIRET vendeur ≠ SIREN)');
 lfx_assert(lfx_contains(auvoerechnung_check_mandatory($inv, $socBad), 'AuvoERechnungWarnSellerSirenSiretMismatch'), 'warning amont vendeur (check_mandatory)');
-// Acheteur : même incohérence côté tiers
+// Buyer: same mismatch on the customer record.
 $inv->thirdparty = lfx_make_party(['idprof1' => '555666777', 'idprof2' => '12345678900011']);
 $w = [];
 $violations = auvoerechnung_validate_business_rules(auvoerechnung_build_xml($inv, $mysoc, $w));
 lfx_assert(lfx_contains($violations, 'BR-FR-09'), 'BR-FR-09 détectée (SIRET acheteur ≠ SIREN)');
 lfx_assert(lfx_contains(auvoerechnung_check_mandatory($inv, $mysoc), 'AuvoERechnungWarnBuyerSirenSiretMismatch'), 'warning amont acheteur (check_mandatory)');
-// Cohérent : aucune violation BR-FR-09
+// Consistent data: no BR-FR-09 violation.
 $inv->thirdparty = lfx_make_party();
 $w = [];
 $violations = auvoerechnung_validate_business_rules(auvoerechnung_build_xml($inv, $mysoc, $w));
@@ -759,7 +759,7 @@ echo "U24bis OK\n";
 $currentTest = 'U25 BT-23 socle (BR-FR-08) : S1/M1/B4 et garde acompte';
 lfx_reset();
 $bt23Query = '//ram:BusinessProcessSpecifiedDocumentContextParameter/ram:ID';
-// Services uniquement → S1
+// Services only → S1.
 $inv = new LfxFakeInvoice();
 $inv->ref = 'FA2606-0022';
 $inv->thirdparty = lfx_make_party();
@@ -771,19 +771,19 @@ $w = [];
 $xml = auvoerechnung_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 lfx_assert_eq('S1', lfx_xp_str(lfx_xpath($xml), $bt23Query), 'BT-23 = S1 (services)');
-// Biens + services → M1
+// Goods + services → M1.
 $inv->lines = [
 	lfx_make_line(600.00, 20.0, 120.00, 1.0, 'Marchandise', 0),
 	lfx_make_line(400.00, 20.0, 80.00, 1.0, 'Installation', 1),
 ];
 $w = [];
 lfx_assert_eq('M1', lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($inv, $mysoc, $w)), $bt23Query), 'BT-23 = M1 (double)');
-// Facture définitive après acompte → B4
+// Final invoice after a deposit → B4.
 $inv->lines = [lfx_make_line(1000.00, 20.0, 200.00, 1.0, 'Marchandise', 0)];
 $inv->sumDepositsUsed = 240.00;
 $w = [];
 lfx_assert_eq('B4', lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($inv, $mysoc, $w)), $bt23Query), 'BT-23 = B4 (définitive après acompte)');
-// Facture d'acompte (386) : jamais de cadre x4 (BR-FR-CO-08)
+// Deposit invoice (386): never use an x4 framework (BR-FR-CO-08).
 $inv->type = 3; // TYPE_DEPOSIT
 $w = [];
 lfx_assert_eq('B1', lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($inv, $mysoc, $w)), $bt23Query), 'BT-23 = B1 sur une facture d\'acompte (garde BR-FR-CO-08)');
@@ -806,7 +806,7 @@ lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
 lfx_assert_eq('B2B', lfx_xp_str($xp, $barQuery), 'note BAR = B2B (acheteur assujetti FR)');
 lfx_assert_eq(1, $xp->query('//ram:IncludedNote[ram:SubjectCode="BAR"]')->length, 'une seule note BAR (BR-FR-31)');
-// Acheteur assujetti UE → B2BINT (e-reporting international)
+// Taxable EU buyer → B2BINT (international e-reporting).
 $inv->thirdparty = lfx_make_party(['country_code' => 'DE', 'tva_intra' => 'DE129273398', 'idprof2' => '']);
 $inv->lines = [lfx_make_line(1000.00, 0.0, 0.00, 1.0, 'Prestation', 1)];
 $inv->total_tva = 0.00;
@@ -814,20 +814,20 @@ $inv->total_ttc = 1000.00;
 $inv->total_ht = 1000.00;
 $w = [];
 lfx_assert_eq('B2BINT', lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($inv, $mysoc, $w)), $barQuery), 'note BAR = B2BINT (acheteur UE)');
-// Particulier → B2C (e-reporting B2C)
+// Private individual → B2C (B2C e-reporting).
 $inv->thirdparty = lfx_make_party(['typent_code' => 'TE_PRIVATE', 'idprof2' => '', 'tva_intra' => '']);
 $inv->lines = [lfx_make_line(1000.00, 20.0, 200.00)];
 $inv->total_tva = 200.00;
 $inv->total_ttc = 1200.00;
 $w = [];
 lfx_assert_eq('B2C', lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($inv, $mysoc, $w)), $barQuery), 'note BAR = B2C (particulier)');
-// Particulier étranger → B2C aussi : choix assumé, la liste fermée BR-FR-20
-// (révision juillet 2025) ne comporte pas de valeur « B2C international »
-// (cf. docblock de auvoerechnung_resolve_bar_code)
+// Foreign private individual → also B2C: intentional choice, because the closed
+// BR-FR-20 list (July 2025 revision) has no "international B2C" value (see the
+// docblock for auvoerechnung_resolve_bar_code).
 $inv->thirdparty = lfx_make_party(['typent_code' => 'TE_PRIVATE', 'country_code' => 'DE', 'idprof2' => '', 'tva_intra' => '']);
 $w = [];
 lfx_assert_eq('B2C', lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($inv, $mysoc, $w)), $barQuery), 'note BAR = B2C (particulier étranger — pas de B2CINT dans la liste fermée BR-FR-20)');
-// Profil Chorus B2G : pas de note BAR (marquage B2G distinct, chemin inchangé)
+// Chorus B2G profile: no BAR note (separate B2G marker; existing flow unchanged).
 $inv->thirdparty = lfx_make_party();
 $w = [];
 $xmlChorus = auvoerechnung_build_xml($inv, $mysoc, $w, ['profile' => 'choruspro']);
@@ -849,7 +849,7 @@ $xml = auvoerechnung_build_xml($inv, $mysoc, $w);
 lfx_std_validate($xml, $xsdPath);
 lfx_assert_eq('909458306_Status', lfx_xp_str(lfx_xpath($xml), '//ram:SellerTradeParty/ram:URIUniversalCommunication/ram:URIID'), 'suffixe sanitisé : « !* » retirés (BR-FR-23)');
 lfx_assert(lfx_contains(auvoerechnung_check_mandatory($inv, $mysoc), 'AuvoERechnungWarnEndpointSuffixCharset'), 'warning charset du suffixe (check_mandatory)');
-// Suffixe déjà conforme : conservé tel quel, aucun warning charset
+// Already-valid suffix: kept unchanged, with no character-set warning.
 lfx_reset(['AUVOERECHNUNG_ENDPOINT_SUFFIX_SELLER' => '_Status']);
 $w = [];
 lfx_assert_eq('909458306_Status', lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($inv, $mysoc, $w)), '//ram:SellerTradeParty/ram:URIUniversalCommunication/ram:URIID'), 'suffixe conforme conservé');
@@ -869,7 +869,7 @@ $inv->total_ttc = 120.00;
 $w = [];
 $xml = auvoerechnung_build_xml($inv, $mysoc, $w);
 lfx_assert(!lfx_contains(auvoerechnung_validate_business_rules($xml), 'BR-FR-04'), '380 admis par BR-FR-04');
-// XML altéré : 751 (facture d'information, UNTDID 1001) est proscrit en France
+// Modified XML: 751 (informational invoice, UNTDID 1001) is prohibited in France.
 $xmlBad = str_replace('<ram:TypeCode>380</ram:TypeCode>', '<ram:TypeCode>751</ram:TypeCode>', $xml);
 lfx_assert(lfx_contains(auvoerechnung_validate_business_rules($xmlBad), 'BR-FR-04'), 'BR-FR-04 détectée (TypeCode 751 hors liste)');
 echo "U28 OK\n";
@@ -889,7 +889,7 @@ $inv->lines = [lfx_make_line(100.00, 8.5, 8.50)]; // 8,5 % : taux DOM légitime
 $inv->total_tva = 8.50;
 $inv->total_ttc = 108.50;
 lfx_assert(!lfx_contains(auvoerechnung_check_mandatory($inv, $mysoc), 'AuvoERechnungWarnVatRateNotFR'), 'pas de warning sur le taux DOM 8,5 %');
-// Jamais bloquant : le validateur ne porte aucune violation BR-FR-16
+// Never blocking: the validator reports no BR-FR-16 violation.
 $w = [];
 lfx_assert(!lfx_contains(auvoerechnung_validate_business_rules(auvoerechnung_build_xml($inv, $mysoc, $w)), 'BR-FR-16'), 'BR-FR-16 non bloquante (warning uniquement)');
 echo "U29 OK\n";
@@ -909,7 +909,7 @@ $inv->total_ttc = 120.00;
 $w = [];
 $violations = auvoerechnung_validate_business_rules(auvoerechnung_build_xml($inv, $mysocDE, $w));
 lfx_assert(!lfx_contains($violations, 'BR-FR'), 'aucune violation BR-FR pour un vendeur DE ('.implode(' ; ', $violations).')');
-// Contre-épreuve : même facture avec vendeur FR → le bloc BR-FR s'applique
+// Control case: same invoice with a French seller → the BR-FR block applies.
 $w = [];
 $violations = auvoerechnung_validate_business_rules(auvoerechnung_build_xml($inv, $mysoc, $w));
 lfx_assert(lfx_contains($violations, 'BR-FR-02'), 'contre-épreuve vendeur FR : BR-FR-02 détectée');
@@ -923,12 +923,12 @@ $inv = new LfxFakeInvoice();
 $inv->ref = 'FA2607-0779';
 $inv->thirdparty = lfx_make_party();
 $inv->lines = [
-	// Titre natif Dolibarr (module "Subtotals", special_code 81) : qty = profondeur,
-	// total_ht = 0 (jamais stocké, seulement calculé à l'affichage/PDF).
+	// Native Dolibarr title ("Subtotals" module, special_code 81): qty = nesting depth,
+	// total_ht = 0 (never stored, calculated only for display/PDF).
 	lfx_make_line(0.00, 0.0, 0.00, 1.0, 'SPECTACLE CLE EN MAIN', 9, ['special_code' => 81]),
 	lfx_make_line(1000.00, 20.0, 200.00, 1.0, 'Prestation'),
-	// Sous-total ATM Consulting (special_code 104777) : reprend le montant cumulé
-	// des lignes précédentes -> compterait en double si non exclu.
+	// ATM Consulting subtotal (special_code 104777): repeats the cumulative amount
+	// of preceding lines, so it would be double-counted unless excluded.
 	lfx_make_line(1000.00, 20.0, 200.00, 1.0, 'Sous-total spectacle clé en main', 9, ['special_code' => 104777]),
 ];
 $inv->total_ht = 1000.00;
@@ -948,8 +948,8 @@ echo "U31 OK\n";
 // ---------------------------------------------------------------------------
 $currentTest = 'U32 vendeur allemand Kleinunternehmer (§ 19 UStG) — profil ZUGFeRD/EN16931';
 lfx_reset([], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
-// Conventions Dolibarr DE : idprof1 = Steuernummer, idprof2 = Amtsgericht.
-// Un Kleinunternehmer n'a pas d'USt-IdNr : tva_intra est vide.
+// Dolibarr conventions for Germany: idprof1 = Steuernummer, idprof2 = Amtsgericht.
+// A Kleinunternehmer has no USt-IdNr, so tva_intra is empty.
 $deSoc = lfx_make_party([
 	'name' => 'MUSTER GMBH', 'country_code' => 'DE', 'zip' => '10115', 'town' => 'Berlin',
 	'address' => 'Chausseestr. 1', 'email' => 'rechnung@muster.example',
@@ -970,14 +970,14 @@ $w = [];
 $xml = auvoerechnung_build_xml($inv, $deSoc, $w);
 lfx_std_validate($xml, $xsdPath);
 $xp = lfx_xpath($xml);
-// BT-32 : la Steuernummer vient de idprof1 (ProfId1DE), jamais l'Amtsgericht d'idprof2.
+// BT-32: Steuernummer comes from idprof1 (ProfId1DE), never the Amtsgericht in idprof2.
 lfx_assert_eq('151/815/08154', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="FC"]'), 'BT-32 = Steuernummer (idprof1) sous schemeID FC');
 lfx_assert_eq(0, $xp->query('//ram:SellerTradeParty/ram:SpecifiedLegalOrganization')->length, 'pas de SIREN/BT-30 pour un vendeur allemand');
-// Motif d'exonération § 19 UStG, sans code VATEX (aucun code CEF ne correspond).
+// Exemption reason under § 19 UStG, with no VATEX code (no CEF code applies).
 lfx_assert_eq('E', lfx_xp_str($xp, '//ram:ApplicableTradeTax/ram:CategoryCode'), 'catégorie TVA E (exonéré)');
 lfx_assert(strpos((string) lfx_xp_str($xp, '//ram:ApplicableTradeTax/ram:ExemptionReason'), '§ 19 UStG') !== false, 'motif d\'exonération allemand (§ 19 UStG)');
 lfx_assert_eq(0, $xp->query('//ram:ApplicableTradeTax/ram:ExemptionReasonCode')->length, 'pas de code VATEX français sur une facture allemande');
-// Aucun élément du socle réforme FR ne doit fuiter dans une facture allemande.
+// No element of the French reform baseline should leak into a German invoice.
 lfx_assert_eq(0, $xp->query('//ram:BusinessProcessSpecifiedDocumentContextParameter')->length, 'BT-23 (cadre XP Z12-012) non émis hors vendeur FR');
 lfx_assert_eq(0, $xp->query('//ram:IncludedNote')->length, 'aucune mention légale française (PMD/PMT/AAB/BAR) hors vendeur FR');
 lfx_assert(!lfx_contains(auvoerechnung_check_mandatory($inv, $deSoc), 'AuvoERechnungWarnSellerSIRET'), 'pas de warning SIRET pour un vendeur allemand');
@@ -1035,7 +1035,7 @@ $frBuyerStrayLeitweg = lfx_make_party([
 	'array_options' => ['options_lfxleitwegid' => '04011000-1234512345-06'],
 ]);
 
-// (a) Leitweg-ID gagne sur ref_client pour un acheteur allemand.
+// (a) Leitweg ID takes precedence over ref_client for a German buyer.
 $inv = new LfxFakeInvoice();
 $inv->ref = 'FA2026-0045';
 $inv->ref_client = 'PO-9999';
@@ -1048,12 +1048,12 @@ $w = [];
 $xp = lfx_xpath(auvoerechnung_build_xml($inv, $mysoc, $w));
 lfx_assert_eq('04011000-1234512345-06', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeAgreement/ram:BuyerReference'), 'BT-10 = Leitweg-ID, prioritaire sur ref_client');
 
-// (b) Leitweg-ID gagne aussi sur le code service Chorus.
+// (b) Leitweg ID also takes precedence over the Chorus service code.
 $w = [];
 $xp = lfx_xpath(auvoerechnung_build_xml($inv, $mysoc, $w, ['profile' => 'choruspro', 'service_code' => 'SVC1']));
 lfx_assert_eq('04011000-1234512345-06', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeAgreement/ram:BuyerReference'), 'BT-10 = Leitweg-ID, prioritaire sur le code service Chorus');
 
-// (c) Non-régression : acheteur allemand SANS Leitweg-ID -> ref_client toujours utilisé.
+// (c) Regression check: German buyer WITHOUT a Leitweg ID still uses ref_client.
 $inv2 = new LfxFakeInvoice();
 $inv2->ref = 'FA2026-0046';
 $inv2->ref_client = 'PO-8888';
@@ -1066,7 +1066,7 @@ $w = [];
 $xp = lfx_xpath(auvoerechnung_build_xml($inv2, $mysoc, $w));
 lfx_assert_eq('PO-8888', lfx_xp_str($xp, '//ram:ApplicableHeaderTradeAgreement/ram:BuyerReference'), 'BT-10 = ref_client quand aucune Leitweg-ID (le filtre DE ne casse pas le repli existant)');
 
-// (d) Garde-fou pays : une Leitweg-ID posée par erreur sur un acheteur non-allemand est ignorée.
+// (d) Country safeguard: a Leitweg ID mistakenly set for a non-German buyer is ignored.
 $inv3 = new LfxFakeInvoice();
 $inv3->ref = 'FA2026-0047';
 $inv3->ref_client = 'PO-7777';
@@ -1100,11 +1100,11 @@ lfx_assert(strpos($r['exemption'], 'Steuerschuldnerschaft') !== false, 'DE → A
 $r = auvoerechnung_resolve_tax_category($goods, $inv, $buyerCH, $deSeller);
 lfx_assert_eq('G', $r['code'], 'DE → CH : catégorie G');
 lfx_assert(strpos($r['exemption'], 'Ausfuhrlieferung') !== false, 'DE → CH, biens : motif allemand (Ausfuhr)');
-// Acheteur du même pays que le vendeur avec n° TVA : pas d'intracommunautaire.
+// Buyer in the seller's country with a VAT ID: not an intra-community transaction.
 $r = auvoerechnung_resolve_tax_category($goods, $inv, $buyerDE, $deSeller);
 lfx_assert_eq('E', $r['code'], 'DE → DE à taux 0 : catégorie E, pas K');
 lfx_assert_eq('Umsatzsteuerfrei', $r['exemption'], 'DE → DE à taux 0 : motif allemand');
-// Contre-épreuve vendeur FR : comportement inchangé.
+// Control case with a French seller: behavior remains unchanged.
 $r = auvoerechnung_resolve_tax_category($goods, $inv, $buyerDE, $frSeller);
 lfx_assert_eq('K', $r['code'], 'FR → DE, biens : catégorie K');
 lfx_assert(strpos($r['exemption'], 'Livraison intracommunautaire') !== false, 'FR → DE : motif français conservé');
@@ -1113,13 +1113,13 @@ echo "U36 OK\n";
 // ---------------------------------------------------------------------------
 $currentTest = 'U37 Steuernummer et n° TVA mal saisis (vendeur allemand)';
 lfx_reset([], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001']);
-// Lecture de la Steuernummer : idprof1, repli idprof2 (anciennes fiches), repli
-// tva_intra sans préfixe pays ; jamais un nom de tribunal ni une USt-IdNr.
+// Read the Steuernummer from idprof1, then idprof2 (older records), then
+// tva_intra without a country prefix; never use a court name or a USt-IdNr.
 lfx_assert_eq('22/180/80394', auvoerechnung_party_steuernummer(lfx_make_party(['idprof1' => '22/180/80394', 'idprof2' => 'Amtsgericht Koblenz'])), 'Steuernummer lue dans idprof1');
 lfx_assert_eq('151/815/08154', auvoerechnung_party_steuernummer(lfx_make_party(['idprof1' => '', 'idprof2' => '151/815/08154'])), 'repli idprof2 (anciennes fiches)');
 lfx_assert_eq('', auvoerechnung_party_steuernummer(lfx_make_party(['idprof1' => '', 'idprof2' => 'Amtsgericht Koblenz', 'tva_intra' => 'DE811111111'])), 'ni Amtsgericht ni USt-IdNr comme Steuernummer');
 lfx_assert(auvoerechnung_is_vat_id('DE 811 111 111') && auvoerechnung_is_vat_id('ATU12345678') && !auvoerechnung_is_vat_id('22/180/80394'), 'reconnaissance du préfixe pays (BR-CO-09)');
-// Cas réel : Kleinunternehmer ayant saisi sa Steuernummer dans le champ TVA intra.
+// Real-world case: Kleinunternehmer entered the Steuernummer in the VAT ID field.
 $deSoc2 = lfx_make_party([
 	'name' => 'MUSTER DESIGN', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen',
 	'address' => 'Hauptstr. 1', 'email' => 'info@muster.example',
@@ -1139,7 +1139,7 @@ $xp = lfx_xpath($xml);
 lfx_assert_eq(0, $xp->query('//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="VA"]')->length, 'Steuernummer non publiée comme USt-IdNr (VA)');
 lfx_assert_eq('22/180/80394', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="FC"]'), 'Steuernummer publiée en BT-32 (FC)');
 lfx_assert(lfx_contains(auvoerechnung_check_mandatory($inv, $deSoc2), 'AuvoERechnungWarnSellerVATInvalid'), 'warning champ TVA intra sans préfixe pays');
-// Le validateur détecte un VA sans préfixe (filet de sécurité BR-CO-09).
+// The validator detects a VA value without a prefix (BR-CO-09 safeguard).
 $xmlBad = str_replace('<ram:ID schemeID="FC">22/180/80394</ram:ID>', '<ram:ID schemeID="VA">22/180/80394</ram:ID>', $xml);
 lfx_assert(lfx_contains(auvoerechnung_validate_business_rules($xmlBad), 'BR-CO-09'), 'BR-CO-09 détectée');
 lfx_assert(!lfx_contains(auvoerechnung_validate_business_rules($xml), 'BR-CO-09'), 'pas de BR-CO-09 sur le XML corrigé');
@@ -1160,7 +1160,7 @@ lfx_assert(!lfx_contains($warn, 'AuvoERechnungWarnBuyerEndpoint'), 'vendeur DE :
 lfx_assert(!lfx_contains($warn, 'AuvoERechnungWarnSellerEndpoint'), 'vendeur DE : pas de warning BT-34 (BR-FR-13) sans email vendeur');
 $inv->thirdparty = $buyerFrNoSiren;
 lfx_assert(!lfx_contains(auvoerechnung_check_mandatory($inv, $deSeller), 'AuvoERechnungWarnBuyerSIRENRouting'), 'vendeur DE : pas de warning de routage SIREN pour un acheteur FR');
-// Contre-épreuve vendeur FR : les warnings restent.
+// Control case with a French seller: warnings remain.
 $inv->thirdparty = $buyerNoMail;
 $frNoMail = clone $mysoc;
 $frNoMail->email = '';
@@ -1184,7 +1184,7 @@ $xrBuyer = lfx_make_party([
 	'address' => 'Amtsweg 1', 'email' => '', 'tva_intra' => '', 'idprof1' => '', 'idprof2' => '',
 	'array_options' => ['options_lfxleitwegid' => '991-33333TEST-33'],
 ]);
-// Choix du format
+// Choose the format.
 lfx_assert(auvoerechnung_wants_xrechnung($xrBuyer), 'XRechnung automatique dès qu\'une Leitweg-ID est renseignée');
 lfx_assert(!auvoerechnung_wants_xrechnung(lfx_make_party(['country_code' => 'DE'])), 'pas de XRechnung sans Leitweg-ID ni choix explicite');
 lfx_assert(auvoerechnung_wants_xrechnung(lfx_make_party(['array_options' => ['options_lfxeformat' => 'xrechnung']])), 'XRechnung forcée sur la fiche tiers');
@@ -1215,13 +1215,13 @@ lfx_assert_eq('rechnung@muster.example', lfx_xp_str($xp, '//ram:SellerTradeParty
 lfx_assert_eq('rechnung@muster.example', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:URIUniversalCommunication/ram:URIID[@schemeID="EM"]'), 'BT-34 email société');
 lfx_assert_eq('DE811111111', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="VA"]'), 'BT-31');
 lfx_assert_eq('58', lfx_xp_str($xp, '//ram:SpecifiedTradeSettlementPaymentMeans/ram:TypeCode'), 'BT-81 SEPA-Überweisung');
-// Le ZUGFeRD EN16931 n'est pas modifié par le profil XRechnung.
+// The XRechnung profile does not change ZUGFeRD EN16931.
 $xpZ = lfx_xpath(auvoerechnung_build_xml($inv, $xrSeller, $w));
 lfx_assert_eq('urn:cen.eu:en16931:2017', lfx_xp_str($xpZ, '//ram:GuidelineSpecifiedDocumentContextParameter/ram:ID'), 'profil ZUGFeRD inchangé (BT-24 EN16931)');
 lfx_assert_eq(0, $xpZ->query('//ram:DefinedTradeContact')->length, 'pas de contact BG-6 ajouté au ZUGFeRD');
 lfx_dump('xr-01-standard-19', $xml);
 
-// Kleinunternehmer (§ 19 UStG), Steuernummer seule (BT-32), facture d'avoir (381)
+// Kleinunternehmer (§ 19 UStG), Steuernummer only (BT-32), credit note (381).
 $ku = lfx_make_party(['name' => 'KLEIN DESIGN', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen', 'address' => 'Weg 2',
 	'email' => 'info@klein.example', 'tva_intra' => '', 'idprof1' => '22/180/80394', 'idprof2' => '', 'tva_assuj' => 0]);
 $inv2 = clone $inv;
@@ -1236,17 +1236,17 @@ lfx_std_validate($xml2, $xsdPath);
 lfx_assert_eq('22/180/80394', lfx_xp_str(lfx_xpath($xml2), '//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="FC"]'), 'Kleinunternehmer : BT-32 (BR-DE-16)');
 lfx_dump('xr-02-kleinunternehmer', $xml2);
 lfx_assert_eq('22/180/80394', lfx_xp_str(lfx_xpath($xml2), '//ram:SellerTradeParty/ram:ID'), 'Kleinunternehmer : Steuernummer aussi en BT-29 (BR-CO-26)');
-// Registre du commerce renseigné : BT-30 au lieu de BT-29
+// Commercial register provided: BT-30 instead of BT-29.
 $kuHrb = clone $ku;
 $kuHrb->idprof3 = 'HRB 12345';
 $xpH = lfx_xpath(auvoerechnung_build_xml($inv2, $kuHrb, $w, ['profile' => 'xrechnung']));
 lfx_assert_eq('HRB 12345', lfx_xp_str($xpH, '//ram:SellerTradeParty/ram:SpecifiedLegalOrganization/ram:ID'), 'Handelsregister en BT-30');
 lfx_assert_eq(0, $xpH->query('//ram:SellerTradeParty/ram:ID')->length, 'pas de BT-29 quand BT-30 est présent');
-// La règle interne BR-CO-26 ne se contente plus de la Steuernummer (FC) seule.
+// Internal rule BR-CO-26 no longer accepts only the Steuernummer (FC).
 $xmlFcOnly = preg_replace('#<ram:ID>22/180/80394</ram:ID>\s*#', '', $xml2, 1);
 lfx_assert(lfx_contains(auvoerechnung_validate_business_rules($xmlFcOnly), 'BR-CO-26'), 'BR-CO-26 détectée avec BT-32 seul');
 
-// Client privé/entreprise sans Leitweg-ID, format forcé : BT-10 = ref_client, BT-49 = email
+// Private/business customer without a Leitweg ID, forced format: BT-10 = ref_client, BT-49 = email.
 $b2b = lfx_make_party(['name' => 'KUNDE GMBH', 'country_code' => 'DE', 'zip' => '56355', 'town' => 'Nastätten', 'address' => 'Brückwiese 4',
 	'email' => 'buchhaltung@kunde.example', 'tva_intra' => 'DE123456789', 'idprof1' => '', 'idprof2' => '',
 	'array_options' => ['options_lfxeformat' => 'xrechnung']]);
@@ -1261,7 +1261,7 @@ lfx_assert_eq('BEST-4711', lfx_xp_str($xp3, '//ram:BuyerReference'), 'sans Leitw
 lfx_assert_eq('buchhaltung@kunde.example', lfx_xp_str($xp3, '//ram:BuyerTradeParty/ram:URIUniversalCommunication/ram:URIID[@schemeID="EM"]'), 'sans Leitweg-ID : BT-49 = email');
 lfx_dump('xr-03-b2b-email', $xml3);
 
-// Données manquantes : contrôle amont et règles BR-DE
+// Missing data: preflight checks and BR-DE rules.
 lfx_reset(['AUVOERECHNUNG_PAYMENT_MEANS' => '58'], null);
 $bare = lfx_make_party(['name' => 'OHNE DATEN', 'country_code' => 'DE', 'zip' => '', 'town' => '', 'email' => '', 'phone' => '', 'tva_intra' => 'DE811111111', 'idprof1' => '', 'idprof2' => '']);
 $inv4 = clone $inv;
@@ -1276,7 +1276,7 @@ $v = auvoerechnung_validate_business_rules(auvoerechnung_build_xml($inv4, $bare,
 foreach (['BR-DE-15', 'PEPPOL-EN16931-R020', 'PEPPOL-EN16931-R010', 'BR-DE-2', 'BR-DE-1'] as $rule) {
 	lfx_assert(lfx_contains($v, $rule), 'règle '.$rule.' détectée');
 }
-// Les règles BR-DE ne s'appliquent pas à un ZUGFeRD EN16931.
+// BR-DE rules do not apply to ZUGFeRD EN16931.
 lfx_assert(!lfx_contains(auvoerechnung_validate_business_rules(auvoerechnung_build_xml($inv4, $bare, $w)), 'BR-DE-'), 'pas de BR-DE sur un ZUGFeRD EN16931');
 echo "U39 OK\n";
 
@@ -1310,12 +1310,12 @@ foreach (['xrechnung' => ['profile' => 'xrechnung'], 'zugferd' => []] as $label 
 	lfx_assert_eq('22/180/80394', lfx_xp_str($xp, '//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="FC"]'), $label.' : Steuernummer toujours en BT-32');
 	lfx_dump('xr-04-lieferantennummer-'.$label, $xml);
 }
-// Sans Lieferantennummer : repli Steuernummer en BT-29 (BR-CO-26) inchangé.
+// Without a supplier number: Steuernummer fallback in BT-29 (BR-CO-26) is unchanged.
 $amt2 = clone $amt;
 $amt2->array_options = ['options_lfxleitwegid' => '991-33333TEST-33'];
 $inv->thirdparty = $amt2;
 lfx_assert_eq('22/180/80394', lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($inv, $kuSeller, $w, ['profile' => 'xrechnung'])), '//ram:SellerTradeParty/ram:ID'), 'sans Lieferantennummer : repli Steuernummer');
-// Chemin du fichier : nom fixe dans le dossier de la facture
+// File path: fixed name in the invoice directory.
 $GLOBALS['conf'] = $GLOBALS['conf'] ?? new stdClass();
 $GLOBALS['conf']->facture = (object) ['multidir_output' => [1 => '/data/facture'], 'dir_output' => '/data/facture'];
 lfx_assert_eq('/data/facture/RE2026-0300/RE2026-0300-XRECHNUNG.xml', auvoerechnung_xrechnung_path('RE2026-0300', 1), 'chemin {ref}/{ref}-XRECHNUNG.xml');
@@ -1336,14 +1336,14 @@ lfx_assert_eq([['days' => 7, 'percent' => 3.5], ['days' => 14, 'percent' => 2.0]
 lfx_assert_eq([], auvoerechnung_get_skonto_terms(3), 'pas de Skonto sans configuration');
 lfx_assert_eq([], auvoerechnung_get_skonto_terms(0, '7D'), 'format par id : le code seul ne suffit pas');
 lfx_assert_eq("#SKONTO#TAGE=7#PROZENT=3.50#\n#SKONTO#TAGE=14#PROZENT=2.00#\n", auvoerechnung_skonto_lines(auvoerechnung_get_skonto_terms(12)), 'syntaxe KoSIT, saut de ligne final');
-// Ancien format 5.2.x (indexé par code), lu tant que la migration n'est pas passée
+// Legacy 5.2.x format (indexed by code), read until migration has run.
 $GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO_TERMS'] = '';
 $GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO'] = json_encode(['SK2' => [['days' => 10, 'percent' => 2]]]);
 lfx_assert_eq([['days' => 10, 'percent' => 2.0]], auvoerechnung_get_skonto_terms(12, 'SK2'), 'ancien format : lecture par code');
 $GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO_TERMS'] = json_encode(['7' => [['days' => 7, 'percent' => 2]], '12' => [['days' => 14, 'percent' => 2], ['days' => 7, 'percent' => 3.5]]]);
 lfx_assert_eq([['days' => 7, 'percent' => 3.5], ['days' => 14, 'percent' => 2.0]], auvoerechnung_get_skonto_terms(12, 'SK2'), 'nouveau format prioritaire sur l\'ancien');
 unset($GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO']);
-// Migration code → id : codes inconnus abandonnés, entrée par id existante conservée
+// Migration from code to ID: unknown codes are discarded; existing ID entries are preserved.
 $GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO_TERMS'] = json_encode(['5' => [['days' => 3, 'percent' => 1]]]);
 $GLOBALS['lfx_test_conf']['AUVOERECHNUNG_SKONTO'] = json_encode(['10D2' => [['days' => 10, 'percent' => 2]], 'SK5' => [['days' => 5, 'percent' => 4]], 'GONE' => [['days' => 7, 'percent' => 2]]]);
 $GLOBALS['lfx_test_db_handlers'] = ["code = '10D2'" => [(object) ['rowid' => 8]], "code = 'SK5'" => [(object) ['rowid' => 5]]];
@@ -1387,7 +1387,7 @@ foreach (['xrechnung' => ['profile' => 'xrechnung'], 'zugferd' => []] as $label 
 		$label.' : BT-20 = texte de la condition + ligne Skonto');
 	lfx_dump('xr-05-skonto-'.$label, $xml);
 }
-// Deux paliers
+// Two discount tiers.
 $inv2 = clone $inv;
 $inv2->cond_reglement_id = 12;
 $inv2->cond_reglement_code = 'SK2';
@@ -1397,14 +1397,14 @@ $xml2 = auvoerechnung_build_xml($inv2, $seller, $w, ['profile' => 'xrechnung']);
 lfx_std_validate($xml2, $xsdPath);
 lfx_assert_eq("#SKONTO#TAGE=7#PROZENT=3.50#\n#SKONTO#TAGE=14#PROZENT=2.00#\n", lfx_xpath($xml2)->query('//ram:SpecifiedTradePaymentTerms/ram:Description')->item(0)->textContent ?? null, 'deux paliers sans texte');
 lfx_dump('xr-06-skonto-2-stufen', $xml2);
-// Sans Skonto configuré : pas de BT-20 (comportement antérieur inchangé)
+// No Skonto configured: no BT-20 (previous behavior unchanged).
 $inv3 = clone $inv;
 $inv3->cond_reglement_id = 3;
 $inv3->cond_reglement_code = '30D';
 lfx_assert_eq(0, lfx_xpath(auvoerechnung_build_xml($inv3, $seller, $w, ['profile' => 'xrechnung']))->query('//ram:SpecifiedTradePaymentTerms/ram:Description')->length, 'pas de BT-20 sans Skonto');
-// Avoir : pas d'escompte
+// Credit note: no discount.
 lfx_assert_eq('', auvoerechnung_build_payment_terms_description($inv, true), 'pas de Skonto sur un avoir');
-// Règle interne BR-DE-18 : syntaxe et saut de ligne final
+// Internal rule BR-DE-18: syntax and final newline.
 $bad = str_replace('#SKONTO#TAGE=7#PROZENT=3.50#', '#SKONTO#TAGE=7#PROZENT=3.5#', $xml2);
 lfx_assert(lfx_contains(auvoerechnung_validate_business_rules($bad), 'BR-DE-18'), 'BR-DE-18 : pourcentage sans deux décimales');
 $noNl = str_replace("#SKONTO#TAGE=14#PROZENT=2.00#\n</ram:Description>", '#SKONTO#TAGE=14#PROZENT=2.00#</ram:Description>', $xml2);
@@ -1435,7 +1435,7 @@ $inv->total_ht = 1000.00;
 $inv->total_tva = 190.00;
 $inv->total_ttc = 1190.00;
 
-// Facture d'acompte : 326 en XRechnung (BR-DE-17), 386 en ZUGFeRD
+// Deposit invoice: 326 in XRechnung (BR-DE-17), 386 in ZUGFeRD.
 $dep = clone $inv;
 $dep->type = 3;
 $w = [];
@@ -1445,7 +1445,7 @@ lfx_assert_eq('326', lfx_xp_str(lfx_xpath($xmlDep), '/rsm:CrossIndustryInvoice/r
 lfx_assert_eq('386', lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($dep, $seller, $w)), '/rsm:CrossIndustryInvoice/rsm:ExchangedDocument/ram:TypeCode'), 'acompte ZUGFeRD : 386 inchangé');
 lfx_dump('xr-07-abschlag-326', $xmlDep);
 
-// Leitweg-ID propre à la facture
+// Invoice-specific Leitweg ID.
 $inv2 = clone $inv;
 $inv2->array_options = ['options_lfxleitwegid' => '991-12345-67'];
 lfx_assert_eq('991-12345-67', auvoerechnung_invoice_leitwegid($inv2), 'Leitweg-ID de la facture prioritaire');
@@ -1460,7 +1460,7 @@ $inv3->array_options = ['options_lfxleitwegid' => '991-12345-67'];
 lfx_assert(auvoerechnung_wants_xrechnung($plain, $inv3), 'XRechnung dès qu\'une Leitweg-ID est saisie sur la facture');
 lfx_assert(!auvoerechnung_wants_xrechnung($plain, $inv), 'pas de XRechnung sans Leitweg-ID');
 
-// Pièces jointes BG-24
+// BG-24 attachments.
 $tmpDir = sys_get_temp_dir().'/lfx-att-'.getmypid();
 @mkdir($tmpDir.'/RE2026-0500', 0777, true);
 $GLOBALS['conf'] = $GLOBALS['conf'] ?? new stdClass();
@@ -1497,7 +1497,7 @@ array_map('unlink', glob($tmpDir.'/RE2026-0500/*'));
 @rmdir($tmpDir.'/RE2026-0500');
 @rmdir($tmpDir);
 
-// Facture de test de la page de configuration
+// Sample invoice for the configuration page.
 $sampleInv = new LfxFakeInvoice();
 $sampleBuyer = new stdClass();
 auvoerechnung_sample_invoice($sampleInv, $sampleBuyer, $seller);
@@ -1557,7 +1557,7 @@ lfx_assert_eq(100.0, $m['allowances'][0]['amount'], 'BT-92');
 lfx_assert_eq(['line_total' => 1000.0, 'allowance_total' => 100.0, 'tax_basis' => 900.0, 'tax_total' => 171.0, 'grand_total' => 1071.0, 'prepaid' => 0.0, 'due_payable' => 1071.0], $m['totals'], 'BG-22');
 lfx_assert_eq('S', $m['vat_breakdown'][0]['category'], 'BG-23 catégorie');
 lfx_assert_eq('58', $m['payment']['means_code'], 'BT-81');
-// La sérialisation CII est une fonction pure du modèle
+// CII serialization is a pure function of the model.
 lfx_assert_eq(auvoerechnung_build_xml($inv, $seller, $w, ['profile' => 'xrechnung']), auvoerechnung_model_to_cii($m), 'build_xml = model_to_cii(build_model)');
 echo "U43 OK\n";
 
@@ -1579,7 +1579,7 @@ function lfx_ubl_check($res, $label)
 	global $xsdPath;
 	lfx_assert_eq('ubl', $res['syntax'], $label.' : syntaxe UBL');
 	lfx_assert(auvoerechnung_validate_xsd($res['xml'], dirname(__DIR__)) === null, $label.' : XSD UBL 2.1 ('.auvoerechnung_validate_xsd($res['xml'], dirname(__DIR__)).')');
-	// Règles métier sur la version CII du même modèle (même contenu)
+	// Business rules on the CII version of the same model (same content).
 	lfx_std_validate($res['cii'], $xsdPath);
 	lfx_dump('ubl-'.$label, $res['xml']);
 	return lfx_ubl_xpath($res['xml']);
@@ -1599,7 +1599,7 @@ $amt = lfx_make_party(['name' => 'Bundesamt für Beispiele', 'country_code' => '
 	'address' => 'Amtsweg 1', 'email' => '', 'tva_intra' => '', 'idprof1' => '',
 	'array_options' => ['options_lfxleitwegid' => '991-33333TEST-33', 'options_lfxsupplierno' => 'K-100234']]);
 
-// Choix de la syntaxe
+// Choose the syntax.
 lfx_assert_eq('cii', auvoerechnung_xrechnung_syntax($amt), 'CII par défaut');
 lfx_assert_eq('ubl', auvoerechnung_xrechnung_syntax(lfx_make_party(['array_options' => ['options_lfxeformat' => 'xrechnung_ubl']])), 'UBL choisi sur le tiers');
 lfx_assert(auvoerechnung_wants_xrechnung(lfx_make_party(['array_options' => ['options_lfxeformat' => 'xrechnung_ubl']])), 'xrechnung_ubl = XRechnung voulue');
@@ -1607,7 +1607,7 @@ $GLOBALS['lfx_test_conf']['AUVOERECHNUNG_XRECHNUNG_SYNTAX'] = 'ubl';
 lfx_assert_eq('ubl', auvoerechnung_xrechnung_syntax($amt), 'UBL par réglage du module');
 lfx_assert_eq('cii', auvoerechnung_xrechnung_syntax(lfx_make_party(['array_options' => ['options_lfxeformat' => 'xrechnung_cii']])), 'CII choisi sur le tiers malgré le réglage');
 
-// Facture standard : remise, Skonto, deux taux
+// Standard invoice: discount, Skonto, two rates.
 $inv = new LfxFakeInvoice();
 $inv->ref = 'RE2026-0700';
 $inv->ref_client = 'BEST-4711';
@@ -1653,7 +1653,7 @@ lfx_assert_eq('EUR', $xp->query('//cac:LegalMonetaryTotal/cbc:PayableAmount')->i
 lfx_assert_eq(2, $xp->query('/inv:Invoice/cac:InvoiceLine')->length, 'deux lignes (remise en BG-20)');
 lfx_assert_eq('95.00', lfx_xp_str($xp, '/inv:Invoice/cac:InvoiceLine[1]/cac:Price/cbc:PriceAmount'), 'BT-146');
 
-// Avoir : CreditNote, BT-9 dans PaymentMeans, BG-3
+// Credit note: CreditNote, BT-9 in PaymentMeans, BG-3.
 lfx_reset([
 	'AUVOERECHNUNG_CONTACT_NAME' => 'Erika Mustermann',
 	'AUVOERECHNUNG_CONTACT_PHONE' => '+49 6772 123456',
@@ -1680,7 +1680,7 @@ lfx_assert_eq('119.00', lfx_xp_str($xp, '//cac:LegalMonetaryTotal/cbc:PayableAmo
 lfx_assert_eq('2026-06-30', lfx_xp_str($xp, '//cac:PaymentMeans/cbc:PaymentDueDate'), 'BT-9 de l\'avoir');
 lfx_assert_eq('RE2026-0700', lfx_xp_str($xp, '//cac:BillingReference/cac:InvoiceDocumentReference/cbc:ID'), 'BG-3');
 
-// Acompte (326) d'un Kleinunternehmer : catégorie E, Steuernummer (FC), pièce jointe
+// Kleinunternehmer deposit (326): category E, Steuernummer (FC), attachment.
 $ku = lfx_make_party(['name' => 'KLEIN DESIGN', 'country_code' => 'DE', 'zip' => '56357', 'town' => 'Miehlen', 'address' => 'Weg 2',
 	'email' => 'info@klein.example', 'tva_intra' => '', 'idprof1' => '22/180/80394', 'idprof2' => '', 'tva_assuj' => 0]);
 $dep = new LfxFakeInvoice();
@@ -1720,7 +1720,7 @@ $inv->total_ht = 1000.00;
 $inv->total_tva = 190.00;
 $inv->total_ttc = 1190.00;
 
-// Période de la facture : remplace celle des lignes
+// Invoice period: overrides the line-level period.
 $inv->array_options = ['options_lfxperiodstart' => mktime(0, 0, 0, 4, 1, 2026), 'options_lfxperiodend' => mktime(0, 0, 0, 6, 30, 2026)];
 $w = [];
 $m = auvoerechnung_build_model($inv, $seller, $w, ['profile' => 'xrechnung']);
@@ -1735,7 +1735,7 @@ auvoerechnung_build_model($inv, $seller, $w, ['profile' => 'xrechnung']);
 lfx_assert(lfx_contains($w, 'AuvoERechnungWarnPeriodOrder'), 'BR-29 : fin avant début signalée');
 $inv->array_options = [];
 
-// Lieu de livraison (contact de livraison), en CII et en UBL
+// Delivery location (delivery contact), in CII and UBL.
 $w = [];
 $m = auvoerechnung_build_model($inv, $seller, $w, ['profile' => 'xrechnung']);
 lfx_assert_eq(null, $m['delivery']['ship_to'], 'pas de BG-13 sans contact de livraison');
@@ -1753,7 +1753,7 @@ lfx_assert_eq('Außenstelle Köln', lfx_xp_str($xpu, '//cac:Delivery/cac:Deliver
 lfx_assert_eq('50667', lfx_xp_str($xpu, '//cac:Delivery/cac:DeliveryLocation/cac:Address/cbc:PostalZone'), 'BT-78 UBL');
 lfx_dump('ubl-lieferort', $ubl);
 
-// Case « Keine E-Rechnung »
+// "No e-invoice" checkbox.
 lfx_assert(!auvoerechnung_einvoice_disabled($inv), 'e-facture active par défaut');
 $inv->array_options = ['options_lfxnoeinvoice' => '1'];
 lfx_assert(auvoerechnung_einvoice_disabled($inv), 'e-facture désactivée sur la facture');
@@ -1774,8 +1774,8 @@ $seller = lfx_make_party([
 $buyerDE = lfx_make_party(['name' => 'Kunde GmbH', 'country_code' => 'DE', 'zip' => '10115', 'town' => 'Berlin',
 	'address' => 'Weg 2', 'email' => 'ap@kunde.example', 'tva_intra' => 'DE999999999']);
 
-// BT-8 : Dolibarr met TAX_MODE_SELL_SERVICE = payment en mémoire quand rien
-// n'est enregistré ; un vendeur allemand ne doit pas en déduire « Ist » (72).
+// BT-8: Dolibarr sets TAX_MODE_SELL_SERVICE = payment in memory when nothing
+// is saved; do not infer "Ist" (72) from this for a German seller.
 $GLOBALS['lfx_test_conf']['TAX_MODE_SELL_SERVICE'] = 'payment';
 lfx_assert_eq('', auvoerechnung_resolve_vat_due_date_code($seller), 'BT-8 : vendeur DE, défaut Dolibarr ignoré');
 lfx_assert_eq('72', auvoerechnung_resolve_vat_due_date_code(lfx_make_party()), 'BT-8 : vendeur FR suit le régime Dolibarr');
@@ -1785,8 +1785,8 @@ $GLOBALS['lfx_test_conf']['AUVOERECHNUNG_VAT_DUE_DATE'] = 'none';
 lfx_assert_eq('', auvoerechnung_resolve_vat_due_date_code(lfx_make_party()), 'BT-8 : aucune indication');
 unset($GLOBALS['lfx_test_conf']['AUVOERECHNUNG_VAT_DUE_DATE'], $GLOBALS['lfx_test_conf']['TAX_MODE_SELL_SERVICE']);
 
-// Description WYSIWYG (HTML) → texte, sans double encodage des entités ;
-// prix unitaire réel (9,99 × 0,333) au lieu de la reconstitution 10,00
+// WYSIWYG description (HTML) → text, without double-encoding entities;
+// use the actual unit price (9.99 × 0.333) rather than a reconstructed 10.00.
 $inv = new LfxFakeInvoice();
 $inv->ref = 'RE2026-0900';
 $inv->thirdparty = $buyerDE;
@@ -1809,14 +1809,14 @@ lfx_assert_eq('90.00', lfx_xp_str($xp, '(//ram:NetPriceProductTradePrice/ram:Cha
 lfx_assert_eq(10.0, auvoerechnung_line_unit_price((object) ['subprice' => 10.0], 1.0, 3.0, 29.99), 'prix modifié : reconstitution');
 lfx_assert_eq('', auvoerechnung_html_to_text('<p>&nbsp;</p>'), 'description vide');
 
-// BR-FR-16 : la liste des taux français ne concerne pas un vendeur allemand
+// BR-FR-16: the French VAT-rate list does not apply to a German seller.
 $warns = auvoerechnung_check_mandatory($inv, $seller);
 lfx_assert(!lfx_contains($warns, 'AuvoERechnungWarnVatRateNotFR'), 'BR-FR-16 : pas d\'avertissement pour 19 %/7 % en DE');
 $frInv = clone $inv;
 $frInv->thirdparty = lfx_make_party(['name' => 'Client SAS']);
 lfx_assert(lfx_contains(auvoerechnung_check_mandatory($frInv, lfx_make_party()), 'AuvoERechnungWarnVatRateNotFR'), 'BR-FR-16 : toujours actif pour un vendeur FR');
 
-// Police PDF de base non embarquée (helvetica) : avertissement PDF/A-3
+// Non-embedded base PDF font (helvetica): PDF/A-3 warning.
 lfx_assert(auvoerechnung_pdf_font_embedded('helvetica') === false, 'helvetica non embarquée');
 lfx_assert(auvoerechnung_pdf_font_embedded('pdfahelvetica') === true, 'pdfahelvetica embarquée');
 $GLOBALS['lfx_test_conf']['MAIN_PDF_FORCE_FONT'] = 'helvetica';
@@ -1824,8 +1824,8 @@ lfx_assert(lfx_contains(auvoerechnung_check_mandatory($inv, $seller), 'AuvoERech
 $GLOBALS['lfx_test_conf']['MAIN_PDF_FORCE_FONT'] = 'pdfahelvetica';
 lfx_assert(!lfx_contains(auvoerechnung_check_mandatory($inv, $seller), 'AuvoERechnungWarnForceFontNotEmbedded'), 'pas d\'avertissement avec pdfahelvetica');
 
-// Pays tiers : prestation (§ 3a) et marchandise (export) dans une seule
-// ventilation G (BR-G-08), avec les deux motifs
+// Non-EU country: service (§ 3a) and goods (export) in one G breakdown
+// (BR-G-08), with both exemption reasons.
 $inv = new LfxFakeInvoice();
 $inv->ref = 'RE2026-0901';
 $inv->thirdparty = lfx_make_party(['name' => 'ACME Inc', 'country_code' => 'US', 'zip' => '10001', 'town' => 'New York',
@@ -1860,11 +1860,11 @@ $inv->ref = 'RE2026-1000';
 $inv->thirdparty = lfx_make_party(['name' => 'Bundesamt für Beispiele', 'country_code' => 'DE', 'zip' => '53113', 'town' => 'Bonn',
 	'address' => 'Amtsweg 1', 'email' => '', 'tva_intra' => '', 'array_options' => ['options_lfxleitwegid' => '991-33333TEST-33']]);
 $inv->lines = [
-	// Produit avec texte de ligne, référence et EAN valide
+	// Product with line text, reference, and valid EAN.
 	lfx_make_line(100.00, 19.0, 19.00, 2.0, 'Größe: XL', 0, ['fk_product' => 7, 'product_ref' => 'TS-100', 'product_label' => 'T-Shirt Basic', 'product_barcode' => '4006381333931']),
-	// Produit sans texte de ligne, code-barres interne (pas un GTIN)
+	// Product without line text, internal barcode (not a GTIN).
 	lfx_make_line(50.00, 19.0, 9.50, 1.0, '', 1, ['fk_product' => 8, 'product_ref' => 'MONT', 'product_label' => 'Montage', 'product_barcode' => '12345']),
-	// Ligne libre sans texte
+	// Free-text line without a description.
 	lfx_make_line(10.00, 19.0, 1.90, 1.0, '', 1),
 ];
 $inv->total_ht = 160.00;
@@ -1897,7 +1897,7 @@ lfx_assert_eq('4006381333931', lfx_xp_str($xpu, $i1.'/cac:StandardItemIdentifica
 lfx_dump('ubl-artikeldaten', $ubl);
 lfx_assert(auvoerechnung_is_gtin('96385074') && auvoerechnung_is_gtin('036000291452') && !auvoerechnung_is_gtin('4006381333932'), 'contrôle GTIN (chiffre de contrôle)');
 
-// Pays manquant : avertissement, pays de la société supposé
+// Missing country: warning; assume the seller company's country.
 $inv->thirdparty->country_code = '';
 lfx_assert(lfx_contains(auvoerechnung_check_mandatory($inv, $seller), 'AuvoERechnungWarnBuyerNoCountry'), 'client sans pays signalé');
 $noCountry = clone $seller;
@@ -1907,7 +1907,7 @@ $GLOBALS['mysoc'] = $seller;
 lfx_assert_eq('DE', auvoerechnung_default_country(), 'pays par défaut = pays de la société');
 unset($GLOBALS['mysoc']);
 
-// Contrôle de mise à jour désactivé : aucun appel réseau
+// Update check disabled: no network request.
 $GLOBALS['lfx_test_conf']['AUVOERECHNUNG_UPDATE_CHECK'] = 0;
 lfx_assert_eq(null, auvoerechnung_check_latest_release(null, '0.0.1'), 'contrôle de mise à jour désactivé');
 echo "U47 OK\n";
@@ -1970,7 +1970,7 @@ foreach ($units as $id => [$code, $short, $expected]) {
 	lfx_assert_eq(null, $unknown, "unité $code/$short reconnue : pas d'avertissement");
 }
 lfx_assert_eq('C62', auvoerechnung_map_unit_code((object) ['fk_unit' => 0]), 'sans unité : C62');
-// Unité utilisateur sans correspondance : C62 + avertissement (une seule fois par unité)
+// Unmatched user unit: C62 + warning (only once per unit).
 lfx_reset([], ['iban' => 'DE02120300000000202051', 'bic' => 'BYLADEM1001'], [
 	'c_units WHERE rowid = 105' => [(object) ['code' => 'PAL', 'short_label' => 'Palette']],
 ]);
@@ -1988,7 +1988,7 @@ lfx_assert_eq(1, count($bw), 'un seul avertissement par unité inconnue');
 lfx_assert_eq('C62', $prep['lines'][0]['unitCode'], 'ligne en unité inconnue : C62');
 unset($GLOBALS['db']);
 
-// chorus_tab.php : contrôle d'accès à la facture (entités, tiers externes)
+// chorus_tab.php: invoice access checks (entities, external customers).
 $chorusTab = file_get_contents(__DIR__.'/../chorus_tab.php');
 lfx_assert(strpos($chorusTab, "restrictedArea(\$user, 'facture', \$object->id") !== false, 'chorus_tab.php appelle restrictedArea sur la facture');
 lfx_assert(strpos($chorusTab, 'restrictedArea') < strpos($chorusTab, "'savechorus'"), 'restrictedArea avant toute action');
@@ -2015,7 +2015,7 @@ foreach (['DE' => true, 'AT' => false] as $country => $accepted) {
 	$hasRefProblem = lfx_contains($problems, auvoerechnung_trans('AuvoERechnungXrMissingBuyerRef'));
 	lfx_assert_eq(!$accepted, $hasRefProblem, "Vorprüfung BT-10 bei Käufer $country");
 }
-// Mit Kundenreferenz ist ein ausländischer Käufer in Ordnung
+// A foreign buyer is valid when a customer reference is provided.
 $inv->ref_client = 'PO-4711';
 lfx_assert(!lfx_contains(auvoerechnung_check_xrechnung($inv, $seller), auvoerechnung_trans('AuvoERechnungXrMissingBuyerRef')), 'Kundenreferenz genügt für BT-10');
 
@@ -2025,7 +2025,7 @@ lfx_assert($p !== false && strpos($src, "AuvoERechnungOzgReDraft", $p) !== false
 	&& strpos($src, "AuvoERechnungOzgReDraft", $p) < strpos($src, 'generateXRechnungXml($invoice', $p), 'OZG-RE: Entwurfsprüfung vor dem Erzeugen');
 echo "U50 OK\n";
 
-// Endrechnung mit Anzahlung: BT-113 + Teilentgelte in BT-22 (BMF 15.10.2026 Rn. 3)
+// Final invoice with a deposit: BT-113 + partial-payment details in BT-22 (BMF 15 Oct 2026, para. 3).
 $currentTest = 'U51 Endrechnung mit Anzahlung: Teilentgelte in BT-22';
 $fin = clone $inv;
 $fin->lines = [lfx_make_line(1000.00, 19.0, 190.00, 1.0, 'Planung', 1)];
@@ -2047,9 +2047,9 @@ $fin->sumDepositsUsed = 0.0;
 lfx_assert(strpos(lfx_xp_str(lfx_xpath(auvoerechnung_build_xml($fin, $seller, $w)), '/rsm:CrossIndustryInvoice/rsm:ExchangedDocument/ram:IncludedNote/ram:Content'), 'Teilentgelte') === false, 'ohne Anzahlung keine Teilentgelt-Note');
 echo "U51 OK\n";
 
-// Issue #1: $langs->trans() von Dolibarr nimmt nur vier Werte an; die
-// Teilentgelt-Zeile hat sechs -> ArgumentCountError (fatal). Nachgebildet mit
-// einem $langs, das sich bei den Parametern wie Translate verhält.
+// Issue #1: Dolibarr's $langs->trans() accepts only four values, while the
+// partial-payment line has six, causing a fatal ArgumentCountError. Reproduced
+// with a $langs mock that handles parameters like Translate.
 $currentTest = 'U52 Teilentgelt-Zeile mit Dolibarr-$langs (Issue #1)';
 class LfxDolibarrLikeLangs
 {
@@ -2065,7 +2065,7 @@ class LfxDolibarrLikeLangs
 	public function load($d) { return 1; }
 	public function loadLangs($a) { return 1; }
 	public function setDefaultLang($l) {}
-	// Signatur und sprintf()-Aufruf wie Translate::trans() (Dolibarr 19-24)
+	// Signature and sprintf() call match Translate::trans() (Dolibarr 19-24).
 	public function trans($key, $param1 = '', $param2 = '', $param3 = '', $param4 = '', $maxsize = 0)
 	{
 		if (!isset($this->tab_translate[$key])) {
@@ -2113,8 +2113,8 @@ $GLOBALS['lfx_test_db_handlers'] = [];
 $fin->sumDepositsUsed = 0.0;
 echo "U52 OK\n";
 
-// Anzahlung im Standardweg von Dolibarr: negative Zeile mit fk_remise_except
-// aus einer Anzahlungsrechnung -> BT-113 + BG-3 + BT-22 statt Nachlass BG-20.
+// Deposit through Dolibarr's standard path: a negative line with fk_remise_except
+// from a deposit invoice → BT-113 + BG-3 + BT-22 instead of a BG-20 discount.
 $currentTest = 'U53 Anzahlung als Rechnungszeile: BT-113 statt Nachlass';
 $fin2 = clone $fin;
 $fin2->id = 78;
@@ -2146,12 +2146,12 @@ lfx_assert(strpos(lfx_xp_str($xp, '/rsm:CrossIndustryInvoice/rsm:ExchangedDocume
 lfx_assert(!lfx_contains($w, auvoerechnung_trans('AuvoERechnungWarnTotalsMismatch', '1.190,00', '595,00')) && !array_filter($w, function ($x) { return strpos($x, 'WarnTotalsMismatch') !== false || strpos($x, 'WarnRoundingAdjusted') !== false || strpos($x, 'WarnTaxMismatch') !== false; }), 'keine Abweichungswarnung: '.implode(' | ', $w));
 $ublFin2 = auvoerechnung_build_xrechnung($fin2, $seller, $w, [], 'ubl')['xml'];
 lfx_assert(strpos($ublFin2, '<cbc:PrepaidAmount currencyID="EUR">595.00</cbc:PrepaidAmount>') !== false && strpos($ublFin2, '<cbc:PayableAmount currencyID="EUR">595.00</cbc:PayableAmount>') !== false, 'UBL: PrepaidAmount und PayableAmount');
-// Negative Zeile aus einer Gutschrift (keine Anzahlung) bleibt Nachlass
+// Negative line from a credit note (not a deposit) remains a discount.
 $fin2->lines[1]->fk_remise_except = 42;
 $bw = [];
 $prep = auvoerechnung_prepare_lines(auvoerechnung_filter_billable_lines($fin2->lines), 1, $fin2, $fin2->thirdparty, $seller, $bw);
 lfx_assert(count($prep['allowances']) === 1 && empty($prep['deposits']), 'Gutschrift-Zeile bleibt Nachlass BG-20');
-// Gutschrift-Rechnung (Typ 2) wird nie umgedeutet
+// A credit note (type 2) is never reinterpreted.
 $fin2->lines[1]->fk_remise_except = 41;
 $fin2->type = 2;
 lfx_assert_eq([], auvoerechnung_get_deposit_lines($fin2), 'nur Standardrechnungen');

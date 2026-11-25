@@ -20,13 +20,13 @@ class modAuvoERechnung extends DolibarrModules
 		global $conf, $langs;
 
 		$this->db = $db;
-		$this->numero = 194202; // Bloc 194202-194211 réservé à AuVo Design (wiki.dolibarr.org, List of modules id)
+		$this->numero = 194202; // ID block 194202-194211 reserved for AuVo Design (wiki.dolibarr.org, List of modules id).
 		$this->rights_class = 'auvoerechnung';
 		$this->family = "financial";
 		$this->module_position = 90;
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
-		// Liste des modules : Module194202Desc des fichiers de langue ; ce
-		// texte n'est qu'un repli.
+		// Module list label: Module194202Desc from the language files; this text
+		// is only a fallback.
 		$this->description = "E-invoices for Dolibarr: ZUGFeRD / Factur-X (EN16931) and XRechnung (CII/UBL)";
 		$this->descriptionlong = "Embeds an EN16931 CrossIndustryInvoice XML in every customer invoice PDF (ZUGFeRD / Factur-X) and creates XRechnung files in CII or UBL.";
 		$this->version = '5.3.1';
@@ -35,8 +35,8 @@ class modAuvoERechnung extends DolibarrModules
 		$this->editor_name = 'auvo-design';
 		$this->editor_url = 'https://auvo-design.de';
 
-		// Prérequis vérifiés à l'activation. Dolibarr 19 minimum : le module
-		// utilise GETPOSTINT() (introduit en 19.0) ; testé sur Dolibarr 22 / PHP 8.2.
+		// Requirements checked during activation. Minimum Dolibarr 19: the module
+		// uses GETPOSTINT() (introduced in 19.0); tested with Dolibarr 22 / PHP 8.2.
 		$this->phpmin = array(8, 1);
 		$this->need_dolibarr_version = array(19, 0);
 
@@ -52,21 +52,20 @@ class modAuvoERechnung extends DolibarrModules
 			'hooks' => array(
 				'pdfgeneration',
 				'invoicecard',
-				// Contexte des modèles de génération ODT des factures
-				// (core/modules/facture/doc/doc_generic_invoice_odt.modules.php :
-				// initHooks(array('odtgeneration')) puis executeHooks('afterODTCreation', …)).
-				// Permet d'injecter le Factur-X dans le PDF issu d'un modèle ODT
-				// converti par LibreOffice (prérequis : MAIN_ODT_AS_PDF=libreoffice +
-				// MAIN_ODT_AS_PDFA=1, sinon le PDF est >=1.5 et illisible par FPDI).
+				// Context for invoice ODT generation models.
+				// (core/modules/facture/doc/doc_generic_invoice_odt.modules.php:
+				// initHooks(array('odtgeneration')) followed by executeHooks('afterODTCreation', ...)).
+				// Allows Factur-X embedding in PDFs generated from ODT models
+				// converted by LibreOffice (requires MAIN_ODT_AS_PDF=libreoffice and
+				// MAIN_ODT_AS_PDFA=1; otherwise the PDF is >=1.5 and unreadable by FPDI).
 				//
-				// NB déploiement : ce nouveau contexte n'est lu par Dolibarr qu'au
-				// moment où il (re)construit la liste des hooks. Sur une instance déjà
-				// active, il faut donc désactiver puis réactiver le module pour que
-				// 'odtgeneration' soit pris en compte (remove() ne supprime aucune
-				// donnée — cf. remove() ci-dessous —, la réactivation est sûre).
+				// Deployment note: Dolibarr reads this new context only when it
+				// rebuilds the hook list. On an already-active instance, disable and
+				// re-enable the module to register 'odtgeneration'. This is safe because
+				// remove() below does not delete user data.
 				'odtgeneration',
-				// Formulaire « Envoyer par e-mail » : XRechnung jointe d'office
-				// (hook getFormMail, réactivation du module nécessaire).
+				// "Send by email" form: attach XRechnung automatically
+				// (getFormMail hook; re-enabling the module is required).
 				'formmail',
 			),
 		);
@@ -79,10 +78,10 @@ class modAuvoERechnung extends DolibarrModules
 		$this->conflictwith = array();
 		$this->langfiles = array("auvoerechnung@auvoerechnung");
 
-		// NB : la conversion est active dès que le module l'est (plus de constante
-		// AUVOERECHNUNG_ENABLED). L'identifiant légal (auto par profil), l'exigibilité
-		// TVA BT-8 (lue depuis TAX_MODE Dolibarr), le cadre BT-23 (par facture) et le
-		// schéma d'endpoint (0225 figé) ne sont plus des réglages.
+		// Conversion is active whenever the module is enabled (there is no longer
+		// an AUVOERECHNUNG_ENABLED constant). Legal ID (automatic by profile), VAT
+		// due date BT-8 (from Dolibarr TAX_MODE), invoice process BT-23 (per invoice),
+		// and endpoint scheme (fixed at 0225) are no longer settings.
 		$this->const = array(
 			array('AUVOERECHNUNG_BANK_ACCOUNT', 'int', '0', 'ID des Bankkontos für IBAN/BIC', 1, 'current', 0),
 			array('AUVOERECHNUNG_PAYMENT_MEANS', 'chaine', '30', 'Zahlungsart-Code UNTDID 4461 (30=Überweisung, 58=SEPA-Überweisung, 59=SEPA-Lastschrift, 49=Lastschrift)', 1, 'current', 0),
@@ -112,9 +111,9 @@ class modAuvoERechnung extends DolibarrModules
 			array('AUVOERECHNUNG_CHORUS_ENABLED', 'int', '0', 'Chorus-Pro-Funktionen aktivieren (Reiter, Menü, 2. PDF; nur Frankreich) — opt-in', 1, 'current', 0),
 		);
 
-		// Droits propres (en plus des droits factures du cœur, qui restent
-		// requis) : voir/télécharger, (re)générer, envoyer à l'OZG-RE. La
-		// génération automatique à la création du PDF ne dépend d'aucun droit.
+		// Module permissions (in addition to core invoice permissions, which are
+		// still required): view/download, (re)generate, and send to OZG-RE. Automatic
+		// generation during PDF creation does not depend on a permission.
 		$this->rights = array();
 		$r = 0;
 		$this->rights[$r][0] = $this->numero.sprintf('%02d', $r + 1);
@@ -137,32 +136,31 @@ class modAuvoERechnung extends DolibarrModules
 		$r++;
 		$this->menu = array();
 
-		// Onglet dédié « Chorus Pro » sur la fiche facture (regroupe les champs
-		// Chorus, masqués de l'affichage extrafields standard via list=0).
-		// NB : le type d'onglet pour les factures est « invoice » (et non
-		// « facture ») — c'est ce que passe facture_prepare_head() à
-		// complete_head_from_modules(). Avec « facture » l'onglet n'apparaît jamais.
-		// La condition (5e champ) est évaluée au RUNTIME : l'onglet n'apparaît que
-		// si les fonctionnalités Chorus sont activées (opt-in, sans réactivation).
-		// NB : utiliser getDolGlobalInt() et NON $conf->global->XXX — le dol_eval
-		// durci de Dolibarr 23 n'évalue plus la syntaxe $conf->global->XXX (la
-		// condition tombe à faux et l'onglet disparaît). getDolGlobalInt() passe.
+		// Dedicated "Chorus Pro" tab on the invoice card (groups Chorus fields,
+		// hidden from the standard extrafields display with list=0).
+		// The invoice tab type is "invoice" (not "facture"), which facture_prepare_head()
+		// passes to complete_head_from_modules(). With "facture", the tab never
+		// appears. The condition (5th field) is evaluated at runtime, so the tab
+		// appears only when Chorus features are enabled (opt-in, no reactivation).
+		// Use getDolGlobalInt(), not $conf->global->XXX: Dolibarr 23's hardened
+		// dol_eval no longer evaluates that syntax, causing the condition to fail
+		// and the tab to disappear. getDolGlobalInt() works.
 		$this->tabs = array(
 			'invoice:+auvoerechnungchorus:AuvoERechnungChorusTab:auvoerechnung@auvoerechnung:getDolGlobalInt("AUVOERECHNUNG_CHORUS_ENABLED"):/auvoerechnung/chorus_tab.php?id=__ID__',
 		);
 	}
 
 	/**
-	 * Activation du module : crée les extrafields Chorus Pro sur les factures
-	 * et l'extrafield Leitweg-ID sur les tiers.
+	 * Module activation: creates Chorus Pro invoice extrafields and the
+	 * Leitweg-ID third-party extrafield.
 	 *
-	 * @param string $options Options d'activation
-	 * @return int 1 si OK, 0 si KO
+	 * @param string $options Activation options
+	 * @return int 1 on success, 0 on failure
 	 */
 	public function init($options = '')
 	{
-		// Avant _init() : les constantes reprises de l'ancien module ne doivent
-		// pas être écrasées par les valeurs par défaut de $this->const.
+		// Before _init(): do not overwrite constants migrated from the old module
+		// with defaults from $this->const.
 		$this->migrateFromPreviousNames();
 		$result = $this->_init(array(), $options);
 		$this->createChorusExtraFields();
@@ -173,29 +171,27 @@ class modAuvoERechnung extends DolibarrModules
 		$this->createInvoiceExtraFields();
 		$this->updateExtraFieldConditions();
 		$this->grantRightsFromInvoiceRights();
-		// Skonto 5.2.x (indexé par code) → indexé par id de condition de règlement.
+		// Migrate Skonto 5.2.x from code-indexed to payment-term-ID-indexed.
 		dol_include_once('/auvoerechnung/core/lib/auvoerechnung.lib.php');
 		auvoerechnung_migrate_skonto_keys($this->db);
 		return $result;
 	}
 
 	/**
-	 * Reprise d'une installation sous un ancien nom du module, à la première
-	 * activation de AuVo E-Rechnung :
+	 * Migrates an installation from an old module name on the first activation
+	 * of AuVo E-Rechnung:
 	 *   DoliZUGFeRD 4.0.x  (dossier custom/dolizugferd, constantes DOLIZUGFERD_*)
 	 *   AuvoZugferd 3.x    (dossier custom/auvozugferd, constantes AUVOZUGFERD_*)
-	 *  - constantes copiées en AUVOERECHNUNG_* (par entité), sauf si la nouvelle
-	 *    existe déjà. Le nom le plus récent passe en premier : une valeur
-	 *    DoliZUGFeRD l'emporte sur une valeur AuvoZugferd plus ancienne. Les
-	 *    caches (*_CACHE) sont ignorés. Les anciennes constantes sont conservées
-	 *    (retour arrière possible) ;
-	 *  - extrafields lfx* (Leitweg-ID, Chorus Pro) : leur visibilité et leur
-	 *    fichier de langue pointaient sur l'ancien module — sans cette reprise
-	 *    ils disparaîtraient. Les libellés hérités (AuvoZugferdEf*, DoliZugferdEf*,
-	 *    voire LemonFacturXEf* des toutes premières versions) sont remplacés par
-	 *    les clés actuelles. Les VALEURS saisies ne sont pas touchées (colonnes de
-	 *    llx_societe_extrafields / llx_facture_extrafields inchangées).
-	 * Idempotent : sans ancienne installation, ne fait rien.
+	 *  - Copy constants to AUVOERECHNUNG_* (per entity), unless the new constant
+	 *    already exists. Check the newest name first, so DoliZUGFeRD values take
+	 *    precedence over older AuvoZugferd values. Ignore cache constants (*_CACHE)
+	 *    and retain old constants to allow rollback.
+	 *  - For lfx* extrafields (Leitweg-ID, Chorus Pro), update visibility and the
+	 *    language file that point to the old module; otherwise the fields would
+	 *    disappear. Replace legacy labels (AuvoZugferdEf*, DoliZugferdEf*, and
+	 *    early LemonFacturXEf*) with current keys. Do not alter entered values
+	 *    (llx_societe_extrafields / llx_facture_extrafields columns stay unchanged).
+	 * Idempotent: does nothing when there is no older installation.
 	 */
 	private function migrateFromPreviousNames()
 	{
@@ -231,7 +227,7 @@ class modAuvoERechnung extends DolibarrModules
 	 * Own rights exist since 5.2.0. So that nobody loses a function with the
 	 * update, users and groups get them once from the invoice rights they
 	 * already had: read invoices (11) -> read, create invoices (12) -> write,
-	 * and send (12, plus "send by email" (15) with advanced permissions).
+	 * and send (12, plus "send by email" (15) with advanced permissions enabled).
 	 * Runs only once: rights taken away later are not given back.
 	 *
 	 * @return void
@@ -282,10 +278,10 @@ class modAuvoERechnung extends DolibarrModules
 	}
 
 	/**
-	 * Copie les constantes <ancien préfixe>* en AUVOERECHNUNG_* (cf.
+	 * Copies constants from <old prefix>* to AUVOERECHNUNG_* (see
 	 * migrateFromPreviousNames()).
 	 *
-	 * @param string $oldPrefix  Préfixe de l'ancien nom, ex. 'DOLIZUGFERD_'
+	 * @param string $oldPrefix  Prefix from the old name, e.g. 'DOLIZUGFERD_'
 	 */
 	private function migrateConstants($oldPrefix)
 	{
@@ -312,12 +308,11 @@ class modAuvoERechnung extends DolibarrModules
 	}
 
 	/**
-	 * Désactivation : ne supprime PAS les extrafields (remove() est appelé à
-	 * chaque désactivation, pas qu'à la désinstallation — on ne touche jamais
-	 * aux données saisies par l'utilisateur).
+	 * Deactivation: do NOT delete extrafields. remove() runs on every deactivation,
+	 * not only on uninstall; never delete user-entered data.
 	 *
-	 * @param string $options Options de désactivation
-	 * @return int 1 si OK, 0 si KO
+	 * @param string $options Deactivation options
+	 * @return int 1 on success, 0 on failure
 	 */
 	public function remove($options = '')
 	{
@@ -325,9 +320,9 @@ class modAuvoERechnung extends DolibarrModules
 	}
 
 	/**
-	 * Crée (si absents) les extrafields de la fiche facture pour le profil
-	 * Chorus Pro : case à cocher de forçage + code service (BT-10), n° engagement
-	 * (BT-13), n° marché (BT-12). Idempotent et non bloquant.
+	 * Creates missing invoice extrafields for the Chorus Pro profile: force
+	 * checkbox, service code (BT-10), commitment number (BT-13), and contract
+	 * number (BT-12). Idempotent and non-blocking.
 	 */
 	private function createChorusExtraFields()
 	{
@@ -339,7 +334,7 @@ class modAuvoERechnung extends DolibarrModules
 
 		$cadres = auvoerechnung_chorus_frameworks();
 
-		// attrname, label (clé de trad), type, taille (varchar) OU param (select), position
+		// attrname, label (translation key), type, size (varchar) OR param (select), position.
 		$defs = array(
 			array('lfxchorus',     'AuvoERechnungEfChorus',      'boolean', '',                          1010),
 			array('lfxcadre',      'AuvoERechnungEfCadre',       'select',  array('options' => $cadres), 1011),
@@ -355,8 +350,8 @@ class modAuvoERechnung extends DolibarrModules
 			$param = is_array($d[3]) ? $d[3] : '';   // tableau d'options pour select
 			// Signature : (attrname, label, type, pos, size, elementtype, unique,
 			// required, default, param, alwayseditable, perms, list, ...). list='0'
-			// = masqué de l'affichage standard : ces champs ne s'éditent QUE dans
-			// l'onglet « Chorus Pro » dédié.
+			// Hide from the standard display: edit these fields ONLY in the
+			// dedicated "Chorus Pro" tab.
 			$extrafields->addExtraField(
 				$d[0], $d[1], $d[2], $d[4], $size, 'facture',
 				0, 0, '', $param, 1, '', '0', '', '', '',
@@ -366,18 +361,17 @@ class modAuvoERechnung extends DolibarrModules
 	}
 
 	/**
-	 * Force printable=0 et list=0 sur les extrafields Chorus.
+	 * Set printable=0 and list=0 for Chorus extrafields.
 	 *
-	 * Ces champs sont internes (édités uniquement dans l'onglet « Chorus Pro »)
-	 * et ne doivent JAMAIS s'imprimer sur le PDF. Or Dolibarr 23 crée les
-	 * extrafields avec printable!=0 et son modèle PDF (pdf_sponge →
-	 * getExtrafieldsInHtml) imprime dans la NOTE du PDF tout extrafield dont
-	 * printable vaut 1 ou 2 → un bloc de libellés Chorus vides apparaissait dans
-	 * la description de la facture (signalé sur Dolibarr 23.0.1).
+	 * These are internal fields (edited only in the "Chorus Pro" tab) and must
+	 * NEVER be printed on the PDF. Dolibarr 23 creates extrafields with
+	 * printable!=0, and its PDF model (pdf_sponge -> getExtrafieldsInHtml) prints
+	 * every extrafield with printable=1 or 2 in the PDF note. This caused empty
+	 * Chorus labels to appear in the invoice description (reported on Dolibarr 23.0.1).
 	 *
-	 * On force donc printable=0 (et list=0) de façon idempotente : exécuté à
-	 * chaque activation, ça corrige aussi les installations déjà créées de
-	 * travers. Inoffensif sur Dolibarr ≤ 22 (déjà à 0).
+	 * Force printable=0 (and list=0) idempotently. Running this on every
+	 * activation also fixes existing installations where these fields were
+	 * created incorrectly. Harmless on Dolibarr <= 22, where they are already 0.
 	 */
 	private function fixChorusExtraFieldsDisplay()
 	{
@@ -386,10 +380,10 @@ class modAuvoERechnung extends DolibarrModules
 	}
 
 	/**
-	 * Crée (si absent) l'extrafield tiers Leitweg-ID (BT-10, acheteurs secteur
-	 * public allemand). Attribut statique du client, visible sur la fiche
-	 * standard (list='1', contrairement aux champs Chorus masqués) : pas
-	 * besoin d'onglet dédié. Idempotent et non bloquant.
+	 * Creates the Leitweg-ID third-party extrafield (BT-10, German public-sector
+	 * buyers) if missing. This static customer attribute is visible on the standard
+	 * card (list='1', unlike hidden Chorus fields), so no dedicated tab is needed.
+	 * Idempotent and non-blocking.
 	 */
 	private function createLeitwegIdExtraField()
 	{
@@ -400,9 +394,9 @@ class modAuvoERechnung extends DolibarrModules
 		if (!empty($extrafields->attributes['societe']['label']['lfxleitwegid'])) {
 			return; // déjà présent
 		}
-		// Signature identique à createChorusExtraFields() : (attrname, label,
-		// type, pos, size, elementtype, unique, required, default, param,
-		// alwayseditable, perms, list, ...). Taille 46 = longueur max Leitweg-ID.
+		// Same signature as createChorusExtraFields(): (attrname, label, type,
+		// pos, size, elementtype, unique, required, default, param, alwayseditable,
+		// perms, list, ...). Size 46 is the maximum Leitweg-ID length.
 		$extrafields->addExtraField(
 			'lfxleitwegid', 'AuvoERechnungEfLeitwegId', 'varchar', 200, '46', 'societe',
 			0, 0, '', '', 1, '', '1', '', '', '',
@@ -411,10 +405,10 @@ class modAuvoERechnung extends DolibarrModules
 	}
 
 	/**
-	 * Crée (si absent) l'extrafield tiers « E-Rechnungsformat » : choix du
-	 * format de facture électronique par client (automatique / ZUGFeRD /
-	 * XRechnung), lu par auvoerechnung_wants_xrechnung(). Vide = automatique
-	 * (XRechnung dès qu'une Leitweg-ID est renseignée). Idempotent.
+	 * Creates the "E-invoice format" third-party extrafield if missing: select
+	 * the electronic invoice format per customer (automatic / ZUGFeRD / XRechnung),
+	 * read by auvoerechnung_wants_xrechnung(). Empty means automatic (XRechnung
+	 * whenever a Leitweg-ID is provided). Idempotent.
 	 */
 	private function createEFormatExtraField()
 	{
@@ -430,8 +424,8 @@ class modAuvoERechnung extends DolibarrModules
 			'xrechnung_ubl' => 'AuvoERechnungEfEFormatXRechnungUbl',
 		));
 		if (!empty($extrafields->attributes['societe']['label']['lfxeformat'])) {
-			// Déjà présent : complète la liste des choix (syntaxes CII/UBL,
-			// ajoutées en 5.2.0) sans toucher aux valeurs saisies.
+			// Already exists: add any missing choices (CII/UBL syntaxes added in
+			// 5.2.0) without changing entered values.
 			$sql = "UPDATE ".MAIN_DB_PREFIX."extrafields SET param = '".$this->db->escape(serialize($param))."'";
 			$sql .= " WHERE name = 'lfxeformat' AND elementtype = 'societe'";
 			$this->db->query($sql);
@@ -445,9 +439,9 @@ class modAuvoERechnung extends DolibarrModules
 	}
 
 	/**
-	 * Crée (si absent) l'extrafield tiers « Unsere Lieferantennummer beim
-	 * Kunden » : n° de fournisseur attribué par le client, émis en BT-29
-	 * (exigé par § 5 E-RechV quand l'administration l'a communiqué). Idempotent.
+	 * Creates the "Our supplier number at the customer" third-party extrafield
+	 * if missing. This customer-assigned supplier number is emitted in BT-29
+	 * (required by § 5 E-RechV when provided by the administration). Idempotent.
 	 */
 	private function createSupplierNumberExtraField()
 	{
@@ -466,12 +460,12 @@ class modAuvoERechnung extends DolibarrModules
 	}
 
 	/**
-	 * Crée (si absents) les extrafields de la fiche facture, visibles, jamais
-	 * imprimés sur le PDF. Idempotent :
-	 *  - « Leitweg-ID (abweichend) » : prime sur la Leitweg-ID du tiers
-	 *    (administration avec plusieurs services sous un même tiers) ;
-	 *  - « Leistungszeitraum von / bis » : période BG-14 de toute la facture ;
-	 *  - « Keine E-Rechnung » : PDF ordinaire, pas de XRechnung automatique.
+	 * Creates missing invoice-card extrafields. They are visible but never printed
+	 * on the PDF. Idempotent:
+	 *  - "Different Leitweg-ID": takes precedence over the third party's ID
+	 *    (an administration with multiple departments under one third party);
+	 *  - "Service period from/to": BG-14 period for the entire invoice;
+	 *  - "No e-invoice": regular PDF, with no automatic XRechnung.
 	 */
 	private function createInvoiceExtraFields()
 	{
@@ -479,7 +473,7 @@ class modAuvoERechnung extends DolibarrModules
 
 		$extrafields = new ExtraFields($this->db);
 		$extrafields->fetch_name_optionals_label('facture');
-		// attrname, label, type, position, taille
+		// attrname, label, type, position, size.
 		$defs = array(
 			array('lfxleitwegid',   'AuvoERechnungEfInvoiceLeitwegId', 'varchar', 1000, '46'),
 			array('lfxperiodstart', 'AuvoERechnungEfPeriodStart',      'date',    1001, ''),

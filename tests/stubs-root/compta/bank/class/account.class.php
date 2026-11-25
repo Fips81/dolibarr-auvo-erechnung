@@ -1,7 +1,7 @@
 <?php
 /*
- * Stub de la classe Account Dolibarr pour les tests unitaires standalone.
- * Renvoie le compte défini dans $GLOBALS['lfx_test_bank'] (ou échec si absent).
+ * Stub for Dolibarr's Account class for standalone unit tests.
+ * Returns the account set in $GLOBALS['lfx_test_bank'] (or fails if absent).
  */
 if (!class_exists('Account')) {
 	class Account
