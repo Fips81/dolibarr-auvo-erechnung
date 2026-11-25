@@ -16,7 +16,7 @@ Das Modul arbeitet mit den **aktuellen Fassungen** der deutschen und französisc
 
 | Standard | Version im Modul | Stand |
 |---|---|---|
-| **ZUGFeRD / Factur-X**, Profil EN16931 (COMFORT) | **ZUGFeRD 2.5.2 / Factur-X 1.09.2** (XML-Schemata aus `atgp/factur-x` 3.5.0) | neueste Version, veröffentlicht am 04.08.2026, gültig ab 01.09.2026 |
+| **ZUGFeRD / Factur-X**, Profil EN16931 (COMFORT) | **ZUGFeRD 2.5.2 / Factur-X 1.09.2** (XML-Schemata aus `atgp/factur-x` 3.5.1) | neueste Version, veröffentlicht am 04.08.2026, gültig ab 01.09.2026 |
 | **XRechnung** (CIUS der KoSIT), Syntax CII oder UBL 2.1 | **XRechnung 3.0.2**, Bundle vom 31.08.2026 | aktuell gültige Version, gilt laut KoSIT mindestens bis 31.07.2027; XRechnung 4.0 liegt bisher nur als Vorversion vor (endgültig voraussichtlich Frühjahr 2027) |
 | **EN 16931** (europäische Norm), Prüfregeln | CEN-Schematron 1.3.16 | Teil der offiziellen KoSIT-Validator-Konfiguration vom 31.08.2026 |
 
@@ -145,7 +145,7 @@ auvoerechnung/
 │   ├── kosit-validate.sh                    # Offizieller KoSIT-Validator über alle Test-XML (CI)
 │   └── run-tests.php                        # Integrationstests (Fixtures aus demo/)
 ├── docs/LIMITATIONS.md                      # Nicht behandelte Fälle und Gründe
-└── vendor/                                  # Lib atgp/factur-x v3.5.0 + Abhängigkeiten
+└── vendor/                                  # Lib atgp/factur-x v3.5.1 + Abhängigkeiten
 ```
 
 ## Funktionsweise
@@ -493,8 +493,8 @@ Extrahiert das eingebettete Factur-X-XML aller validierten Rechnungen (des angeg
 
 Der Ordner `vendor/` enthält die benötigten Libs (kein Composer auf dem Server erforderlich):
 
-- `atgp/factur-x` v3.5.0 — Erzeugung von Factur-X-PDFs (Schemata Factur-X 1.09.2 / ZUGFeRD 2.5.2)
-- `setasign/fpdi` v2.6.9 — Lesen/Schreiben von PDFs
+- `atgp/factur-x` v3.5.1 — Erzeugung von Factur-X-PDFs (Schemata Factur-X 1.09.2 / ZUGFeRD 2.5.2)
+- `setasign/fpdi` v2.6.10 — Lesen/Schreiben von PDFs
 - `setasign/fpdf` 1.9.0 — PDF-Engine (von atgp genutzt, **nicht** von Dolibarr; Patch `/F 4`, siehe PDF/A-3-Konformität)
 - `smalot/pdfparser` v2.13.1 — PDF-Parsing
 - `symfony/polyfill-mbstring` v1.43.3 — mbstring-Kompatibilität
@@ -571,6 +571,7 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 - **Leistungszeitraum je Position (BG-26, BT-134/BT-135):** Sind an einer Position Beginn und/oder Ende der Leistung erfasst, stehen sie jetzt auch je Position im XML (ZUGFeRD und XRechnung, CII und UBL), nicht nur zusammengefasst als Zeitraum der Rechnung (BG-14). Liegt der Zeitraum einer Position außerhalb eines von Hand an der Rechnung eingetragenen Leistungszeitraums, wird er weggelassen und eine Warnung ausgegeben, weil die XRechnung sonst abgelehnt würde (PEPPOL-EN16931-R110/R111); ebenso bei Ende vor Beginn (BR-30). Anregung aus Issue #3.
 - **Rückmeldung nach „ZUGFeRD neu erzeugen“:** Bisher passierte scheinbar nichts, wenn die PDF ohne ZUGFeRD blieb, ohne dass ein Fehler auftrat. Jetzt erscheint ein Hinweis mit der Ursache: Die PDF-Vorlage ruft den Hook `afterPDFCreation` nicht auf (mit Name der Vorlage), an der Rechnung ist „Keine E-Rechnung“ angehakt, oder die von der Vorlage gemeldete PDF-Datei fehlt. Diese Fälle stehen auch im Dolibarr-Log (`AuVo E-Rechnung`). Anlass: Issue #4.
 - **Korrektur: PHP-CLI nach PHP-Upgrade:** Die automatisch erkannte PHP-CLI für die Einbettung wurde zwischengespeichert und danach nur noch auf Funktionsfähigkeit geprüft, nicht auf die Version. Nach einem Wechsel der Web-PHP (z. B. von 8.2 auf 8.4) blieb so die alte CLI (`/usr/bin/php8.2`) in Gebrauch, solange sie installiert war. Jetzt muss auch der gespeicherte Wert zur Version der Web-PHP passen, sonst wird neu erkannt.
+- **Abhängigkeiten:** `atgp/factur-x` 3.5.1 (Korrektur beim Auslesen der eingebetteten XML aus PDFs mit komprimierten Objekt-Streams, betrifft REST-API und Batch-Export) und `setasign/fpdi` 2.6.10 (Kompatibilität mit PHP 8.6).
 - **XRechnung-Version nicht mehr einstellbar:** Das Textfeld „XRechnung-Version“ in den Einstellungen entfällt. Die Kennung in BT-24 kommt fest aus dem Modul (`xrechnung_3.0`, gilt für alle KoSIT-Fassungen 3.0.x). Ein dort eingetragener Wert wie `4.0` führte zu einer falschen Kennung bei unverändertem Inhalt, und die Rechnung wurde beim Empfänger abgelehnt. Eine gespeicherte Einstellung wird ignoriert und beim Reaktivieren des Moduls gelöscht. XRechnung 4.0 kommt mit einem Modul-Update, sobald die KoSIT die endgültige Fassung veröffentlicht.
 - **Code-Kommentare auf Englisch:** Alle Kommentare und Docblocks im Code sind jetzt englisch (bisher französisch und deutsch gemischt), damit auch Mitwirkende ohne Deutsch- oder Französischkenntnisse den Code lesen können. Am Verhalten und an den Texten in Rechnungen und Oberfläche ändert sich nichts. Danke an jokr0815 (PR #5).
 

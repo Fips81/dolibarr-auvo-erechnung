@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7b1272a86f2ba176336968fc925be759",
+    "content-hash": "bef653e95072929a828af72f7f8f5d93",
     "packages": [
         {
             "name": "atgp/factur-x",
-            "version": "v3.5.0",
+            "version": "v3.5.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/atgp/factur-x",
-                "reference": "b448a57074973ab57048aac8f2d208a516d685d9"
+                "url": "https://github.com/atgp/factur-x.git",
+                "reference": "87539619871ad1316d7f19a431618353dcc08df2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/atgp/factur-x/zipball/b448a57074973ab57048aac8f2d208a516d685d9",
-                "reference": "b448a57074973ab57048aac8f2d208a516d685d9",
+                "url": "https://api.github.com/repos/atgp/factur-x/zipball/87539619871ad1316d7f19a431618353dcc08df2",
+                "reference": "87539619871ad1316d7f19a431618353dcc08df2",
                 "shasum": ""
             },
             "require": {
@@ -61,7 +61,11 @@
                 "php",
                 "xml"
             ],
-            "time": "2026-08-18T07:25:07+00:00"
+            "support": {
+                "issues": "https://github.com/atgp/factur-x/issues",
+                "source": "https://github.com/atgp/factur-x/tree/v3.5.1"
+            },
+            "time": "2026-11-24T07:22:30+00:00"
         },
         {
             "name": "setasign/fpdf",
@@ -111,21 +115,21 @@
         },
         {
             "name": "setasign/fpdi",
-            "version": "v2.6.9",
+            "version": "v2.6.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Setasign/FPDI.git",
-                "reference": "d97ade6368aa0b51b6316d5dc16a567e2bf60167"
+                "reference": "be29a9d43c64f06569c1075f181e43d829a3d5bb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Setasign/FPDI/zipball/d97ade6368aa0b51b6316d5dc16a567e2bf60167",
-                "reference": "d97ade6368aa0b51b6316d5dc16a567e2bf60167",
+                "url": "https://api.github.com/repos/Setasign/FPDI/zipball/be29a9d43c64f06569c1075f181e43d829a3d5bb",
+                "reference": "be29a9d43c64f06569c1075f181e43d829a3d5bb",
                 "shasum": ""
             },
             "require": {
                 "ext-zlib": "*",
-                "php": ">=7.2 <=8.6.99999"
+                "php": ">=7.2 <8.7"
             },
             "conflict": {
                 "setasign/tfpdf": "<1.31"
@@ -170,7 +174,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Setasign/FPDI/issues",
-                "source": "https://github.com/Setasign/FPDI/tree/v2.6.9"
+                "source": "https://github.com/Setasign/FPDI/tree/v2.6.10"
             },
             "funding": [
                 {
@@ -178,8 +182,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-10-13T07:36:28+00:00",
-            "published-time": "2026-10-13T07:38:42+00:00"
+            "time": "2026-11-09T10:58:35+00:00"
         },
         {
             "name": "smalot/pdfparser",
@@ -230,8 +233,7 @@
                 "issues": "https://github.com/smalot/pdfparser/issues",
                 "source": "https://github.com/smalot/pdfparser/tree/v2.13.1"
             },
-            "time": "2026-10-13T08:49:45+00:00",
-            "published-time": "2026-10-13T09:05:15+00:00"
+            "time": "2026-10-13T08:49:45+00:00"
         },
         {
             "name": "symfony/polyfill-mbstring",
@@ -316,22 +318,21 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-10-28T09:35:49+00:00",
-            "published-time": "2026-10-28T10:07:45+00:00"
+            "time": "2026-10-28T09:35:49+00:00"
         }
     ],
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
         "php": ">=8.1"
     },
-    "platform-dev": {},
+    "platform-dev": [],
     "platform-overrides": {
         "php": "8.1"
     },
-    "plugin-api-version": "2.11.0"
+    "plugin-api-version": "2.3.0"
 }

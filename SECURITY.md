@@ -121,7 +121,7 @@ Der Ordner `vendor/` enthält folgende Bibliotheken (bei der Installation ist ke
 
 | Bibliothek | Aufgabe |
 |---|---|
-| `atgp/factur-x` v3.5.0 | Erzeugung der Factur-X/ZUGFeRD-PDF |
+| `atgp/factur-x` v3.5.1 | Erzeugung der Factur-X/ZUGFeRD-PDF |
 | `setasign/fpdi` | Lesen/Schreiben von PDFs |
 | `setasign/fpdf` | PDF-Engine (von atgp genutzt, Patch `/F 4` angewendet) |
 | `smalot/pdfparser` | Parsen von PDFs |

@@ -3,7 +3,7 @@
         'name' => 'auvo-design/auvoerechnung',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '1fda314e58aa43ab9f93a2cf06ed4325e1abc935',
+        'reference' => '62ba7ca431031c0f01be581104ec944933ac876d',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'atgp/factur-x' => array(
-            'pretty_version' => 'v3.5.0',
-            'version' => '3.5.0.0',
-            'reference' => 'b448a57074973ab57048aac8f2d208a516d685d9',
+            'pretty_version' => 'v3.5.1',
+            'version' => '3.5.1.0',
+            'reference' => '87539619871ad1316d7f19a431618353dcc08df2',
             'type' => 'library',
             'install_path' => __DIR__ . '/../atgp/factur-x',
             'aliases' => array(),
@@ -22,7 +22,7 @@
         'auvo-design/auvoerechnung' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '1fda314e58aa43ab9f93a2cf06ed4325e1abc935',
+            'reference' => '62ba7ca431031c0f01be581104ec944933ac876d',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -38,9 +38,9 @@
             'dev_requirement' => false,
         ),
         'setasign/fpdi' => array(
-            'pretty_version' => 'v2.6.9',
-            'version' => '2.6.9.0',
-            'reference' => 'd97ade6368aa0b51b6316d5dc16a567e2bf60167',
+            'pretty_version' => 'v2.6.10',
+            'version' => '2.6.10.0',
+            'reference' => 'be29a9d43c64f06569c1075f181e43d829a3d5bb',
             'type' => 'library',
             'install_path' => __DIR__ . '/../setasign/fpdi',
             'aliases' => array(),
