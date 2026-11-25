@@ -2287,6 +2287,18 @@ unset($GLOBALS['langs']);
 echo "U55 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U56 XRechnung version (BT-24) is fixed, the old setting is ignored';
+lfx_reset(['AUVOERECHNUNG_XRECHNUNG_VERSION' => '4.0']);
+lfx_assert_eq('urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0', auvoerechnung_xrechnung_cius_id(), 'stored 4.0 does not change BT-24');
+lfx_reset();
+lfx_assert_eq('urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0', auvoerechnung_xrechnung_cius_id(), 'BT-24 without setting');
+$setupSrc = file_get_contents(dirname(__DIR__).'/admin/setup.php');
+lfx_assert(strpos($setupSrc, 'AUVOERECHNUNG_XRECHNUNG_VERSION') === false, 'setup page no longer has the field');
+$modSrc = file_get_contents(dirname(__DIR__).'/core/modules/modAuvoERechnung.class.php');
+lfx_assert(strpos($modSrc, "array('AUVOERECHNUNG_XRECHNUNG_VERSION'") === false, 'constant no longer created on activation');
+echo "U56 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

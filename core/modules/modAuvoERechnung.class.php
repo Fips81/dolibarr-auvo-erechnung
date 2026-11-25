@@ -96,7 +96,6 @@ class modAuvoERechnung extends DolibarrModules
 			array('AUVOERECHNUNG_NOTE_AAB', 'chaine', '', 'Hinweis Skonto (AAB); leer = französischer Standardtext nur bei Verkäufern in Frankreich', 1, 'current', 0),
 			array('AUVOERECHNUNG_NOTES_IN_FOOTER', 'int', '0', 'Pflichthinweise zusätzlich in die Rechnungsfußzeile übernehmen (INVOICE_FREE_TEXT)', 1, 'current', 0),
 			array('AUVOERECHNUNG_NOTES_OVERWRITE', 'int', '0', 'Übernahme: bestehenden Dolibarr-Fußtext überschreiben (1) statt die Hinweise anzuhängen (0)', 1, 'current', 0),
-			array('AUVOERECHNUNG_XRECHNUNG_VERSION', 'chaine', '3.0', 'XRechnung-Version für BT-24 (KoSIT, z. B. 3.0)', 1, 'current', 0),
 			array('AUVOERECHNUNG_CONTACT_NAME', 'chaine', '', 'XRechnung: Ansprechpartner (BT-41); leer = Ersteller der Rechnung', 1, 'current', 0),
 			array('AUVOERECHNUNG_CONTACT_PHONE', 'chaine', '', 'XRechnung: Telefon des Ansprechpartners (BT-42); leer = Ersteller, sonst Firma', 1, 'current', 0),
 			array('AUVOERECHNUNG_CONTACT_EMAIL', 'chaine', '', 'XRechnung: E-Mail des Ansprechpartners (BT-43); leer = Ersteller, sonst Firma', 1, 'current', 0),
@@ -174,6 +173,10 @@ class modAuvoERechnung extends DolibarrModules
 		// Migrate Skonto 5.2.x from code-indexed to payment-term-ID-indexed.
 		dol_include_once('/auvoerechnung/core/lib/auvoerechnung.lib.php');
 		auvoerechnung_migrate_skonto_keys($this->db);
+		// 5.4.0: the XRechnung version (BT-24) is no longer a setting. Remove the
+		// old constant in all entities; the module ignores it in any case.
+		require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+		dolibarr_del_const($this->db, 'AUVOERECHNUNG_XRECHNUNG_VERSION', -1);
 		return $result;
 	}
 

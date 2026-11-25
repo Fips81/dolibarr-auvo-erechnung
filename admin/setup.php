@@ -103,7 +103,6 @@ if ($action == 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 		['AUVOERECHNUNG_CHORUS_ENABLED', GETPOSTINT('AUVOERECHNUNG_CHORUS_ENABLED'), 'int'],
 		['AUVOERECHNUNG_PHP_CLI_PATH', trim(GETPOST('AUVOERECHNUNG_PHP_CLI_PATH', 'alphanohtml')), 'chaine'],
 		['AUVOERECHNUNG_VERAPDF_PATH', trim(GETPOST('AUVOERECHNUNG_VERAPDF_PATH', 'alphanohtml')), 'chaine'],
-		['AUVOERECHNUNG_XRECHNUNG_VERSION', preg_match('/^\d+\.\d+$/', trim(GETPOST('AUVOERECHNUNG_XRECHNUNG_VERSION', 'alphanohtml'))) ? trim(GETPOST('AUVOERECHNUNG_XRECHNUNG_VERSION', 'alphanohtml')) : '3.0', 'chaine'],
 		['AUVOERECHNUNG_CONTACT_NAME', trim(GETPOST('AUVOERECHNUNG_CONTACT_NAME', 'alphanohtml')), 'chaine'],
 		['AUVOERECHNUNG_CONTACT_PHONE', trim(GETPOST('AUVOERECHNUNG_CONTACT_PHONE', 'alphanohtml')), 'chaine'],
 		['AUVOERECHNUNG_CONTACT_EMAIL', trim(GETPOST('AUVOERECHNUNG_CONTACT_EMAIL', 'email')), 'chaine'],
@@ -397,8 +396,6 @@ if ($tab === 'general') {
 		}
 		print '</td><td><input type="text" name="'.$constName.'" class="flat minwidth300" value="'.dol_escape_htmltag(getDolGlobalString($constName, '')).'"></td></tr>';
 	}
-	print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungXrVersion").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungXrVersionHint").'</span></td><td>';
-	print '<input type="text" name="AUVOERECHNUNG_XRECHNUNG_VERSION" class="flat width75" value="'.dol_escape_htmltag(getDolGlobalString('AUVOERECHNUNG_XRECHNUNG_VERSION', '3.0')).'"></td></tr>';
 	// Default XRechnung syntax (CII or UBL), overridable per customer.
 	$xrSyntax = getDolGlobalString('AUVOERECHNUNG_XRECHNUNG_SYNTAX', 'cii') === 'ubl' ? 'ubl' : 'cii';
 	print '<tr class="oddeven"><td>'.$langs->trans("AuvoERechnungXrSyntax").'<br><span class="opacitymedium small">'.$langs->trans("AuvoERechnungXrSyntaxHint").'</span></td><td>';

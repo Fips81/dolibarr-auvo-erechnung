@@ -35,11 +35,12 @@ if (!defined('AUVOERECHNUNG_EU_COUNTRIES')) {
 	define('AUVOERECHNUNG_DEFAULT_NOTE_PMT', 'Une indemnité forfaitaire de 40 euros sera exigible pour frais de recouvrement en cas de retard de paiement.');
 	define('AUVOERECHNUNG_DEFAULT_NOTE_AAB', 'Pas d\'escompte pour paiement anticipé.');
 	// XRechnung (German EN16931 CIUS from KoSIT): BT-23 is required by
-	// PEPPOL-EN16931-R001 in the XRechnung Schematron. This is the default
-	// specification version (BT-24). KoSIT publishes twice a year (Feb 1 / Jul 1);
-	// configure the version with AUVOERECHNUNG_XRECHNUNG_VERSION.
+	// PEPPOL-EN16931-R001 in the XRechnung Schematron. The specification
+	// version (BT-24) is fixed: KoSIT bugfix bundles keep the identifier
+	// xrechnung_3.0, and a new major version (4.0) changes the content too, so
+	// it needs a module update rather than a setting.
 	define('AUVOERECHNUNG_XRECHNUNG_BUSINESS_PROCESS', 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0');
-	define('AUVOERECHNUNG_XRECHNUNG_DEFAULT_VERSION', '3.0');
+	define('AUVOERECHNUNG_XRECHNUNG_CIUS_VERSION', '3.0');
 }
 
 require_once __DIR__.'/auvoerechnung_model.php';
@@ -2126,19 +2127,15 @@ function auvoerechnung_invoice_leitwegid($invoice)
 /**
  * XRechnung specification identifier (BT-24), e.g.
  * urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0
- * (BR-DE-21). The major.minor version can be configured with
- * AUVOERECHNUNG_XRECHNUNG_VERSION to follow KoSIT's twice-yearly releases
- * without a new module release. Malformed values fall back to the default.
+ * (BR-DE-21). The version is fixed by the module and must match the
+ * content it generates; the former setting AUVOERECHNUNG_XRECHNUNG_VERSION
+ * is ignored (a value such as 4.0 led to rejected invoices).
  *
  * @return string
  */
 function auvoerechnung_xrechnung_cius_id()
 {
-	$version = trim(getDolGlobalString('AUVOERECHNUNG_XRECHNUNG_VERSION', AUVOERECHNUNG_XRECHNUNG_DEFAULT_VERSION));
-	if (!preg_match('/^\d+\.\d+$/', $version)) {
-		$version = AUVOERECHNUNG_XRECHNUNG_DEFAULT_VERSION;
-	}
-	return 'urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_'.$version;
+	return 'urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_'.AUVOERECHNUNG_XRECHNUNG_CIUS_VERSION;
 }
 
 /**

@@ -22,7 +22,7 @@ Das Modul arbeitet mit den **aktuellen Fassungen** der deutschen und französisc
 
 **Wie das geprüft wird:** Jede Änderung und jedes Release wird automatisch mit dem **offiziellen Validator der KoSIT** (1.6.3) gegen die EN16931- und XRechnung-Regeln geprüft, siehe [Validierung und Tests](#validierung-und-tests).
 
-**Aktualität:** Die KoSIT veröffentlicht XRechnung-Fassungen zum 01.02. und 01.07., FeRD/FNFE-MPE neue ZUGFeRD/Factur-X-Versionen etwa halbjährlich. Neue Fassungen werden mit einem Modul-Update nachgezogen; die XRechnung-Kennung (Version) lässt sich zusätzlich in den Moduleinstellungen anpassen.
+**Aktualität:** Die KoSIT veröffentlicht XRechnung-Fassungen zum 01.02. und 01.07., FeRD/FNFE-MPE neue ZUGFeRD/Factur-X-Versionen etwa halbjährlich. Neue Fassungen werden mit einem Modul-Update nachgezogen. Fehlerkorrekturen der KoSIT behalten die Kennung `xrechnung_3.0` bei; erst eine neue Hauptversion wie XRechnung 4.0 ändert sie und kommt dann mit einem Modul-Update.
 
 ## Voraussetzungen
 
@@ -224,7 +224,7 @@ Für öffentliche Auftraggeber in Deutschland (und Firmenkunden, die es verlange
 - **Testrechnung:** Im Tab „Übersicht“ der Einstellungsseite erzeugt „Testrechnung erzeugen und prüfen“ eine ZUGFeRD- und eine XRechnung-Datei mit den eigenen Firmendaten und einem Testkunden, prüft beide und bietet sie zum Download an. Es wird nichts gespeichert.
 - **Skonto:** In den Moduleinstellungen (Tab „Skonto“) lassen sich je Zahlungsbedingung bis zu zwei Skontostufen eintragen, z. B. 7 Tage 2 %. Das Modul schreibt sie in BT-20 im vorgeschriebenen Format `#SKONTO#TAGE=7#PROZENT=2.00#` (BR-DE-18), hinter den Text der Zahlungsbedingung, in der XRechnung und im ZUGFeRD-XML. Steht „Skonto“ in der Bezeichnung einer Zahlungsbedingung, zeigt die Einstellungsseite einen Vorschlag an. Das Skonto hängt an der ID der Zahlungsbedingung: Code und Bezeichnung lassen sich im Wörterbuch ändern, ohne dass die Einstellung verloren geht.
 - **Skonto in anderen Modulen:** `auvoerechnung_get_skonto_terms($condReglementId)` aus `core/lib/auvoerechnung.lib.php` liefert die Stufen einer Zahlungsbedingung (`[['days' => 7, 'percent' => 2.0], …]`, nach Tagen sortiert). Nach jeder Änderung auf der Einstellungsseite löst das Modul den Hook `auvoerechnungSkontoChanged` im Kontext `auvoerechnungsetup` aus, mit den Parametern `terms` (neue Einstellung, nach ID der Zahlungsbedingung) und `previous` (alte Einstellung).
-- **Aktualität:** Die KoSIT veröffentlicht zum 01.02. und 01.07. Die Version der Kennung (Standard `3.0`) ist in den Moduleinstellungen einstellbar.
+- **Aktualität:** Die KoSIT veröffentlicht zum 01.02. und 01.07. Die Kennung in BT-24 ist fest `xrechnung_3.0` und gilt für alle Fassungen 3.0.x; eine neue Hauptversion (4.0) kommt mit einem Modul-Update.
 
 Details und noch fehlende Teile: [docs/LIMITATIONS.md](docs/LIMITATIONS.md#xrechnung).
 
@@ -383,7 +383,6 @@ Alle sind über den Administrationsbildschirm des Moduls konfigurierbar (**Start
 | `AUVOERECHNUNG_NOTES_IN_FOOTER` | int | 0 | Pflichthinweise in die Rechnungsfußzeile kopieren (`INVOICE_FREE_TEXT`) |
 | `AUVOERECHNUNG_NOTES_OVERWRITE` | int | 0 | Kopie in die Fußzeile: bestehenden Dolibarr-Hinweis überschreiben (1) statt unsere Hinweise anzuhängen (0) |
 | `AUVOERECHNUNG_CHORUS_ENABLED` | int | 0 | Nur Frankreich: Chorus-Pro-Funktionen aktivieren (Reiter, Menü, 2. PDF) — opt-in |
-| `AUVOERECHNUNG_XRECHNUNG_VERSION` | string | 3.0 | XRechnung-Version für die Kennung BT-24 |
 | `AUVOERECHNUNG_CONTACT_NAME` | string | *(leer)* | XRechnung: Ansprechpartner (BT-41); leer = Ersteller der Rechnung |
 | `AUVOERECHNUNG_CONTACT_PHONE` | string | *(leer)* | XRechnung: Telefon (BT-42); leer = Ersteller der Rechnung, sonst Firma |
 | `AUVOERECHNUNG_CONTACT_EMAIL` | string | *(leer)* | XRechnung: E-Mail (BT-43); leer = Ersteller der Rechnung, sonst Firma |
@@ -571,6 +570,7 @@ php tests/run-tests.php   # exit 0 = OK, 1 = Fehlschlag
 
 - **Leistungszeitraum je Position (BG-26, BT-134/BT-135):** Sind an einer Position Beginn und/oder Ende der Leistung erfasst, stehen sie jetzt auch je Position im XML (ZUGFeRD und XRechnung, CII und UBL), nicht nur zusammengefasst als Zeitraum der Rechnung (BG-14). Liegt der Zeitraum einer Position außerhalb eines von Hand an der Rechnung eingetragenen Leistungszeitraums, wird er weggelassen und eine Warnung ausgegeben, weil die XRechnung sonst abgelehnt würde (PEPPOL-EN16931-R110/R111); ebenso bei Ende vor Beginn (BR-30). Anregung aus Issue #3.
 - **Rückmeldung nach „ZUGFeRD neu erzeugen“:** Bisher passierte scheinbar nichts, wenn die PDF ohne ZUGFeRD blieb, ohne dass ein Fehler auftrat. Jetzt erscheint ein Hinweis mit der Ursache: Die PDF-Vorlage ruft den Hook `afterPDFCreation` nicht auf (mit Name der Vorlage), an der Rechnung ist „Keine E-Rechnung“ angehakt, oder die von der Vorlage gemeldete PDF-Datei fehlt. Diese Fälle stehen auch im Dolibarr-Log (`AuVo E-Rechnung`). Anlass: Issue #4.
+- **XRechnung-Version nicht mehr einstellbar:** Das Textfeld „XRechnung-Version“ in den Einstellungen entfällt. Die Kennung in BT-24 kommt fest aus dem Modul (`xrechnung_3.0`, gilt für alle KoSIT-Fassungen 3.0.x). Ein dort eingetragener Wert wie `4.0` führte zu einer falschen Kennung bei unverändertem Inhalt, und die Rechnung wurde beim Empfänger abgelehnt. Eine gespeicherte Einstellung wird ignoriert und beim Reaktivieren des Moduls gelöscht. XRechnung 4.0 kommt mit einem Modul-Update, sobald die KoSIT die endgültige Fassung veröffentlicht.
 - **Code-Kommentare auf Englisch:** Alle Kommentare und Docblocks im Code sind jetzt englisch (bisher französisch und deutsch gemischt), damit auch Mitwirkende ohne Deutsch- oder Französischkenntnisse den Code lesen können. Am Verhalten und an den Texten in Rechnungen und Oberfläche ändert sich nichts. Danke an jokr0815 (PR #5).
 
 ### 5.3.1 — Endrechnung mit Anzahlungen (November 2026)
