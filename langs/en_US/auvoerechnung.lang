@@ -17,8 +17,8 @@ AuvoERechnungBrCheckHint = Checks a subset of the EN16931 Schematron rules befor
 AuvoERechnungUpdateCheck = Check for updates
 AuvoERechnungUpdateCheckHint = The setup page asks api.github.com for a new version at most once a day (5 s timeout). No data is sent apart from the request itself. The only connection the module opens on its own; switch it off on servers without internet access or for privacy reasons.
 AuvoERechnungVeraPdfPath = PDF/A-3 validation with veraPDF (optional, external tool)
-AuvoERechnungVeraPdfPathHint = Empty by default = disabled, and that's fine: the EN16931 XSD check and internal BR rules already run. veraPDF is NOT shipped with the module — it's a third-party tool you install yourself (https://verapdf.org), then point to here. If set, every PDF is re-validated as PDF/A-3b after injection: non blocking (a failure just adds a warning), slows generation by a few seconds.
-AuvoERechnungVeraPdfPlaceholder = e.g. /usr/local/bin/verapdf — empty = disabled
+AuvoERechnungVeraPdfPathHint = Empty by default = disabled. The EN16931 XSD check and the internal BR rules already check the XML; veraPDF additionally checks the PDF container as PDF/A-3b (fonts, colour profile, metadata). Useful mainly with custom PDF or ODT templates. veraPDF is not shipped with the module: install it yourself (https://verapdf.org, requires Java 11+) and enter the launcher script here. The installer suggests a verapdf folder in the user's home directory; since the web server user must be able to run the script, choose a shared folder instead, e.g. /opt/verapdf (entry here: /opt/verapdf/verapdf; on Windows …\verapdf\verapdf.bat). Non-blocking (a failure only adds a warning), takes about 2 seconds per PDF.
+AuvoERechnungVeraPdfPlaceholder = e.g. /opt/verapdf/verapdf — empty = disabled
 AuvoERechnungInfo = Generated PDF invoices will automatically be converted to Factur-X EN16931 (PDF/A-3 with embedded CrossIndustryInvoice XML). IBAN and BIC are read from the selected bank account.
 AuvoERechnungDiagTitle = Mandatory information diagnostic
 AuvoERechnungDiagResults = Factur-X EN16931 + BR-FR rules check
