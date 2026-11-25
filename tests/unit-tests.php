@@ -2299,6 +2299,32 @@ lfx_assert(strpos($modSrc, "array('AUVOERECHNUNG_XRECHNUNG_VERSION'") === false,
 echo "U56 OK\n";
 
 // ---------------------------------------------------------------------------
+$currentTest = 'U57 PHP CLI cache must match the running PHP version';
+if (DIRECTORY_SEPARATOR === '/' && function_exists('exec')) {
+	$fakeDir = sys_get_temp_dir().'/lfx-phpcli-'.getmypid();
+	@mkdir($fakeDir);
+	$other = (PHP_MAJOR_VERSION === 7 ? '8' : '7').'.4';
+	$same = PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;
+	$fakeOld = $fakeDir.'/php-old';
+	$fakeSame = $fakeDir.'/php-same';
+	file_put_contents($fakeOld, "#!/bin/sh\necho 'PHP ".$other.".30 (cli) (built: test)'\n");
+	file_put_contents($fakeSame, "#!/bin/sh\necho 'PHP ".$same.".99 (cli) (built: test)'\n");
+	chmod($fakeOld, 0755);
+	chmod($fakeSame, 0755);
+	lfx_reset(['AUVOERECHNUNG_PHP_CLI_CACHE' => $fakeOld]);
+	lfx_assert(auvoerechnung_resolve_php_cli(null) !== $fakeOld, 'cached CLI with another version is not reused');
+	lfx_reset(['AUVOERECHNUNG_PHP_CLI_CACHE' => $fakeSame]);
+	lfx_assert_eq($fakeSame, auvoerechnung_resolve_php_cli(null), 'cached CLI with the same version is reused');
+	lfx_reset(['AUVOERECHNUNG_PHP_CLI_CACHE' => $fakeOld, 'AUVOERECHNUNG_PHP_CLI_PATH' => $fakeOld]);
+	lfx_assert_eq($fakeOld, auvoerechnung_resolve_php_cli(null), 'manual path is used as entered');
+	@unlink($fakeOld);
+	@unlink($fakeSame);
+	@rmdir($fakeDir);
+	lfx_reset();
+}
+echo "U57 OK\n";
+
+// ---------------------------------------------------------------------------
 echo "\n=== Résultat ===\n";
 echo "Passed : $passed\n";
 echo "Failed : $failed\n";

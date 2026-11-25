@@ -1871,7 +1871,10 @@ function auvoerechnung_resolve_vat_due_date_code($mysoc = null)
  * Resolve the PHP CLI binary for the injection subprocess.
  *  1. Use a non-empty manual override (AUVOERECHNUNG_PHP_CLI_PATH) as provided;
  *     append php.exe (Windows) or php when the value is a directory.
- *  2. Reuse a valid cached value (AUVOERECHNUNG_PHP_CLI_CACHE).
+ *  2. Reuse a cached value (AUVOERECHNUNG_PHP_CLI_CACHE) if it is still a PHP
+ *     CLI with the same major.minor version as the running PHP. Without the
+ *     version check, a binary detected before a PHP upgrade (e.g. php8.2 after
+ *     switching the web server to 8.4) stayed in use as long as it existed.
  *  3. Otherwise, auto-detect and cache the result.
  *
  * @param DoliDB $db
@@ -1886,7 +1889,7 @@ function auvoerechnung_resolve_php_cli($db)
 		return auvoerechnung_php_cli_from_dir($manual);
 	}
 	$cache = trim(getDolGlobalString('AUVOERECHNUNG_PHP_CLI_CACHE', ''));
-	if ($cache !== '' && auvoerechnung_php_cli_is_valid($cache)) {
+	if ($cache !== '' && auvoerechnung_php_cli_is_valid($cache, PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION)) {
 		return $cache;
 	}
 	$detected = auvoerechnung_detect_php_cli();
